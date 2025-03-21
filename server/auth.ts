@@ -173,7 +173,7 @@ export function setupAuth(app: Express) {
         phoneNumber: formattedPhoneNumber,
         password: await hashPassword(req.body.password),
         referralCode,
-        referredBy,
+        referredBy: req.body.referralCode,
       });
 
       // Log in the user
