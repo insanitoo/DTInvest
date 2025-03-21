@@ -40,9 +40,15 @@ export default function AuthPage() {
 
   // Redirect if already logged in
   useEffect(() => {
+    console.log("Auth page useEffect running, user:", user ? "authenticated" : "not authenticated");
     if (user) {
-      setLocation('/');
+      console.log("User already logged in, redirecting to home page");
+      // Using small timeout to ensure proper state propagation
+      setTimeout(() => {
+        setLocation('/');
+      }, 100);
     } else {
+      console.log("User not authenticated, showing login form");
       setSessionStatus('not-authenticated');
     }
   }, [user, setLocation]);
@@ -73,10 +79,22 @@ export default function AuthPage() {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
     
+    console.log(`Attempting login with phone number: ${formattedPhoneNumber}`);
+    setSessionStatus('checking');
+    
     loginMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
       rememberMe: data.rememberMe,
+    }, {
+      onSuccess: () => {
+        console.log("Login successful, setting status to authenticated");
+        setSessionStatus('authenticated');
+      },
+      onError: () => {
+        console.log("Login failed, setting status to not-authenticated");
+        setSessionStatus('not-authenticated');
+      }
     });
   };
 
@@ -85,10 +103,22 @@ export default function AuthPage() {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
     
+    console.log(`Attempting registration with phone number: ${formattedPhoneNumber}`);
+    setSessionStatus('checking');
+    
     registerMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
       referralCode: data.referralCode,
+    }, {
+      onSuccess: () => {
+        console.log("Registration successful, setting status to authenticated");
+        setSessionStatus('authenticated');
+      },
+      onError: () => {
+        console.log("Registration failed, setting status to not-authenticated");
+        setSessionStatus('not-authenticated');
+      }
     });
   };
 
