@@ -1,44 +1,38 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-import { Redirect, Route } from "wouter";
+import { Route, useLocation } from "wouter";
 
 export function ProtectedRoute({
   path,
   component: Component,
-  adminOnly = false,
 }: {
   path: string;
   component: () => React.JSX.Element;
-  adminOnly?: boolean;
 }) {
   const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
 
-  if (isLoading) {
-    return (
-      <Route path={path}>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-border" />
-        </div>
-      </Route>
-    );
-  }
+  return (
+    <Route path={path}>
+      {() => {
+        if (isLoading) {
+          return (
+            <div className="flex items-center justify-center min-h-screen bg-dark-primary">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
+        }
 
-  if (!user) {
-    return (
-      <Route path={path}>
-        <Redirect to="/auth" />
-      </Route>
-    );
-  }
+        if (!user) {
+          // Use setTimeout to avoid immediate redirect which can cause issues
+          setTimeout(() => {
+            setLocation("/auth");
+          }, 0);
+          return null;
+        }
 
-  // If adminOnly is true and user is not an admin, redirect to home
-  if (adminOnly && !user.isAdmin) {
-    return (
-      <Route path={path}>
-        <Redirect to="/" />
-      </Route>
-    );
-  }
-
-  return <Route path={path} component={Component} />
+        return <Component />;
+      }}
+    </Route>
+  );
 }

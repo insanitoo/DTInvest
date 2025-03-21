@@ -1,67 +1,58 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
-import { Home, Shield, Users, User } from 'lucide-react';
-
-interface NavItem {
-  id: string;
-  title: string;
-  icon: React.ReactNode;
-  path: string;
-}
+import React from "react";
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import { Home, User, ShoppingCart, BarChart2 } from "lucide-react";
 
 export function BottomNavigation() {
   const [location] = useLocation();
-  
-  const navItems: NavItem[] = [
-    {
-      id: 'home',
-      title: 'Início',
-      icon: <Home className="h-5 w-5" />,
-      path: '/'
-    },
-    {
-      id: 'products',
-      title: 'Produtos',
-      icon: <Shield className="h-5 w-5" />,
-      path: '/produtos'
-    },
-    {
-      id: 'team',
-      title: 'Equipa',
-      icon: <Users className="h-5 w-5" />,
-      path: '/equipa'
-    },
-    {
-      id: 'user',
-      title: 'Usuário',
-      icon: <User className="h-5 w-5" />,
-      path: '/usuario'
-    }
-  ];
+
+  const isActive = (path: string) => {
+    return location === path;
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-dark-secondary border-t border-gray-800 p-2 z-20">
-      <div className="grid grid-cols-4 gap-2">
-        {navItems.map((item) => {
-          const isActive = (
-            (item.path === '/' && location === '/') ||
-            (item.path !== '/' && location.startsWith(item.path))
-          );
-          
-          return (
-            <Link 
-              key={item.id}
-              href={item.path}
-              className="flex flex-col items-center justify-center py-1"
-            >
-              <div className={`nav-icon ${isActive ? 'active opacity-100' : 'opacity-60'} relative`}>
-                {item.icon}
-              </div>
-              <span className="text-xs mt-1">{item.title}</span>
-            </Link>
-          );
-        })}
+    <div className="fixed bottom-0 left-0 right-0 bg-dark-secondary border-t border-dark-border z-10">
+      <div className="flex justify-around items-center h-16">
+        <Link href="/">
+          <a className={cn(
+            "flex flex-col items-center justify-center text-xs py-1",
+            isActive("/") ? "text-primary" : "text-gray-400"
+          )}>
+            <Home className="h-6 w-6 mb-1" />
+            <span>Início</span>
+          </a>
+        </Link>
+        
+        <Link href="/markets">
+          <a className={cn(
+            "flex flex-col items-center justify-center text-xs py-1",
+            isActive("/markets") ? "text-primary" : "text-gray-400"
+          )}>
+            <BarChart2 className="h-6 w-6 mb-1" />
+            <span>Mercados</span>
+          </a>
+        </Link>
+        
+        <Link href="/products">
+          <a className={cn(
+            "flex flex-col items-center justify-center text-xs py-1",
+            isActive("/products") ? "text-primary" : "text-gray-400"
+          )}>
+            <ShoppingCart className="h-6 w-6 mb-1" />
+            <span>Produtos</span>
+          </a>
+        </Link>
+        
+        <Link href="/user">
+          <a className={cn(
+            "flex flex-col items-center justify-center text-xs py-1",
+            isActive("/user") ? "text-primary" : "text-gray-400"
+          )}>
+            <User className="h-6 w-6 mb-1" />
+            <span>Usuário</span>
+          </a>
+        </Link>
       </div>
-    </nav>
+    </div>
   );
 }

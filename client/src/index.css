@@ -1,179 +1,54 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
-@layer base {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    
-    --card: 222.2 47.4% 11.2%;
-    --card-foreground: 210 40% 98%;
- 
-    --popover: 222.2 47.4% 11.2%;
-    --popover-foreground: 210 40% 98%;
- 
-    --primary: 263.4 70% 50.2%;
-    --primary-foreground: 210 40% 98%;
- 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
- 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
- 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
- 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    
-    --radius: 0.5rem;
-    
-    /* Custom colors for the cybersecurity theme */
-    --brand-purple: 263.4 70% 50.2%;
-    --brand-pink: 330 84% 55%;
-    --brand-orange: 30 100% 50%;
-    --brand-yellow: 45 100% 50%;
-    --brand-red: 355 100% 60%;
-    
-    --dark-900: 222.2 84% 4.9%;
-    --dark-800: 222.2 47.4% 11.2%;
-    --dark-700: 215 28% 17%;
-    --dark-600: 215 20% 22%;
-  }
-}
 
 @layer base {
   * {
     @apply border-border;
   }
-  
+
   body {
-    @apply bg-dark-900 font-sans antialiased text-foreground;
-    background-image: 
-      radial-gradient(circle at 10% 20%, rgba(123, 47, 247, 0.05) 0%, transparent 20%),
-      radial-gradient(circle at 90% 50%, rgba(232, 53, 123, 0.05) 0%, transparent 25%),
-      linear-gradient(180deg, #050A1F 0%, #0A0A1A 100%);
-    background-attachment: fixed;
+    @apply font-sans antialiased bg-[#121212] text-white;
   }
 }
 
-@layer components {
-  .bg-dark-900 {
-    background-color: #050A1F;
-  }
-  
-  .bg-dark-secondary {
-    background-color: #111530;
-  }
-  
-  .bg-dark-tertiary {
-    background-color: #1A1E35;
-  }
-  
-  .text-brand-purple {
-    color: theme('colors.brand.purple');
-  }
-  
-  .text-brand-pink {
-    color: theme('colors.brand.pink');
-  }
-  
-  .text-brand-orange {
-    color: theme('colors.brand.orange');
-  }
-  
-  .text-brand-yellow {
-    color: theme('colors.brand.yellow');
-  }
-  
-  .text-brand-red {
-    color: theme('colors.brand.red');
-  }
-  
-  .bg-gradient-primary {
-    background: linear-gradient(90deg, #7B2FF7 0%, #E8357B 100%);
-  }
-  
-  .bg-gradient-secondary {
-    background: linear-gradient(90deg, #FF6B00 0%, #FFC107 100%);
-  }
-  
-  .balance-card {
-    background: linear-gradient(135deg, rgba(123, 47, 247, 0.7) 0%, rgba(232, 53, 123, 0.7) 100%);
-  }
-  
-  .circuit-pattern {
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 H 90 V 90 H 10 L 10 10' fill='none' stroke='%23333' stroke-width='0.5'/%3E%3Cpath d='M30 30 H 70 V 70 H 30 L 30 30' fill='none' stroke='%23333' stroke-width='0.5'/%3E%3C/svg%3E");
-    opacity: 0.05;
-  }
-  
-  .nav-icon {
-    position: relative;
-  }
-  
-  .nav-icon.active::after {
-    content: '';
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: #FFC107;
-    border-radius: 50%;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  
-  .cyber-element {
-    position: relative;
-  }
-  
-  .cyber-element::after {
-    content: '';
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-top: 1px solid rgba(255, 107, 0, 0.5);
-    border-left: 1px solid rgba(255, 107, 0, 0.5);
-    top: -3px;
-    left: -3px;
-  }
-  
-  .cyber-element::before {
-    content: '';
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-bottom: 1px solid rgba(255, 107, 0, 0.5);
-    border-right: 1px solid rgba(255, 107, 0, 0.5);
-    bottom: -3px;
-    right: -3px;
-  }
-  
-  .cybernetic-border {
-    position: relative;
-    overflow: hidden;
-  }
+:root {
+  --dark-primary: #121212;
+  --dark-secondary: #1E1E1E;
+  --dark-tertiary: #2D2D2D;
+  --dark-border: #3B3B3B;
+}
 
-  .cybernetic-border::before {
-    content: '';
-    position: absolute;
-    top: -1px;
-    left: -1px;
-    right: -1px;
-    bottom: -1px;
-    border: 1px solid transparent;
-    border-radius: inherit;
-    background: linear-gradient(90deg, rgba(123, 47, 247, 0.5) 0%, rgba(232, 53, 123, 0.5) 100%) border-box;
-    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
+.cyber-element {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.cyber-element::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  animation: cyber-scan 3s linear infinite;
+}
+
+@keyframes cyber-scan {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+.auth-input {
+  background-color: var(--dark-tertiary);
+  border: 1px solid var(--dark-border);
+  color: white;
+  transition: all 0.3s;
+}
+
+.auth-input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.5);
 }

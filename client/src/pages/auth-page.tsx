@@ -1,288 +1,419 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Smartphone, Lock, Ticket } from 'lucide-react';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Link, useLocation } from "wouter";
 import { useAuth } from '@/hooks/use-auth';
-import { LoginData, RegistrationData } from '@shared/schema';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { formatPhoneNumber } from '@/lib/utils';
 
 const loginSchema = z.object({
-  phoneNumber: z.string()
-    .min(9, "Número de telefone deve ter pelo menos 9 dígitos")
-    .max(9, "Número de telefone deve ter no máximo 9 dígitos")
-    .regex(/^9[0-9]{8}$/, "Número de telefone deve começar com 9 seguido de 8 dígitos"),
-  password: z.string().min(1, "A senha é obrigatória"),
+  phoneNumber: z.string().min(9, 'Número de telefone deve ter 9 dígitos'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  rememberMe: z.boolean().optional(),
 });
 
 const registerSchema = z.object({
-  referralCode: z.string().min(1, "Código de convite é obrigatório"),
-  phoneNumber: z.string()
-    .min(9, "Número de telefone deve ter pelo menos 9 dígitos")
-    .max(9, "Número de telefone deve ter no máximo 9 dígitos")
-    .regex(/^9[0-9]{8}$/, "Número de telefone deve começar com 9 seguido de 8 dígitos"),
-  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+  phoneNumber: z.string().min(9, 'Número de telefone deve ter 9 dígitos'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  confirmPassword: z.string(),
+  referralCode: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Senhas não coincidem',
+  path: ['confirmPassword'],
 });
 
+type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
+
 export default function AuthPage() {
-  const [showRegister, setShowRegister] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const { user, loginMutation, registerMutation, isLoading } = useAuth();
+  const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      setTimeout(() => {
-        setLocation('/', { replace: true });
-      }, 100);
+      setLocation('/');
+    } else {
+      setSessionStatus('not-authenticated');
     }
   }, [user, setLocation]);
 
   // Login form
-  const loginForm = useForm<LoginData>({
+  const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       phoneNumber: '',
       password: '',
+      rememberMe: false,
     },
   });
 
   // Register form
-  const registerForm = useForm<RegistrationData>({
+  const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      referralCode: '',
       phoneNumber: '',
       password: '',
+      confirmPassword: '',
+      referralCode: '',
     },
   });
 
-  const onLoginSubmit = (data: LoginData) => {
-    loginMutation.mutate(data);
+  // Handle login submission
+  const onLoginSubmit = (data: LoginFormValues) => {
+    // Remove spaces from phone number before submitting
+    const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
+    
+    loginMutation.mutate({
+      phoneNumber: formattedPhoneNumber,
+      password: data.password,
+      rememberMe: data.rememberMe,
+    });
   };
 
-  const onRegisterSubmit = (data: RegistrationData) => {
-    registerMutation.mutate(data);
+  // Handle register submission
+  const onRegisterSubmit = (data: RegisterFormValues) => {
+    // Remove spaces from phone number before submitting
+    const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
+    
+    registerMutation.mutate({
+      phoneNumber: formattedPhoneNumber,
+      password: data.password,
+      referralCode: data.referralCode,
+    });
+  };
+
+  // Format phone number as user types
+  const formatPhoneInput = (e: React.ChangeEvent<HTMLInputElement>, formSetter: any) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+    const formatted = formatPhoneNumber(value);
+    formSetter(formatted);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
-      <div className="w-full max-w-md bg-dark-secondary rounded-xl p-6 cybernetic-border">
-        {/* Login Form */}
-        {!showRegister && (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold">S&P Global</h2>
-              <div className="rounded-full bg-white w-12 h-12 flex items-center justify-center">
-                <span className="text-dark-secondary text-lg font-bold">S&P</span>
-              </div>
+    <div className="min-h-screen bg-dark-primary text-white">
+      <div className="container mx-auto px-4 py-8 max-w-md">
+        {/* Session Status */}
+        <div className="mb-6 rounded-md bg-dark-tertiary p-3 cyber-element">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div 
+                className={`w-3 h-3 rounded-full ${
+                  sessionStatus === 'checking' ? 'bg-yellow-500 animate-pulse' :
+                  sessionStatus === 'authenticated' ? 'bg-green-500' :
+                  'bg-gray-500'
+                }`}
+              ></div>
+              <p className="text-sm text-gray-300">
+                {sessionStatus === 'checking' ? 'Verificando autenticação...' :
+                 sessionStatus === 'authenticated' ? 'Autenticado' :
+                 'Não autenticado'}
+              </p>
             </div>
+          </div>
+        </div>
 
-            <p className="text-gray-300 mb-6">Faça login e ganhe sua renda</p>
+        {/* Auth Tabs */}
+        <div className="bg-dark-secondary rounded-lg overflow-hidden mb-6 cyber-element">
+          <div className="flex">
+            <button 
+              className={`flex-1 py-3 text-center ${
+                activeTab === 'login' ? 'bg-dark-tertiary border-b-2 border-primary font-medium' : 'text-gray-400'
+              }`}
+              onClick={() => setActiveTab('login')}
+            >
+              Login
+            </button>
+            <button 
+              className={`flex-1 py-3 text-center ${
+                activeTab === 'register' ? 'bg-dark-tertiary border-b-2 border-primary font-medium' : 'text-gray-400'
+              }`}
+              onClick={() => setActiveTab('register')}
+            >
+              Registro
+            </button>
+          </div>
 
-            <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                <FormField
-                  control={loginForm.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telemóvel</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="9xxxxxxxx" 
-                            className="bg-dark-tertiary text-white border-gray-700 pl-12" 
-                          />
-                        </FormControl>
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <Smartphone className="h-5 w-5 text-gray-400" />
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">Apresentamos o seu celular</p>
-                      <FormMessage />
-                    </FormItem>
+          {/* Login Form */}
+          <div className={`p-6 ${activeTab !== 'login' ? 'hidden' : ''}`}>
+            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+              <div>
+                <label htmlFor="login-phone" className="block text-sm text-gray-400 mb-1">
+                  Número de Telefone
+                </label>
+                <Input
+                  id="login-phone"
+                  className="w-full rounded-md p-2.5 auth-input"
+                  placeholder="Ex: 999 999 999"
+                  {...loginForm.register('phoneNumber')}
+                  onChange={(e) => formatPhoneInput(e, (val: string) => 
+                    loginForm.setValue('phoneNumber', val, { shouldValidate: true })
                   )}
                 />
+                {loginForm.formState.errors.phoneNumber && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {loginForm.formState.errors.phoneNumber.message}
+                  </p>
+                )}
+              </div>
 
-                <FormField
-                  control={loginForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Palavra-passe</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="******" 
-                            className="bg-dark-tertiary text-white border-gray-700 pl-12" 
-                          />
-                        </FormControl>
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <Lock className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <button 
-                          type="button" 
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400" />
-                          ) : (
-                            <Eye className="h-5 w-5 text-gray-400" />
-                          )}
-                        </button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div>
+                <label htmlFor="login-password" className="block text-sm text-gray-400 mb-1">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showLoginPassword ? 'text' : 'password'}
+                    className="w-full rounded-md p-2.5 auth-input"
+                    placeholder="Sua senha"
+                    {...loginForm.register('password')}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {loginForm.formState.errors.password && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {loginForm.formState.errors.password.message}
+                  </p>
+                )}
+              </div>
 
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  className="w-full py-6"
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="remember"
+                    className="w-4 h-4 bg-dark-tertiary rounded border-gray-600 focus:ring-primary focus:ring-2"
+                    {...loginForm.register('rememberMe')}
+                  />
+                  <label htmlFor="remember" className="ml-2 text-sm text-gray-400">
+                    Lembrar-me
+                  </label>
+                </div>
+                <a href="#" className="text-sm text-primary hover:underline">
+                  Esqueceu a senha?
+                </a>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-white py-2.5 rounded-md font-medium transition-colors"
                   disabled={loginMutation.isPending}
                 >
-                  {loginMutation.isPending ? 'Processando...' : 'Iniciar sessão'}
+                  {loginMutation.isPending ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader2 className="animate-spin h-5 w-5" />
+                      <span>Autenticando...</span>
+                    </div>
+                  ) : (
+                    'Entrar'
+                  )}
                 </Button>
-              </form>
-            </Form>
-
-            <div className="text-center mt-6">
-              <p className="text-gray-400">
-                Não tem conta? <Button variant="link" className="text-brand-yellow p-0" onClick={() => setShowRegister(true)}>Criar conta</Button>
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Register Form */}
-        {showRegister && (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold">Criar Conta</h2>
-              <div className="rounded-full bg-white w-12 h-12 flex items-center justify-center">
-                <span className="text-dark-secondary text-lg font-bold">S&P</span>
               </div>
-            </div>
 
-            <Form {...registerForm}>
-              <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                <FormField
-                  control={registerForm.control}
-                  name="referralCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código de Convite (Obrigatório)</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="Digite o código" 
-                            className="bg-dark-tertiary text-white border-gray-700 pl-12" 
-                          />
-                        </FormControl>
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <Ticket className="h-5 w-5 text-gray-400" />
-                        </div>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
+              {loginMutation.isError && (
+                <div className="bg-red-900/30 border border-red-500/50 rounded-md p-3 mt-2 text-sm text-red-200 flex items-start">
+                  <p>{loginMutation.error.message}</p>
+                </div>
+              )}
+            </form>
+          </div>
+
+          {/* Register Form */}
+          <div className={`p-6 ${activeTab !== 'register' ? 'hidden' : ''}`}>
+            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+              <div>
+                <label htmlFor="register-phone" className="block text-sm text-gray-400 mb-1">
+                  Número de Telefone
+                </label>
+                <Input
+                  id="register-phone"
+                  className="w-full rounded-md p-2.5 auth-input"
+                  placeholder="Ex: 999 999 999"
+                  {...registerForm.register('phoneNumber')}
+                  onChange={(e) => formatPhoneInput(e, (val: string) => 
+                    registerForm.setValue('phoneNumber', val, { shouldValidate: true })
                   )}
                 />
+                {registerForm.formState.errors.phoneNumber && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {registerForm.formState.errors.phoneNumber.message}
+                  </p>
+                )}
+              </div>
 
-                <FormField
-                  control={registerForm.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telemóvel</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="9xxxxxxxx" 
-                            className="bg-dark-tertiary text-white border-gray-700 pl-12" 
-                          />
-                        </FormControl>
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <Smartphone className="h-5 w-5 text-gray-400" />
-                        </div>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              <div>
+                <label htmlFor="register-password" className="block text-sm text-gray-400 mb-1">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Input
+                    id="register-password"
+                    type={showRegisterPassword ? 'text' : 'password'}
+                    className="w-full rounded-md p-2.5 auth-input"
+                    placeholder="Crie uma senha"
+                    {...registerForm.register('password')}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                  >
+                    {showRegisterPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {registerForm.formState.errors.password && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {registerForm.formState.errors.password.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="confirm-password" className="block text-sm text-gray-400 mb-1">
+                  Confirmar Senha
+                </label>
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    className="w-full rounded-md p-2.5 auth-input"
+                    placeholder="Confirme sua senha"
+                    {...registerForm.register('confirmPassword')}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {registerForm.formState.errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {registerForm.formState.errors.confirmPassword.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="referral-code" className="block text-sm text-gray-400 mb-1">
+                  Código de Convite (opcional)
+                </label>
+                <Input
+                  id="referral-code"
+                  className="w-full rounded-md p-2.5 auth-input"
+                  placeholder="Código de convite"
+                  {...registerForm.register('referralCode')}
                 />
+              </div>
 
-                <FormField
-                  control={registerForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Palavra-passe</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="******" 
-                            className="bg-dark-tertiary text-white border-gray-700 pl-12" 
-                          />
-                        </FormControl>
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <Lock className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <button 
-                          type="button" 
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400" />
-                          ) : (
-                            <Eye className="h-5 w-5 text-gray-400" />
-                          )}
-                        </button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  className="w-full py-6"
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-white py-2.5 rounded-md font-medium transition-colors"
                   disabled={registerMutation.isPending}
                 >
-                  {registerMutation.isPending ? 'Processando...' : 'Criar conta'}
+                  {registerMutation.isPending ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader2 className="animate-spin h-5 w-5" />
+                      <span>Registrando...</span>
+                    </div>
+                  ) : (
+                    'Registrar'
+                  )}
                 </Button>
-              </form>
-            </Form>
+              </div>
 
-            <div className="text-center mt-6">
-              <p className="text-gray-400">
-                Já tem conta? <Button variant="link" className="text-brand-yellow p-0" onClick={() => setShowRegister(false)}>Entrar</Button>
-              </p>
-            </div>
-          </>
-        )}
+              {registerMutation.isError && (
+                <div className="bg-red-900/30 border border-red-500/50 rounded-md p-3 mt-2 text-sm text-red-200 flex items-start">
+                  <p>{registerMutation.error.message}</p>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        <div className="mt-8 bg-dark-secondary rounded-lg p-4 cyber-element">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-gray-400">Debug: Autenticação</h3>
+            <button
+              className="text-xs bg-dark-tertiary hover:bg-dark-tertiary/80 text-gray-400 py-1 px-2 rounded"
+              onClick={() => setShowDebug(!showDebug)}
+            >
+              {showDebug ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+            </button>
+          </div>
+
+          {showDebug && (
+            <>
+              {/* Token Manager */}
+              <div className="mb-4 border border-dark-border rounded-md overflow-hidden">
+                <div className="bg-dark-tertiary py-2 px-3 border-b border-dark-border">
+                  <h4 className="text-xs font-medium">Token Manager</h4>
+                </div>
+                <div className="p-3 text-xs font-mono bg-dark-primary/50">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-400">Status:</span>
+                    <span className={`${user ? 'text-green-500' : 'text-gray-500'}`}>
+                      {user ? 'Válido' : 'Ausente'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-400">Armazenado em:</span>
+                    <span className="text-gray-300">localStorage</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Storage Button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  className="text-xs bg-red-900/50 hover:bg-red-900/80 text-red-300 py-1.5 px-3 rounded"
+                  onClick={() => {
+                    localStorage.removeItem(AUTH_USER_KEY);
+                    window.location.reload();
+                  }}
+                >
+                  Limpar dados armazenados
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+// Storage key for auth user (same as in use-auth.tsx)
+const AUTH_USER_KEY = 'sp_global_auth_user';

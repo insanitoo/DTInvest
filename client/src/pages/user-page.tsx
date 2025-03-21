@@ -152,7 +152,7 @@ export default function UserPage() {
             <span>Recarregar</span>
           </Button>
           <Button 
-            variant="secondary2" 
+            variant="secondary" 
             className="rounded-lg py-6 flex items-center justify-center space-x-2 cyber-element"
             onClick={() => setShowWithdrawalModal(true)}
           >
@@ -362,103 +362,111 @@ export default function UserPage() {
               </div>
             </TabsContent>
             
-            {/* Bank Tab */}
+            {/* Bank Information Tab */}
             <TabsContent value="bank">
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Meus dados bancários</h3>
-                
-                <CyberneticBox>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="bank"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Banco</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="bg-dark-tertiary border-gray-700">
-                                  <SelectValue placeholder="Selecione um banco" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-dark-tertiary border-gray-700">
-                                <SelectItem value="BAI">BAI</SelectItem>
-                                <SelectItem value="BIC">BIC</SelectItem>
-                                <SelectItem value="BFA">BFA</SelectItem>
-                                <SelectItem value="Millennium Atlântico">Millennium Atlântico</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="ownerName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome do titular</FormLabel>
+                <h3 className="text-lg font-semibold mb-3">Informações Bancárias</h3>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="bank"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm text-gray-400">Banco</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                            disabled={saveBankMutation.isPending}
+                          >
                             <FormControl>
-                              <Input 
-                                {...field} 
-                                className="bg-dark-tertiary border-gray-700" 
-                                placeholder="Nome completo" 
-                              />
+                              <SelectTrigger className="bg-dark-tertiary border-gray-700">
+                                <SelectValue placeholder="Selecione um banco" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="accountNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Número da conta</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                className="bg-dark-tertiary border-gray-700" 
-                                placeholder="Número da conta" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        variant="primary" 
-                        className="w-full"
-                        disabled={saveBankMutation.isPending}
-                      >
-                        {saveBankMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Salvando...
-                          </>
-                        ) : (
-                          "Salvar informações"
-                        )}
-                      </Button>
-                    </form>
-                  </Form>
-                </CyberneticBox>
+                            <SelectContent className="bg-dark-secondary text-white border-gray-700">
+                              <SelectItem value="BAI">BAI</SelectItem>
+                              <SelectItem value="BFA">BFA</SelectItem>
+                              <SelectItem value="BIC">BIC</SelectItem>
+                              <SelectItem value="BPC">BPC</SelectItem>
+                              <SelectItem value="BMA">BMA</SelectItem>
+                              <SelectItem value="KEVE">KEVE</SelectItem>
+                              <SelectItem value="SOL">SOL</SelectItem>
+                              <SelectItem value="OUTRO">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-red-500 text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm text-gray-400">Nome do Titular</FormLabel>
+                          <FormControl>
+                            <Input 
+                              className="bg-dark-tertiary border-gray-700" 
+                              placeholder="Nome completo do titular da conta"
+                              disabled={saveBankMutation.isPending}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-500 text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm text-gray-400">Número da Conta</FormLabel>
+                          <FormControl>
+                            <Input 
+                              className="bg-dark-tertiary border-gray-700" 
+                              placeholder="Número da conta bancária"
+                              disabled={saveBankMutation.isPending}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-500 text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full"
+                      disabled={saveBankMutation.isPending}
+                    >
+                      {saveBankMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Salvando...
+                        </>
+                      ) : (
+                        "Salvar Informações"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
+              
+              <div className="mt-6 bg-dark-secondary border-l-4 border-yellow-500 p-4 rounded-r-md">
+                <h4 className="font-medium mb-2 text-yellow-400">Importante:</h4>
+                <p className="text-sm text-gray-300">
+                  Suas informações bancárias serão usadas para processamento de saques. 
+                  Certifique-se de fornecer dados corretos para evitar problemas no processamento.
+                </p>
               </div>
             </TabsContent>
           </Tabs>
         </div>
       </div>
-      
-      {/* Bottom Navigation */}
-      <BottomNavigation />
       
       {/* Modals */}
       <WithdrawalModal 
@@ -469,6 +477,9 @@ export default function UserPage() {
         isOpen={showDepositModal} 
         onClose={() => setShowDepositModal(false)} 
       />
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </>
   );
 }

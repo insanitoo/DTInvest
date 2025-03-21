@@ -1,14 +1,11 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express, Request, Response, NextFunction } from "express";
+import { Express } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { nanoid } from "nanoid";
 import { storage } from "./storage";
-import { User, registrationSchema, loginSchema } from "@shared/schema";
-import { ZodError } from "zod";
-import { fromZodError } from "zod-validation-error";
+import { User } from "@shared/schema";
 
 declare global {
   namespace Express {
@@ -25,56 +22,40 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  console.log(`Comparing passwords: supplied=${supplied.length} chars, stored=${stored}`);
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+// Generate a random referral code
+function generateReferralCode(): string {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  let code = '';
   
-  // Para usuário de teste (999999999)
-  if (stored === "prototype" && supplied === "protótipo") {
-    console.log("Matched test user with simple password");
-    return true;
+  // Generate a code like AB1234
+  for (let i = 0; i < 2; i++) {
+    code += letters.charAt(Math.floor(Math.random() * letters.length));
   }
   
-  // Verifica se é usuário admin
-  if (supplied === "darktrace.vip" && (stored === "darktrace.vip" || stored.includes("3bba7c3de9200c34ce5eb557e31c97ea"))) {
-    console.log("Matched admin user with hardcoded password");
-    return true;
+  for (let i = 0; i < 4; i++) {
+    code += numbers.charAt(Math.floor(Math.random() * numbers.length));
   }
   
-  try {
-    // Caso contrário, usa o método seguro de comparação
-    const [hashed, salt] = stored.split(".");
-    if (!hashed || !salt) {
-      console.log("Hash inválido, formato incorreto:", stored);
-      return false;
-    }
-    
-    console.log(`Hash parts: hashed=${hashed.substring(0, 10)}..., salt=${salt.substring(0, 10)}...`);
-    
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    
-    const result = timingSafeEqual(hashedBuf, suppliedBuf);
-    console.log(`Password comparison result: ${result}`);
-    
-    return result;
-  } catch (error) {
-    console.error("Erro ao comparar senhas:", error);
-    return false;
-  }
+  return code;
 }
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "s&p-global-dark-trace-secret",
-    resave: true,
-    saveUninitialized: true,
+    secret: process.env.SESSION_SECRET || 'sp_global_session_secret',
+    resave: false,
+    saveUninitialized: false,
     store: storage.sessionStore,
-    name: 'sp_global_session', // Nome específico do cookie
     cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      secure: false, // Para desenvolvimento
-      sameSite: 'lax',
-      path: '/'
     }
   };
 
@@ -83,218 +64,179 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Custom login strategy with phone number
-  passport.use(new LocalStrategy(
-    {
-      usernameField: "phoneNumber",
-      passwordField: "password",
-    },
-    async (phoneNumber, password, done) => {
-      try {
-        console.log("Login attempt with phoneNumber:", phoneNumber);
-        const user = await storage.getUserByPhoneNumber(phoneNumber);
-        
-        if (!user) {
-          console.log("User not found for phoneNumber:", phoneNumber);
-          return done(null, false, { message: "Número de telefone ou senha incorretos" });
+  // Configure Passport Local Strategy
+  passport.use(
+    new LocalStrategy(
+      {
+        usernameField: 'phoneNumber',
+        passwordField: 'password',
+        passReqToCallback: true,
+      },
+      async (req, phoneNumber, password, done) => {
+        try {
+          // Normalize phone number by removing spaces
+          const formattedPhoneNumber = phoneNumber.replace(/\s+/g, '');
+          
+          // Get user by phone number
+          const user = await storage.getUserByPhoneNumber(formattedPhoneNumber);
+          
+          // If user doesn't exist or password doesn't match
+          if (!user || !(await comparePasswords(password, user.password))) {
+            return done(null, false, { message: 'Número de telefone ou senha incorretos' });
+          }
+          
+          // If remember me is checked, extend session
+          if (req.body.rememberMe) {
+            if (req.session.cookie) {
+              req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            }
+          }
+          
+          return done(null, user);
+        } catch (error) {
+          return done(error);
         }
-        
-        console.log("User found:", user.phoneNumber);
-        console.log("Stored password hash:", user.password);
-        
-        const isPasswordValid = await comparePasswords(password, user.password);
-        console.log("Password comparison result:", isPasswordValid);
-        
-        if (!isPasswordValid) {
-          return done(null, false, { message: "Número de telefone ou senha incorretos" });
-        }
-        
-        if (user.isBlocked) {
-          return done(null, false, { message: "Conta congelada" });
-        }
-        
-        console.log("Login successful for user:", user.phoneNumber);
-        return done(null, user);
-      } catch (error) {
-        console.error("Login error:", error);
-        return done(error);
       }
-    }
-  ));
+    ),
+  );
 
+  // Configure serialization and deserialization
   passport.serializeUser((user, done) => {
-    console.log('Serializando usuário:', user.id);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      console.log('Deserializando usuário ID:', id);
       const user = await storage.getUser(id);
-      
       if (!user) {
-        console.log('ERRO: Usuário não encontrado na deserialização!');
         return done(null, false);
       }
       
-      console.log('Usuário deserializado com sucesso:', user.phoneNumber);
-      done(null, user);
+      // Add bank info to user if available
+      const bankInfo = await storage.getBankInfoByUserId(id);
+      if (bankInfo) {
+        const userWithBank = {
+          ...user,
+          bankInfo: {
+            bank: bankInfo.bank,
+            ownerName: bankInfo.ownerName,
+            accountNumber: bankInfo.accountNumber
+          }
+        };
+        return done(null, userWithBank);
+      }
+      
+      return done(null, user);
     } catch (error) {
-      console.error('Erro ao deserializar usuário:', error);
-      done(error);
+      return done(error);
     }
   });
 
-  // Registration endpoint
-  app.post("/api/register", async (req: Request, res: Response, next: NextFunction) => {
+  // Register route
+  app.post("/api/register", async (req, res, next) => {
     try {
-      const data = registrationSchema.parse(req.body);
+      // Normalize phone number
+      const formattedPhoneNumber = req.body.phoneNumber.replace(/\s+/g, '');
       
-      // Check if phone number already exists
-      const existingUser = await storage.getUserByPhoneNumber(data.phoneNumber);
+      // Check if user already exists
+      const existingUser = await storage.getUserByPhoneNumber(formattedPhoneNumber);
       if (existingUser) {
         return res.status(400).json({ message: "Número de telefone já está em uso" });
       }
       
-      // Check if referral code is valid
-      const referrer = await storage.getUserByReferralCode(data.referralCode);
-      if (!referrer) {
-        return res.status(400).json({ message: "Código de convite inválido" });
+      // Generate referral code
+      let referralCode = generateReferralCode();
+      let isUniqueCode = false;
+      
+      // Ensure referral code is unique
+      while (!isUniqueCode) {
+        const existingCode = await storage.getUserByReferralCode(referralCode);
+        if (!existingCode) {
+          isUniqueCode = true;
+        } else {
+          referralCode = generateReferralCode();
+        }
       }
       
-      // Generate unique referral code for the new user
-      const referralCode = nanoid(8);
+      // Check referral code if provided
+      let referredBy = null;
+      if (req.body.referralCode) {
+        const referrer = await storage.getUserByReferralCode(req.body.referralCode);
+        if (!referrer) {
+          return res.status(400).json({ message: "Código de convite inválido" });
+        }
+        referredBy = req.body.referralCode;
+      }
       
-      // Create user with hashed password
+      // Create user
       const user = await storage.createUser({
-        phoneNumber: data.phoneNumber,
-        password: await hashPassword(data.password),
-        referralCode: referralCode,
-        referredBy: referrer.id,
-        bankInfo: {}
+        phoneNumber: formattedPhoneNumber,
+        password: await hashPassword(req.body.password),
+        referralCode,
+        referredBy,
       });
-      
+
       // Log in the user
       req.login(user, (err) => {
         if (err) return next(err);
-        return res.status(201).json({
-          id: user.id,
-          phoneNumber: user.phoneNumber,
-          referralCode: user.referralCode
-        });
+        return res.status(201).json(user);
       });
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        res.status(400).json({ message: validationError.message });
-      } else {
-        res.status(500).json({ message: "Erro ao registrar usuário" });
-      }
+      console.error("Error during registration:", error);
+      return res.status(500).json({ message: "Erro ao processar registro" });
     }
   });
 
-  // Login endpoint
-  app.post("/api/login", (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // Validate login data
-      console.log("Realizando tentativa de login:", req.body.phoneNumber);
-      loginSchema.parse(req.body);
+  // Login route
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
+      }
       
-      passport.authenticate("local", (err: Error, user: User, info: { message: string }) => {
-        if (err) {
-          console.error("Erro na autenticação:", err);
-          return next(err);
-        }
-        
-        if (!user) {
-          console.log("Usuário não autenticado:", info.message);
-          return res.status(401).json({ message: info.message || "Credenciais inválidas" });
-        }
-        
-        console.log("Autenticação bem-sucedida, iniciando login da sessão...");
-        req.login(user, (err) => {
-          if (err) {
-            console.error("Erro ao salvar sessão:", err);
-            return next(err);
-          }
-          
-          console.log("Sessão salva com sucesso, ID do usuário:", user.id);
-          console.log("Estado da sessão:", req.session);
-          
-          // Garante que os dados da sessão foram salvos
-          req.session.save((err) => {
-            if (err) {
-              console.error("Erro ao salvar sessão:", err);
-            }
-            
-            console.log("Sessão persistida com sucesso!");
-            
-            return res.json({
-              id: user.id,
-              phoneNumber: user.phoneNumber,
-              referralCode: user.referralCode,
-              balance: user.balance,
-              dailyIncome: user.dailyIncome,
-              isAdmin: user.isAdmin
-            });
-          });
-        });
-      })(req, res, next);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        console.log("Erro de validação:", validationError.message);
-        res.status(400).json({ message: validationError.message });
-      } else {
-        console.error("Erro no processo de login:", error);
-        res.status(500).json({ message: "Erro ao fazer login" });
-      }
-    }
+      req.login(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+        return res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
-  // Logout endpoint
-  app.post("/api/logout", (req: Request, res: Response, next: NextFunction) => {
+  // Logout route
+  app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      req.session.destroy((sessionErr) => {
+        if (sessionErr) return next(sessionErr);
+        res.clearCookie('connect.sid');
+        return res.sendStatus(200);
+      });
     });
   });
 
   // Get current user
-  app.get("/api/user", (req: Request, res: Response) => {
-    console.log("Requisição para /api/user recebida");
-    console.log("Session ID:", req.sessionID);
-    console.log("Session data:", req.session);
-    console.log("isAuthenticated?", req.isAuthenticated());
-    
+  app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
-      console.log("Usuário não autenticado, retornando 401");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    return res.json(req.user);
+  });
+  
+  // Update bank info
+  app.post("/api/user/bank", (req, res, next) => {
+    if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
     
-    console.log("Usuário autenticado, dados completos:", req.user);
-    const user = req.user;
-    res.json({
-      id: user.id,
-      phoneNumber: user.phoneNumber,
-      referralCode: user.referralCode,
-      balance: user.balance,
-      dailyIncome: user.dailyIncome,
-      hasProduct: user.hasProduct,
-      hasDeposited: user.hasDeposited,
-      bankInfo: user.bankInfo,
-      level1Referrals: user.level1Referrals,
-      level2Referrals: user.level2Referrals,
-      level3Referrals: user.level3Referrals,
-      level1Commission: user.level1Commission,
-      level2Commission: user.level2Commission,
-      level3Commission: user.level3Commission,
-      isAdmin: user.isAdmin
-    });
-  });
-
-  // Access the special /riqueza route for initial access
-  app.get("/api/riqueza", (req, res) => {
-    res.json({ message: "S&P Global - Portal de acesso" });
+    const userId = req.user.id;
+    const { bank, ownerName, accountNumber } = req.body;
+    
+    storage.updateBankInfo(userId, { bank, ownerName, accountNumber })
+      .then(bankInfo => {
+        res.status(200).json(bankInfo);
+      })
+      .catch(error => {
+        next(error);
+      });
   });
 }

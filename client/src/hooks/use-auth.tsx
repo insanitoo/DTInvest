@@ -9,7 +9,7 @@ import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-// Definição do tipo do contexto
+// Context type definition
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
@@ -19,13 +19,13 @@ type AuthContextType = {
   registerMutation: UseMutationResult<User, Error, RegistrationData>;
 };
 
-// Criação do contexto com um valor padrão para evitar casos null
+// Creating context with a default value to avoid null cases
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Chave para armazenar o usuário autenticado no localStorage
+// Key for storing the authenticated user in localStorage
 const AUTH_USER_KEY = 'sp_global_auth_user';
 
-// Hook para usar o contexto de autenticação
+// Hook to use the auth context
 function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
@@ -34,19 +34,19 @@ function useAuth() {
   return context;
 }
 
-// Provider de autenticação
+// Auth provider component
 function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  // Estado local para armazenar o usuário atual
+  // Local state to store the current user
   const [localUser, setLocalUser] = useState<User | null>(() => {
-    // Tenta recuperar o usuário do localStorage quando o componente é montado
+    // Try to recover user from localStorage when component mounts
     try {
       const saved = localStorage.getItem(AUTH_USER_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch (error) {
-      console.error('Erro ao recuperar usuário do localStorage:', error);
+      console.error('Error recovering user from localStorage:', error);
       return null;
     }
   });
@@ -59,40 +59,62 @@ function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     initialData: localUser,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+    onError: (error) => {
+      // If we get a 401, clear the user from local storage
+      if (error.message.includes('401')) {
+        localStorage.removeItem(AUTH_USER_KEY);
+        setLocalUser(null);
+      }
+    },
   });
+
+  // Update local user when query data changes
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      } catch (error) {
+        console.error('Error saving user to localStorage:', error);
+      }
+      setLocalUser(user);
+    }
+  }, [user]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
       const userData = await res.json();
       
-      // Forçar uma segunda chamada para /api/user para garantir que a sessão esteja ativa
-      console.log("Forçando chamada para /api/user após login bem-sucedido...");
+      // Force a second call to /api/user to ensure session is active
+      console.log("Forcing call to /api/user after successful login...");
       try {
         await fetch("/api/user", { credentials: "include" });
       } catch (error) {
-        console.error("Erro ao verificar sessão após login:", error);
+        console.error("Error verifying session after login:", error);
       }
       
       return userData;
     },
     onSuccess: (user: User) => {
-      console.log("Login bem-sucedido, salvando dados do usuário no cache...");
-      // Salvando no localStorage
+      console.log("Login successful, saving user data to cache...");
+      // Save to localStorage
       try {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-        console.log("Usuário salvo no localStorage");
+        console.log("User saved to localStorage");
       } catch (error) {
-        console.error("Erro ao salvar usuário no localStorage:", error);
+        console.error("Error saving user to localStorage:", error);
       }
       
-      // Atualiza o estado local
+      // Update local state
       setLocalUser(user);
       
-      // Atualiza a cache do React Query
+      // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
       
-      // Força a refetch da query para atualizar o estado global
+      // Force a refetch of the query to update global state
       queryClient.invalidateQueries({queryKey: ["/api/user"]});
       
       // Redirect to home page after successful login
@@ -117,33 +139,33 @@ function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", credentials);
       const userData = await res.json();
       
-      // Forçar uma segunda chamada para /api/user para garantir que a sessão esteja ativa
-      console.log("Forçando chamada para /api/user após registro bem-sucedido...");
+      // Force a second call to /api/user to ensure session is active
+      console.log("Forcing call to /api/user after successful registration...");
       try {
         await fetch("/api/user", { credentials: "include" });
       } catch (error) {
-        console.error("Erro ao verificar sessão após registro:", error);
+        console.error("Error verifying session after registration:", error);
       }
       
       return userData;
     },
     onSuccess: (user: User) => {
-      console.log("Registro bem-sucedido, salvando dados do usuário no cache...");
-      // Salvando no localStorage
+      console.log("Registration successful, saving user data to cache...");
+      // Save to localStorage
       try {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-        console.log("Usuário salvo no localStorage após registro");
+        console.log("User saved to localStorage after registration");
       } catch (error) {
-        console.error("Erro ao salvar usuário no localStorage:", error);
+        console.error("Error saving user to localStorage:", error);
       }
       
-      // Atualiza o estado local
+      // Update local state
       setLocalUser(user);
       
-      // Atualiza a cache do React Query
+      // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
       
-      // Força a refetch da query para atualizar o estado global
+      // Force a refetch of the query to update global state
       queryClient.invalidateQueries({queryKey: ["/api/user"]});
       
       // Redirect to home page after successful registration
@@ -168,19 +190,20 @@ function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
-      // Removendo do localStorage
+      // Remove from localStorage
       try {
         localStorage.removeItem(AUTH_USER_KEY);
-        console.log("Usuário removido do localStorage");
+        console.log("User removed from localStorage");
       } catch (error) {
-        console.error("Erro ao remover usuário do localStorage:", error);
+        console.error("Error removing user from localStorage:", error);
       }
       
-      // Atualiza o estado local
+      // Update local state
       setLocalUser(null);
       
-      // Atualiza a cache do React Query
+      // Update React Query cache
       queryClient.setQueryData(["/api/user"], null);
+      queryClient.invalidateQueries({queryKey: ["/api/user"]});
       
       // Redirect to auth page after logout
       setLocation("/auth");
@@ -215,5 +238,5 @@ function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Exportações nomeadas
+// Named exports
 export { AuthContext, AuthProvider, useAuth };
