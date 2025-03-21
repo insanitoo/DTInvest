@@ -359,15 +359,20 @@ export default function AuthPage() {
 
               <div>
                 <label htmlFor="referral-code" className="block text-sm text-gray-400 mb-1">
-                  Código de Convite (opcional)
+                  Código de Convite *
                 </label>
                 <Input
                   id="referral-code"
                   className="w-full rounded-md p-2.5 auth-input"
                   placeholder="Código de convite"
                   defaultValue={new URLSearchParams(window.location.search).get('ref') || ''}
-                  {...registerForm.register('referralCode')}
+                  {...registerForm.register('referralCode', { required: 'Código de convite é obrigatório' })}
                 />
+                {registerForm.formState.errors.referralCode && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {registerForm.formState.errors.referralCode.message}
+                  </p>
+                )}
               </div>
 
               <div className="pt-2">
