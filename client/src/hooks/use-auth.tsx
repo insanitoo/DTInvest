@@ -85,15 +85,28 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      // First login call to get the session cookie
       const res = await apiRequest("POST", "/api/login", credentials);
       const userData = await res.json();
       
-      // Force a second call to /api/user to ensure session is active
+      // Immediately verify the session with explicit credentials option
       console.log("Forcing call to /api/user after successful login...");
       try {
-        await fetch("/api/user", { credentials: "include" });
+        const userCheckRes = await fetch("/api/user", { 
+          credentials: "include",
+          headers: {
+            'Cache-Control': 'no-cache, no-store',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (!userCheckRes.ok) {
+          console.error("Session verification failed with status:", userCheckRes.status);
+          throw new Error("A sessão não pôde ser estabelecida. Tente novamente.");
+        }
       } catch (error) {
         console.error("Error verifying session after login:", error);
+        throw new Error("Erro ao verificar a sessão após o login.");
       }
       
       return userData;
@@ -108,22 +121,25 @@ function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error saving user to localStorage:", error);
       }
       
-      // Update local state
+      // Update local state immediately
       setLocalUser(user);
       
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
       
-      // Force a refetch of the query to update global state
-      queryClient.invalidateQueries({queryKey: ["/api/user"]});
+      // No need to invalidate immediately since we're already setting the data
+      // This causes an unnecessary refetch
+      // queryClient.invalidateQueries({queryKey: ["/api/user"]});
       
-      // Redirect to home page after successful login
-      setLocation("/");
-      
-      toast({
-        title: "Login bem-sucedido",
-        description: "Bem-vindo de volta!",
-      });
+      // Redirect to home page with a slight delay to ensure state is updated
+      setTimeout(() => {
+        setLocation("/");
+        
+        toast({
+          title: "Login bem-sucedido",
+          description: "Bem-vindo de volta!",
+        });
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
@@ -136,15 +152,28 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: RegistrationData) => {
+      // First register call to create the user and get session cookie
       const res = await apiRequest("POST", "/api/register", credentials);
       const userData = await res.json();
       
-      // Force a second call to /api/user to ensure session is active
+      // Immediately verify the session with explicit credentials option
       console.log("Forcing call to /api/user after successful registration...");
       try {
-        await fetch("/api/user", { credentials: "include" });
+        const userCheckRes = await fetch("/api/user", { 
+          credentials: "include",
+          headers: {
+            'Cache-Control': 'no-cache, no-store',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (!userCheckRes.ok) {
+          console.error("Session verification failed after registration with status:", userCheckRes.status);
+          throw new Error("A sessão não pôde ser estabelecida após o registro. Tente fazer login.");
+        }
       } catch (error) {
         console.error("Error verifying session after registration:", error);
+        throw new Error("Erro ao verificar a sessão após o registro.");
       }
       
       return userData;
@@ -159,22 +188,25 @@ function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error saving user to localStorage:", error);
       }
       
-      // Update local state
+      // Update local state immediately
       setLocalUser(user);
       
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
       
-      // Force a refetch of the query to update global state
-      queryClient.invalidateQueries({queryKey: ["/api/user"]});
+      // No need to invalidate immediately since we're already setting the data
+      // This causes an unnecessary refetch
+      // queryClient.invalidateQueries({queryKey: ["/api/user"]});
       
-      // Redirect to home page after successful registration
-      setLocation("/");
-      
-      toast({
-        title: "Registro bem-sucedido",
-        description: "Sua conta foi criada!",
-      });
+      // Redirect to home page with a slight delay to ensure state is updated
+      setTimeout(() => {
+        setLocation("/");
+        
+        toast({
+          title: "Registro bem-sucedido",
+          description: "Sua conta foi criada!",
+        });
+      }, 100);
     },
     onError: (error: Error) => {
       toast({

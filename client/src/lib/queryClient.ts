@@ -12,9 +12,21 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: HeadersInit = data 
+    ? { "Content-Type": "application/json" } 
+    : {};
+  
+  // Add cache control headers to prevent caching issues with authentication
+  if (url === '/api/login' || url === '/api/register' || url === '/api/logout' || url === '/api/user') {
+    Object.assign(headers, {
+      'Cache-Control': 'no-cache, no-store',
+      'Pragma': 'no-cache'
+    });
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,11 +41,24 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const url = queryKey[0] as string;
+    const headers: HeadersInit = {};
+    
+    // Add cache control headers to prevent caching issues with authentication requests
+    if (url === '/api/user') {
+      Object.assign(headers, {
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache'
+      });
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      console.log(`Auth check failed for ${url} with 401, returning null as expected`);
       return null;
     }
 

@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Route, useLocation } from "wouter";
@@ -11,26 +12,40 @@ export function ProtectedRoute({
 }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Use this effect for redirection to avoid re-renders and race conditions
+  useEffect(() => {
+    if (!isLoading && !user) {
+      console.log("Protected route: User not authenticated, redirecting to /auth");
+      // Add a small delay to ensure clean navigation
+      setTimeout(() => {
+        setLocation("/auth");
+      }, 50);
+    }
+  }, [user, isLoading, setLocation]);
 
   return (
     <Route path={path}>
       {() => {
+        // Show loading state while checking authentication
         if (isLoading) {
           return (
-            <div className="flex items-center justify-center min-h-screen bg-dark-primary">
+            <div className="flex items-center justify-center min-h-screen bg-[#121212]">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           );
         }
 
+        // Don't render anything while redirect is happening
         if (!user) {
-          // Use setTimeout to avoid immediate redirect which can cause issues
-          setTimeout(() => {
-            setLocation("/auth");
-          }, 0);
-          return null;
+          return (
+            <div className="flex items-center justify-center min-h-screen bg-[#121212]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
         }
 
+        // User is authenticated, render the protected component
         return <Component />;
       }}
     </Route>
