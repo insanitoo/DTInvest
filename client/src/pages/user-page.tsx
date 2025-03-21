@@ -297,19 +297,19 @@ export default function UserPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div>
+                      <p className="text-gray-400 text-sm truncate max-w-[150px]">
+                        {transaction.type === 'deposit' ? 'Depósito' :
+                         transaction.type === 'withdrawal' ? 'Saque' :
+                         transaction.type === 'commission' ? 'Comissão' :
+                         'Compra'}
+                        {transaction.bankAccount ? ` - ${transaction.bankAccount}` : ''}
+                      </p>
                       <p className="font-medium">{formatCurrency(transaction.amount)}</p>
                       <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
                     </div>
                   </div>
                 </CyberneticBox>
-                    <p className="text-gray-400 text-sm truncate max-w-[150px]">
-                      {transaction.type === 'deposit' ? 'Depósito' :
-                        transaction.type === 'withdrawal' ? 'Saque' :
-                          transaction.type === 'commission' ? 'Comissão' :
-                            'Compra'}
-                      {transaction.bankAccount ? ` - ${transaction.bankAccount}` : ''}
-                    </p>
                     <p className={`font-semibold ${
                       transaction.type === 'withdrawal' ? 'text-red-400' :
                         transaction.type === 'deposit' || transaction.type === 'commission' ? 'text-green-400' :
