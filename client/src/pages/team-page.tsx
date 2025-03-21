@@ -42,7 +42,7 @@ export default function TeamPage() {
     queryKey: ['/api/user/referrals'],
   });
 
-  const referralLink = `${window.location.origin}/register/${user?.referralCode}`;
+  const referralLink = `${window.location.origin}/auth?ref=${user?.referralCode}`;
   
   return (
     <>

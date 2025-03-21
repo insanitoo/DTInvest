@@ -78,10 +78,10 @@ export default function AuthPage() {
   const onLoginSubmit = (data: LoginFormValues) => {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
-    
+
     console.log(`Attempting login with phone number: ${formattedPhoneNumber}`);
     setSessionStatus('checking');
-    
+
     loginMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
@@ -102,10 +102,10 @@ export default function AuthPage() {
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
-    
+
     console.log(`Attempting registration with phone number: ${formattedPhoneNumber}`);
     setSessionStatus('checking');
-    
+
     registerMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
@@ -362,6 +362,7 @@ export default function AuthPage() {
                   id="referral-code"
                   className="w-full rounded-md p-2.5 auth-input"
                   placeholder="Código de convite"
+                  defaultValue={new URLSearchParams(window.location.search).get('ref') || ''}
                   {...registerForm.register('referralCode')}
                 />
               </div>
