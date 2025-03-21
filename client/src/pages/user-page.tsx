@@ -305,14 +305,16 @@ export default function UserPage() {
                          'Compra'}
                         {transaction.bankAccount ? ` - ${transaction.bankAccount}` : ''}
                       </p>
-                      <p className="font-medium">{formatCurrency(transaction.amount)}</p>
+                      <p className={`font-semibold ${
+                        transaction.type === 'withdrawal' ? 'text-red-400' :
+                        transaction.type === 'deposit' || transaction.type === 'commission' ? 'text-green-400' :
+                        'text-yellow-400'}`}>
+                        {formatCurrency(transaction.amount)}
+                      </p>
                       <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
                     </div>
                   </div>
                 </CyberneticBox>
-                    <p className={`font-semibold ${
-                      transaction.type === 'withdrawal' ? 'text-red-400' :
-                        transaction.type === 'deposit' || transaction.type === 'commission' ? 'text-green-400' :
                           'text-yellow-400'
                     }`}>
                       {transaction.type === 'withdrawal' ? '-' :
