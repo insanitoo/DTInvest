@@ -140,25 +140,10 @@ export default function UserPage() {
         </div>
         
         {/* Balance Card */}
-        <BalanceCard />
-        
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4 mx-4 mb-8">
-          <Button 
-            variant="primary" 
-            className="rounded-lg py-6 flex items-center justify-center space-x-2 cyber-element"
-            onClick={() => setShowDepositModal(true)}
-          >
-            <span>Recarregar</span>
-          </Button>
-          <Button 
-            variant="secondary" 
-            className="rounded-lg py-6 flex items-center justify-center space-x-2 cyber-element"
-            onClick={() => setShowWithdrawalModal(true)}
-          >
-            <span>Retirar</span>
-          </Button>
-        </div>
+        <BalanceCard 
+          onDepositClick={() => setShowDepositModal(true)}
+          onWithdrawClick={() => setShowWithdrawalModal(true)}
+        />
         
         {/* Tabs */}
         <div className="mx-4">

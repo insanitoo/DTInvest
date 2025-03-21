@@ -47,20 +47,18 @@ export function BalanceCard({
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-4 px-4 mb-4 mt-6">
         <Button 
-          variant="outline" 
-          className="rounded-lg py-6 flex items-center justify-center space-x-2 border-primary border-opacity-30 bg-white"
+          variant="default" 
+          className="rounded-lg py-6 flex items-center justify-center space-x-2 cyber-element bg-primary text-white"
           onClick={onDepositClick}
         >
-          <ArrowDown className="h-5 w-5 mr-2 text-primary" />
-          <span className="text-black font-medium">Recarregar</span>
+          <span>Recarregar</span>
         </Button>
         <Button 
-          variant="outline" 
-          className="rounded-lg py-6 flex items-center justify-center space-x-2 border-primary border-opacity-30 bg-white"
+          variant="secondary" 
+          className="rounded-lg py-6 flex items-center justify-center space-x-2 cyber-element"
           onClick={onWithdrawClick}
         >
-          <ArrowUp className="h-5 w-5 mr-2 text-primary" />
-          <span className="text-black font-medium">Retirar</span>
+          <span>Retirar</span>
         </Button>
       </div>
     </div>
