@@ -135,6 +135,10 @@ export function setupAuth(app: Express) {
   // Register route
   app.post("/api/register", async (req, res, next) => {
     try {
+      if (!req.body.referralCode) {
+        return res.status(400).json({ message: "Código de convite é obrigatório" });
+      }
+
       // Normalize phone number
       const formattedPhoneNumber = req.body.phoneNumber.replace(/\s+/g, '');
       
@@ -142,6 +146,12 @@ export function setupAuth(app: Express) {
       const existingUser = await storage.getUserByPhoneNumber(formattedPhoneNumber);
       if (existingUser) {
         return res.status(400).json({ message: "Número de telefone já está em uso" });
+      }
+
+      // Validate referral code
+      const referrer = await storage.getUserByReferralCode(req.body.referralCode);
+      if (!referrer) {
+        return res.status(400).json({ message: "Código de convite inválido" });
       }
       
       // Generate referral code

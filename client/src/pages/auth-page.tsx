@@ -31,10 +31,16 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const referralCode = new URLSearchParams(window.location.search).get('ref');
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.has('ref') ? 'register' : 'login';
+    return referralCode ? 'register' : 'login';
   });
+
+  useEffect(() => {
+    if (referralCode && activeTab === 'register') {
+      registerForm.setValue('referralCode', referralCode);
+    }
+  }, [activeTab, referralCode]);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
