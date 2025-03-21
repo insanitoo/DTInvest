@@ -168,17 +168,6 @@ export function setupAuth(app: Express) {
         }
       }
       
-      // Check referral code if provided
-      if (!req.body.referralCode) {
-        return res.status(400).json({ message: "Código de convite é obrigatório" });
-      }
-
-      const referrer = await storage.getUserByReferralCode(req.body.referralCode);
-      if (!referrer) {
-        return res.status(400).json({ message: "Código de convite inválido" });
-      }
-      const referredBy = req.body.referralCode;
-      
       // Create user
       const user = await storage.createUser({
         phoneNumber: formattedPhoneNumber,
