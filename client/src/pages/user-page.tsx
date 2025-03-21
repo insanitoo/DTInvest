@@ -341,10 +341,7 @@ export default function UserPage() {
   );
 }
 
-// Dummy functions to satisfy compilation errors.  Replace with actual implementations.
-function formatDate(date: string | number | Date): string {
-  return new Date(date).toLocaleDateString();
-}
+// Função formatDate já importada de @/lib/utils
 
 function getTransactionStatusColor(status: string): string {
   return '';
