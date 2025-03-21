@@ -275,8 +275,7 @@ export default function UserPage() {
               {transactions.slice(0, 5).map((transaction) => (
                 <CyberneticBox key={transaction.id}>
                   <div className="flex justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-8 h-8 rounded-full ${
+                    <div className={`w-8 h-8 rounded-full ${
                         transaction.status === 'completed' ? 'bg-green-500' :
                           transaction.status === 'pending' ? 'bg-yellow-500' :
                             transaction.status === 'processing' ? 'bg-blue-500' :
