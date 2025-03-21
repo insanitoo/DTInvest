@@ -205,3 +205,29 @@ export class MemStorage implements IStorage {
 
 // Export storage instance
 export const storage = new MemStorage();
+
+// Initialize with a test user
+(async () => {
+  try {
+    // Hash password "protótipo" using the same algorithm in auth.ts
+    const { scrypt, randomBytes } = await import('crypto');
+    const { promisify } = await import('util');
+    const scryptAsync = promisify(scrypt);
+
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync("protótipo", salt, 64)) as Buffer;
+    const hashedPassword = `${buf.toString("hex")}.${salt}`;
+
+    // Create test user with phone number 999999999
+    const testUser = await storage.createUser({
+      phoneNumber: "999999999",
+      password: hashedPassword,
+      referralCode: "AA1234",
+      referredBy: null
+    });
+
+    console.log("Test user created:", testUser.phoneNumber);
+  } catch (error) {
+    console.error("Error creating test user:", error);
+  }
+})();
