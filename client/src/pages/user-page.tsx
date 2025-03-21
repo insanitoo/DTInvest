@@ -303,10 +303,6 @@ export default function UserPage() {
                     </div>
                   </div>
                 </CyberneticBox>
-                    </div>
-                    <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
                     <p className="text-gray-400 text-sm truncate max-w-[150px]">
                       {transaction.type === 'deposit' ? 'Depósito' :
                         transaction.type === 'withdrawal' ? 'Saque' :
