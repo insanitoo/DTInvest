@@ -274,21 +274,35 @@ export default function UserPage() {
             <div className="space-y-3">
               {transactions.slice(0, 5).map((transaction) => (
                 <CyberneticBox key={transaction.id}>
-                  <div className="flex justify-between mb-2">
-                    <div className={`w-8 h-8 rounded-full ${
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-full ${
                         transaction.status === 'completed' ? 'bg-green-500' :
-                          transaction.status === 'pending' ? 'bg-yellow-500' :
-                            transaction.status === 'processing' ? 'bg-blue-500' :
-                              'bg-red-500'
+                        transaction.status === 'pending' ? 'bg-yellow-500' :
+                        transaction.status === 'processing' ? 'bg-blue-500' :
+                        'bg-red-500'
                       } flex items-center justify-center`}>
                         <i className={`fas fa-${getTransactionStatusIcon(transaction.status)} text-white text-xs`}></i>
                       </div>
-                      <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status)}`}>
-                        {transaction.status === 'completed' ? 'Concluído' :
-                          transaction.status === 'pending' ? 'Pendente' :
-                            transaction.status === 'processing' ? 'Processando' :
-                              'Falhou'}
-                      </span>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {transaction.type === 'deposit' ? 'Depósito' :
+                           transaction.type === 'withdrawal' ? 'Saque' :
+                           transaction.type === 'commission' ? 'Comissão' : 'Compra'}
+                        </p>
+                        <span className={`text-sm ${getTransactionStatusColor(transaction.status)}`}>
+                          {transaction.status === 'completed' ? 'Concluído' :
+                           transaction.status === 'pending' ? 'Pendente' :
+                           transaction.status === 'processing' ? 'Processando' : 'Falhou'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatCurrency(transaction.amount)}</p>
+                      <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
+                    </div>
+                  </div>
+                </CyberneticBox>
                     </div>
                     <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
                   </div>
