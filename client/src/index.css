@@ -41,6 +41,26 @@
   100% { left: 200%; }
 }
 
+@keyframes pulse {
+  0% { opacity: 0.4; transform: scale(0.98) translateZ(0); }
+  100% { opacity: 0.7; transform: scale(1.02) translateZ(20px); }
+}
+
+@keyframes rotate {
+  0% { transform: rotateY(0deg) rotateX(0deg); }
+  100% { transform: rotateY(360deg) rotateX(360deg); }
+}
+
+.bg-cybernetic-pattern {
+  background-color: rgba(0, 0, 30, 0.6);
+  background-image: 
+    linear-gradient(rgba(13, 42, 101, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 42, 101, 0.2) 1px, transparent 1px);
+  background-size: 20px 20px;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
 .auth-input {
   background-color: var(--dark-tertiary);
   border: 1px solid var(--dark-border);
