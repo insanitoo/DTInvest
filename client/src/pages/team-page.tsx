@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Ticket, Link2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,11 +38,12 @@ interface ReferralStats {
 
 export default function TeamPage() {
   const { user } = useAuth();
-  
   const { data: referralStats, isLoading } = useQuery<ReferralStats>({
     queryKey: ['/api/user/referrals'],
   });
 
+  const referralLink = `${window.location.origin}/register/${user?.referralCode}`;
+  
   return (
     <>
       <div className="pb-20">
@@ -67,10 +69,18 @@ export default function TeamPage() {
           <ReferralItem 
             icon={<Link2 />} 
             title="Ligação de convite" 
-            value={`https://spindex.cfd/global/${user?.referralCode || ''}`} 
+            value={referralLink} 
           />
         </div>
         
+        {/* Referral Banner */}
+        <div className="mx-4 mt-6 mb-4">
+          <div className="bg-gradient-to-r from-brand-red to-brand-orange rounded-xl p-3 text-center">
+            <h3 className="text-base font-bold">RECOMPENSAS DE CONVITE</h3>
+            <p className="text-sm">Convide amigos para ganhar 33% de recompensa por convite</p>
+          </div>
+        </div>
+
         {/* Referral Levels */}
         <div className="mx-4 space-y-4">
           {isLoading ? (
@@ -105,17 +115,8 @@ export default function TeamPage() {
             </>
           ) : null}
         </div>
-        
-        {/* Referral Banner */}
-        <div className="mx-4 mt-6 mb-4">
-          <div className="bg-gradient-to-r from-brand-red to-brand-orange rounded-xl p-3 text-center">
-            <h3 className="text-base font-bold">RECOMPENSAS DE CONVITE</h3>
-            <p className="text-sm">Convide amigos para ganhar 33% de recompensa por convite</p>
-          </div>
-        </div>
       </div>
       
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </>
   );
