@@ -274,54 +274,43 @@ export default function UserPage() {
             <div className="space-y-3">
               {transactions.slice(0, 5).map((transaction) => (
                 <CyberneticBox key={transaction.id}>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-full ${
-                        transaction.status === 'completed' ? 'bg-green-500' :
-                        transaction.status === 'pending' ? 'bg-yellow-500' :
-                        transaction.status === 'processing' ? 'bg-blue-500' :
-                        'bg-red-500'
-                      } flex items-center justify-center`}>
-                        <i className={`fas fa-${getTransactionStatusIcon(transaction.status)} text-white text-xs`}></i>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        transaction.type === 'withdrawal' ? 'bg-red-500/20' :
+                        transaction.type === 'deposit' ? 'bg-green-500/20' :
+                        transaction.type === 'commission' ? 'bg-blue-500/20' :
+                        'bg-yellow-500/20'
+                      }`}>
+                        <span className={`text-lg ${
+                          transaction.type === 'withdrawal' ? 'text-red-400' :
+                          transaction.type === 'deposit' ? 'text-green-400' :
+                          transaction.type === 'commission' ? 'text-blue-400' :
+                          'text-yellow-400'
+                        }`}>
+                          {transaction.type === 'withdrawal' ? '-' :
+                           transaction.type === 'deposit' || transaction.type === 'commission' ? '+' : '~'}
+                        </span>
                       </div>
                       <div>
                         <p className="text-sm font-medium">
                           {transaction.type === 'deposit' ? 'Depósito' :
                            transaction.type === 'withdrawal' ? 'Saque' :
-                           transaction.type === 'commission' ? 'Comissão' : 'Compra'}
+                           transaction.type === 'commission' ? 'Comissão' :
+                           'Outro'}
                         </p>
-                        <span className={`text-sm ${getTransactionStatusColor(transaction.status)}`}>
-                          {transaction.status === 'completed' ? 'Concluído' :
-                           transaction.status === 'pending' ? 'Pendente' :
-                           transaction.status === 'processing' ? 'Processando' : 'Falhou'}
-                        </span>
+                        <p className="text-xs text-gray-400">{formatDate(transaction.createdAt)}</p>
                       </div>
                     </div>
-                    <div>
-                      <p className="text-gray-400 text-sm truncate max-w-[150px]">
-                        {transaction.type === 'deposit' ? 'Depósito' :
-                         transaction.type === 'withdrawal' ? 'Saque' :
-                         transaction.type === 'commission' ? 'Comissão' :
-                         'Compra'}
-                        {transaction.bankAccount ? ` - ${transaction.bankAccount}` : ''}
-                      </p>
-                      <p className={`font-semibold ${
+                    <div className="text-right">
+                      <p className={`font-medium ${
                         transaction.type === 'withdrawal' ? 'text-red-400' :
                         transaction.type === 'deposit' || transaction.type === 'commission' ? 'text-green-400' :
-                        'text-yellow-400'}`}>
+                        'text-yellow-400'
+                      }`}>
                         {formatCurrency(transaction.amount)}
                       </p>
-                      <span className="text-sm text-gray-400">{formatDate(transaction.createdAt)}</span>
                     </div>
-                  </div>
-                </CyberneticBox>
-                          'text-yellow-400'
-                    }`}>
-                      {transaction.type === 'withdrawal' ? '-' :
-                        transaction.type === 'deposit' || transaction.type === 'commission' ? '+' :
-                          ''}
-                      {formatCurrency(transaction.amount)}
-                    </p>
                   </div>
                 </CyberneticBox>
               ))}
