@@ -343,6 +343,4 @@ export default function UserPage() {
 
 // Função formatDate já importada de @/lib/utils
 
-function getTransactionStatusIcon(status: string): string {
-  return '';
-}
+// getTransactionStatusIcon já importado de @/lib/utils
