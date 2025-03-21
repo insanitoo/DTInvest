@@ -19,7 +19,7 @@ interface MenuItemProps {
 export function MenuItem({ icon, title, href }: MenuItemProps) {
   return (
     <Link href={href} className="w-full">
-      <div className="flex items-center justify-between w-full p-4 mb-4 rounded-lg bg-dark-secondary hover:bg-dark-tertiary transition-colors">
+      <div className="flex items-center justify-between w-full p-4 mb-4 rounded-lg bg-dark-secondary hover:bg-dark-tertiary transition-colors cyber-element">
         <div className="flex items-center">
           <div className="mr-4 text-primary">
             {icon}
@@ -35,34 +35,19 @@ export function MenuItem({ icon, title, href }: MenuItemProps) {
 export function MenuList() {
   const menuItems = [
     {
-      icon: <BarChart3 className="h-6 w-6" />,
-      title: "Meus investimentos",
-      href: "/investments"
-    },
-    {
       icon: <Building2 className="h-6 w-6" />,
       title: "Meu banco",
-      href: "/bank"
+      href: "/user?tab=bank"
     },
     {
       icon: <Clock className="h-6 w-6" />,
       title: "Registros de fundos",
-      href: "/fund-records"
-    },
-    {
-      icon: <FileText className="h-6 w-6" />,
-      title: "Registro de depósito",
-      href: "/deposit-records"
+      href: "/user?tab=transactions"
     },
     {
       icon: <Headphones className="h-6 w-6" />,
       title: "Serviço",
       href: "/service"
-    },
-    {
-      icon: <Settings className="h-6 w-6" />,
-      title: "Definições",
-      href: "/settings"
     }
   ];
 
