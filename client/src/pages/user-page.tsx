@@ -8,8 +8,11 @@ import { Loader2, LogOut, ChevronRight } from 'lucide-react';
 import { Transaction, BankInfo } from '@shared/schema';
 import { useAuth } from '@/hooks/use-auth';
 import { BottomNavigation } from '@/components/layout/bottom-navigation';
+import { BalanceCard } from '@/components/home/balance-card';
 import { Button } from '@/components/ui/button';
 import { CyberneticBox } from '@/components/ui/cybernetic-box';
+import { WithdrawalModal } from '@/components/modals/withdrawal-modal';
+import { DepositModal } from '@/components/modals/deposit-modal';
 import { 
   Form, 
   FormControl, 
@@ -37,6 +40,8 @@ export default function UserPage() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
   // Get tab from URL query parameter
@@ -133,6 +138,12 @@ export default function UserPage() {
             </div>
           </CyberneticBox>
         </div>
+        
+        {/* Balance Card */}
+        <BalanceCard 
+          onDepositClick={() => setShowDepositModal(true)}
+          onWithdrawClick={() => setShowWithdrawalModal(true)}
+        />
         
         {/* Tabs */}
         <div className="mx-4">
