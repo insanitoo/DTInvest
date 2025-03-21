@@ -15,7 +15,6 @@ import { Transaction } from '@shared/schema';
 import { Loader2, LogOut } from 'lucide-react';
 import { CyberneticBox } from '@/components/ui/cybernetic-box';
 import { Form, FormField, FormItem, FormLabel, FormMessage, FormControl } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
 
 
 export default function UserPage() {
@@ -276,7 +275,8 @@ export default function UserPage() {
               {transactions.slice(0, 5).map((transaction) => (
                 <CyberneticBox key={transaction.id}>
                   <div className="flex justify-between mb-2">
-                    <div className={`w-8 h-8 rounded-full ${
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-8 h-8 rounded-full ${
                         transaction.status === 'completed' ? 'bg-green-500' :
                           transaction.status === 'pending' ? 'bg-yellow-500' :
                             transaction.status === 'processing' ? 'bg-blue-500' :
