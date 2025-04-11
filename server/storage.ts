@@ -209,21 +209,15 @@ export const storage = new MemStorage();
 // Initialize with a test user
 (async () => {
   try {
-    // Hash password "protótipo" using the same algorithm in auth.ts
-    const { scrypt, randomBytes } = await import('crypto');
-    const { promisify } = await import('util');
-    const scryptAsync = promisify(scrypt);
-
-    const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync("protótipo", salt, 64)) as Buffer;
-    const hashedPassword = `${buf.toString("hex")}.${salt}`;
-
+    const { hashPassword } = await import('./auth');
+    
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({
       phoneNumber: "999999999",
-      password: hashedPassword,
+      password: await hashPassword("123456"),
       referralCode: "AA1234",
-      referredBy: null
+      referredBy: null,
+      isAdmin: true
     });
 
     console.log("Test user created:", testUser.phoneNumber);
