@@ -161,3 +161,10 @@ export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
 export type SocialLink = typeof socialLinks.$inferSelect;
 export type InsertSocialLink = z.infer<typeof insertSocialLinkSchema>;
+
+const bankFormSchema = z.object({
+  name: z.string().min(1, "Nome do banco é obrigatório"),
+  ownerName: z.string().min(1, "Nome do proprietário é obrigatório"),
+  accountNumber: z.string().min(1, "Número da conta é obrigatório"),
+  active: z.boolean().default(true),
+});
