@@ -33,6 +33,14 @@ export interface IStorage {
   // Métodos compras
   getUserPurchases(userId: number): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
+  
+  // Métodos para links sociais
+  getSocialLinks(): Promise<SocialLink[]>;
+  getActiveSocialLinks(): Promise<SocialLink[]>;
+  getSocialLink(id: number): Promise<SocialLink | undefined>;
+  createSocialLink(link: InsertSocialLink): Promise<SocialLink>;
+  updateSocialLink(id: number, link: Partial<InsertSocialLink>): Promise<SocialLink>;
+  deleteSocialLink(id: number): Promise<void>;
 
   sessionStore: session.Store;
 }
@@ -44,11 +52,13 @@ export class MemStorage implements IStorage {
   private transactions: Map<number, Transaction>;
   private products: Map<number, Product>;
   private purchases: Map<number, Purchase>;
+  private socialLinks: Map<number, SocialLink>; 
   private currentUserId: number;
   private currentBankInfoId: number;
   private currentTransactionId: number;
   private currentProductId: number;
   private currentPurchaseId: number;
+  private currentSocialLinkId: number;
   sessionStore: session.Store;
 
   constructor() {
