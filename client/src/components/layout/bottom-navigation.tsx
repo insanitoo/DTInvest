@@ -21,17 +21,17 @@ export function BottomNavigation() {
           <span>Início</span>
         </Link>
 
-        <Link href="/products" className={cn(
+        <Link href="/produtos" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
-          isActive("/products") ? "text-primary" : "text-gray-400"
+          isActive("/produtos") ? "text-primary" : "text-gray-400"
         )}>
           <ShoppingCart className="h-6 w-6 mb-1" />
           <span>Produtos</span>
         </Link>
 
-        <Link href="/team" className={cn(
+        <Link href="/equipe" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
-          isActive("/team") ? "text-primary" : "text-gray-400"
+          isActive("/equipe") ? "text-primary" : "text-gray-400"
         )}>
           <Users className="h-6 w-6 mb-1" />
           <span>Equipa</span>
