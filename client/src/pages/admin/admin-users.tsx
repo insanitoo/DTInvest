@@ -170,7 +170,7 @@ export default function AdminUsers() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Renda Diária</p>
-                  <p>{formatCurrency(selectedUser.dailyIncome)}</p>
+                  <p>{formatCurrency(selectedUser.dailyIncome || 0)}</p>
                 </div>
               </div>
               
@@ -181,19 +181,19 @@ export default function AdminUsers() {
                     <p className="text-sm text-gray-400">Nível 1</p>
                     <p>{selectedUser.level1Referrals} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level1Commission)}</p>
+                    <p>{formatCurrency(selectedUser.level1Commission || 0)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Nível 2</p>
-                    <p>{selectedUser.level2Referrals} referrals</p>
+                    <p>{selectedUser.level2Referrals || 0} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level2Commission)}</p>
+                    <p>{formatCurrency(selectedUser.level2Commission || 0)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Nível 3</p>
-                    <p>{selectedUser.level3Referrals} referrals</p>
+                    <p>{selectedUser.level3Referrals || 0} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level3Commission)}</p>
+                    <p>{formatCurrency(selectedUser.level3Commission || 0)}</p>
                   </div>
                 </div>
               </div>
@@ -209,7 +209,7 @@ export default function AdminUsers() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Último Acesso</p>
-                    <p>{formatDate(selectedUser.lastOnline)}</p>
+                    <p>{selectedUser.lastOnline ? formatDate(selectedUser.lastOnline) : 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Tem Produto?</p>

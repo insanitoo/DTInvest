@@ -414,19 +414,22 @@ export default function AdminSettings() {
                   <FormField
                     control={aboutUsForm.control}
                     name="content"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Conteúdo</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            placeholder="Digite o texto sobre a empresa" 
-                            className="bg-dark-tertiary border-gray-700 min-h-[200px]" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      return (
+                        <FormItem>
+                          <FormLabel>Conteúdo</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Digite o texto sobre a empresa" 
+                              className="bg-dark-tertiary border-gray-700 min-h-[200px]" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   
                   <Button 
@@ -723,10 +726,10 @@ export default function AdminSettings() {
                 )}
               />
               
-              {field.value && (
+              {imageForm.watch("imageUrl") && (
                 <div className="aspect-video bg-dark-tertiary rounded-lg overflow-hidden">
                   <img 
-                    src={field.value} 
+                    src={imageForm.watch("imageUrl")} 
                     alt="Pré-visualização"
                     className="w-full h-full object-cover"
                     onError={(e) => {

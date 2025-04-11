@@ -79,31 +79,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Lista de todas as transações
-  app.get("/api/admin/transactions", isAdmin, (req, res) => {
-    // Para o protótipo, retornamos algumas transações de exemplo
-    const transactions = [
-      {
-        id: 1,
-        userId: 1,
-        type: "deposit",
-        amount: 5000,
-        status: "completed",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 2,
-        userId: 1,
-        type: "withdrawal",
-        amount: 2000,
-        status: "pending",
-        bankAccount: "BFA - 123456789",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-    
-    res.json(transactions);
+  app.get("/api/admin/transactions", isAdmin, async (req, res) => {
+    try {
+      // Buscar todas as transações reais do banco de dados
+      const realTransactions = await storage.getAllTransactions();
+      res.json(realTransactions);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar transações" });
+    }
   });
   
   // Lista de produtos
