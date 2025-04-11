@@ -6,11 +6,23 @@ import { setupAuth } from "./auth";
 // Middleware para verificar se o usuário é administrador
 function isAdmin(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
+    console.log("Admin check: Usuário não autenticado");
     return res.status(401).json({ message: "Não autenticado" });
   }
+  
+  console.log("Admin check: Usuário autenticado:", req.user);
+  
+  // Para o protótipo, consideramos o usuário 999999999 como administrador
+  if (req.user.phoneNumber === "999999999") {
+    console.log("Admin check: Usuário é administrador (999999999)");
+    return next();
+  }
+  
   if (!req.user.isAdmin) {
+    console.log("Admin check: Usuário não é administrador");
     return res.status(403).json({ message: "Acesso negado" });
   }
+  
   next();
 }
 
@@ -134,6 +146,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(product);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Erro ao buscar produto" });
+    }
+  });
+  
+  // Comprar um produto específico
+  app.post("/api/products/:id/purchase", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    const userId = req.user.id;
+    const productId = parseInt(req.params.id);
+    
+    try {
+      // Verificar se o produto existe e está ativo
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Produto não encontrado" });
+      }
+      
+      if (!product.active) {
+        return res.status(400).json({ message: "Este produto não está disponível para compra" });
+      }
+      
+      // Verificar se o usuário tem saldo suficiente
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      if (user.balance < product.price) {
+        return res.status(400).json({ message: "Saldo insuficiente para comprar este produto" });
+      }
+      
+      // Registrar a compra
+      const purchase = await storage.createPurchase({
+        userId,
+        productId: product.id,
+        amount: product.price
+      });
+      
+      // Atualizar o saldo do usuário
+      const newBalance = user.balance - product.price;
+      
+      // Marcar que o usuário tem produtos (importante para funcionalidades que exigem isso)
+      const updatedUser = await storage.updateUserBalance(userId, newBalance);
+      
+      // Registrar a transação
+      await storage.createTransaction({
+        userId,
+        type: "purchase",
+        amount: product.price,
+        status: "completed",
+        bankAccount: null
+      });
+      
+      res.status(200).json({
+        success: true,
+        purchase,
+        message: `Produto ${product.name} adquirido com sucesso!`,
+        newBalance
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Obter investimentos do usuário
+  app.get("/api/user/investments", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const purchases = await storage.getUserPurchases(req.user.id);
+      
+      // Para cada compra, obter os detalhes do produto
+      const investments = await Promise.all(
+        purchases.map(async (purchase) => {
+          const product = await storage.getProduct(purchase.productId);
+          return {
+            ...purchase,
+            product
+          };
+        })
+      );
+      
+      res.json(investments);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Obter estatísticas de referidos do usuário
+  app.get("/api/user/referrals", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Obter referidos diretos (nível 1)
+      const level1Referrals = users.filter(
+        user => user.referredBy === req.user.referralCode
+      );
+      
+      // Obter referidos de nível 2
+      const level2ReferralCodes = level1Referrals.map(user => user.referralCode);
+      const level2Referrals = users.filter(
+        user => level2ReferralCodes.includes(user.referredBy || '')
+      );
+      
+      // Obter referidos de nível 3
+      const level3ReferralCodes = level2Referrals.map(user => user.referralCode);
+      const level3Referrals = users.filter(
+        user => level3ReferralCodes.includes(user.referredBy || '')
+      );
+      
+      // Calcular comissões (exemplo simplificado)
+      const level1Commission = level1Referrals.length * 1000; // KZ 1000 por referido direto
+      const level2Commission = level2Referrals.length * 500; // KZ 500 por referido de nível 2
+      const level3Commission = level3Referrals.length * 250; // KZ 250 por referido de nível 3
+      
+      // Transformar dados de referidos para o formato desejado
+      const formattedLevel1 = level1Referrals.map(user => ({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        hasProduct: user.hasProduct || false
+      }));
+      
+      const formattedLevel2 = level2Referrals.map(user => ({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        hasProduct: user.hasProduct || false
+      }));
+      
+      const formattedLevel3 = level3Referrals.map(user => ({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        hasProduct: user.hasProduct || false
+      }));
+      
+      res.json({
+        level1: {
+          count: level1Referrals.length,
+          commission: level1Commission,
+          referrals: formattedLevel1
+        },
+        level2: {
+          count: level2Referrals.length,
+          commission: level2Commission,
+          referrals: formattedLevel2
+        },
+        level3: {
+          count: level3Referrals.length,
+          commission: level3Commission,
+          referrals: formattedLevel3
+        }
+      });
+    } catch (error) {
+      next(error);
     }
   });
   
