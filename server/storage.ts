@@ -206,10 +206,49 @@ export class MemStorage implements IStorage {
 // Export storage instance
 export const storage = new MemStorage();
 
+// Get dashboard stats
+export async function getTotalUsers() {
+  const result = await db.select({ count: sql`count(*)` }).from(users);
+  return Number(result[0].count);
+}
+
+export async function getTotalDeposits() {
+  const result = await db
+    .select({ sum: sql`sum(amount)` })
+    .from(transactions)
+    .where(eq(transactions.type, 'deposit'))
+    .where(eq(transactions.status, 'completed'));
+  return Number(result[0].sum) || 0;
+}
+
+export async function getTotalWithdrawals() {
+  const result = await db
+    .select({ sum: sql`sum(amount)` })
+    .from(transactions)
+    .where(eq(transactions.type, 'withdrawal'))
+    .where(eq(transactions.status, 'completed'));
+  return Number(result[0].sum) || 0;
+}
+
+export async function getPopularProducts() {
+  const result = await db
+    .select({
+      productId: products.id,
+      name: products.name,
+      count: sql`count(*)`.as('count')
+    })
+    .from(purchases)
+    .innerJoin(products, eq(purchases.productId, products.id))
+    .groupBy(products.id, products.name)
+    .orderBy(sql`count(*) desc`)
+    .limit(5);
+  return result;
+}
+
 // Initialize with a test user
 (async () => {
   try {
-    const { hashPassword } = require('./auth');
+    const { hashPassword } = await import('./auth');
     
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({

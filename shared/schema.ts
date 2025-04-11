@@ -49,9 +49,11 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description"),
   price: doublePrecision("price").notNull(),
-  level1Percentage: doublePrecision("level1_percentage").notNull(),
-  level2Percentage: doublePrecision("level2_percentage").notNull(),
-  level3Percentage: doublePrecision("level3_percentage").notNull(),
+  returnRate: doublePrecision("return_rate").notNull(),
+  cycleDays: integer("cycle_days").notNull(),
+  dailyIncome: doublePrecision("daily_income").notNull(),
+  totalReturn: doublePrecision("total_return").notNull(),
+  active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -92,9 +94,11 @@ export const insertProductSchema = createInsertSchema(products).pick({
   name: true,
   description: true,
   price: true,
-  level1Percentage: true,
-  level2Percentage: true,
-  level3Percentage: true,
+  returnRate: true,
+  cycleDays: true,
+  dailyIncome: true,
+  totalReturn: true,
+  active: true,
 });
 
 export const insertPurchaseSchema = createInsertSchema(purchases).pick({
