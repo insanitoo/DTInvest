@@ -67,17 +67,6 @@ export const purchases = pgTable("purchases", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Schema para links sociais
-export const socialLinks = pgTable("social_links", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  url: text("url").notNull(),
-  icon: text("icon").notNull(),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
 // Insertion schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   phoneNumber: true,
@@ -119,13 +108,6 @@ export const insertPurchaseSchema = createInsertSchema(purchases).pick({
   amount: true,
 });
 
-export const insertSocialLinkSchema = createInsertSchema(socialLinks).pick({
-  name: true,
-  url: true,
-  icon: true,
-  active: true,
-});
-
 // Login data
 export interface LoginData {
   phoneNumber: string;
@@ -159,12 +141,3 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
-export type SocialLink = typeof socialLinks.$inferSelect;
-export type InsertSocialLink = z.infer<typeof insertSocialLinkSchema>;
-
-const bankFormSchema = z.object({
-  name: z.string().min(1, "Nome do banco é obrigatório"),
-  ownerName: z.string().min(1, "Nome do proprietário é obrigatório"),
-  accountNumber: z.string().min(1, "Número da conta é obrigatório"),
-  active: z.boolean().default(true),
-});

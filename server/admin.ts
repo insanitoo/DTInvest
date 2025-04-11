@@ -99,8 +99,7 @@ export function setupAdminRoutes(app: Express) {
       const transactionId = parseInt(req.params.id);
       const { status } = req.body;
       
-      const validStatus = ['pending', 'processing', 'completed', 'failed', 'approved'];
-      if (!validStatus.includes(status)) {
+      if (!['pending', 'processing', 'completed', 'failed'].includes(status)) {
         return res.status(400).json({ message: "Status inválido" });
       }
       
