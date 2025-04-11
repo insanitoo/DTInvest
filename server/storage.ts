@@ -7,6 +7,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, newBalance: number): Promise<User>;
 
@@ -16,6 +17,7 @@ export interface IStorage {
   deleteBankInfo(userId: number): Promise<void>;
 
   getTransactions(userId: number): Promise<Transaction[]>;
+  getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: number, status: string): Promise<Transaction>;
 
@@ -61,6 +63,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(
       (user) => user.referralCode === referralCode,
     );
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -201,6 +207,11 @@ export class MemStorage implements IStorage {
   async getTransactions(userId: number): Promise<Transaction[]> {
     return Array.from(this.transactions.values())
       .filter((tx) => tx.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getAllTransactions(): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 

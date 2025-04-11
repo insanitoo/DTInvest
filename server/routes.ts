@@ -34,12 +34,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Admin routes
   // Get admin stats (usuários, estatísticas, etc.)
-  app.get("/api/admin/stats", isAdmin, (req, res) => {
-    const adminStats = {
-      totalUsers: 1, // Para este protótipo, informamos dados fixos
-      totalDeposits: 5000,
-      totalWithdrawals: 2000,
-      popularProducts: [
+  app.get("/api/admin/stats", isAdmin, async (req, res) => {
+    try {
+      // Buscar todos os usuários e transações reais
+      const allTransactions = await storage.getAllTransactions();
+      
+      // Calcular os valores totais de depósitos e saques
+      const deposits = allTransactions
+        .filter(tx => tx.type === 'deposit')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+        
+      const withdrawals = allTransactions
+        .filter(tx => tx.type === 'withdrawal')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      
+      // Dados de produtos (ainda fixos até implementarmos o armazenamento de produtos)
+      const popularProducts = [
         {
           productId: 1,
           name: "Produto Premium",
@@ -50,32 +60,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: "Produto Básico",
           count: 5
         }
-      ]
-    };
-    
-    res.json(adminStats);
+      ];
+      
+      // Contar o número total de usuários
+      const users = await storage.getAllUsers();
+      const totalUsers = users.length;
+      
+      const adminStats = {
+        totalUsers,
+        totalDeposits: deposits,
+        totalWithdrawals: withdrawals,
+        popularProducts
+      };
+      
+      res.json(adminStats);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar estatísticas" });
+    }
   });
   
   // Lista de todos os usuários
-  app.get("/api/admin/users", isAdmin, (req, res) => {
-    // Para o protótipo, retornamos um array com o usuário de teste
-    const users = [
-      {
-        id: 1,
-        phoneNumber: "999999999",
-        balance: 10000,
-        referralCode: "AA1234",
-        level1Commission: 0,
-        level2Commission: 0,
-        level3Commission: 0,
-        hasProduct: true,
-        hasDeposited: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-    
-    res.json(users);
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      // Buscar usuários reais
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar usuários" });
+    }
   });
   
   // Lista de todas as transações
