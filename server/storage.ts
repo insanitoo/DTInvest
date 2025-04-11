@@ -248,8 +248,7 @@ export async function getPopularProducts() {
 // Initialize with a test user
 (async () => {
   try {
-    const auth = require('./auth');
-    const hashPassword = auth.hashPassword;
+    const { hashPassword } = await import('./auth.js');
 
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({
