@@ -6,10 +6,13 @@ import { fromZodError } from "zod-validation-error";
 
 // Middleware to check if user is an admin
 function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user.isAdmin) {
-    return next();
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Não autenticado" });
   }
-  res.status(403).json({ message: "Acesso não autorizado" });
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Acesso não autorizado" });
+  }
+  return next();
 }
 
 export function setupAdminRoutes(app: Express) {

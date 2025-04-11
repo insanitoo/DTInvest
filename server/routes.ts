@@ -113,6 +113,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user.id;
     const { bank, ownerName, accountNumber } = req.body;
 
+    if (!bank || !ownerName || !accountNumber) {
+      return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+    }
+
     try {
       // Primeiro verifica se já existe informação bancária
       const existingBank = await storage.getBankInfoByUserId(userId);
