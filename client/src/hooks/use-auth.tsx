@@ -38,7 +38,7 @@ function useAuth() {
 function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  
+
   // Local state to store the current user
   const [localUser, setLocalUser] = useState<User | null>(() => {
     // Try to recover user from localStorage when component mounts
@@ -50,7 +50,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
-  
+
   const {
     data: user,
     error,
@@ -88,7 +88,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       // First login call to get the session cookie
       const res = await apiRequest("POST", "/api/login", credentials);
       const userData = await res.json();
-      
+
       // Immediately verify the session with explicit credentials option
       console.log("Forcing call to /api/user after successful login...");
       try {
@@ -99,7 +99,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
             'Pragma': 'no-cache'
           }
         });
-        
+
         if (!userCheckRes.ok) {
           console.error("Session verification failed with status:", userCheckRes.status);
           throw new Error("A sessão não pôde ser estabelecida. Tente novamente.");
@@ -108,7 +108,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error verifying session after login:", error);
         throw new Error("Erro ao verificar a sessão após o login.");
       }
-      
+
       return userData;
     },
     onSuccess: (user: User) => {
@@ -120,21 +120,21 @@ function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Error saving user to localStorage:", error);
       }
-      
+
       // Update local state immediately
       setLocalUser(user);
-      
+
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
-      
+
       // No need to invalidate immediately since we're already setting the data
       // This causes an unnecessary refetch
       // queryClient.invalidateQueries({queryKey: ["/api/user"]});
-      
+
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
         setLocation("/");
-        
+
         toast({
           title: "Login bem-sucedido",
           description: "Bem-vindo de volta!",
@@ -155,7 +155,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       // First register call to create the user and get session cookie
       const res = await apiRequest("POST", "/api/register", credentials);
       const userData = await res.json();
-      
+
       // Immediately verify the session with explicit credentials option
       console.log("Forcing call to /api/user after successful registration...");
       try {
@@ -166,7 +166,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
             'Pragma': 'no-cache'
           }
         });
-        
+
         if (!userCheckRes.ok) {
           console.error("Session verification failed after registration with status:", userCheckRes.status);
           throw new Error("A sessão não pôde ser estabelecida após o registro. Tente fazer login.");
@@ -175,7 +175,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error verifying session after registration:", error);
         throw new Error("Erro ao verificar a sessão após o registro.");
       }
-      
+
       return userData;
     },
     onSuccess: (user: User) => {
@@ -187,21 +187,21 @@ function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Error saving user to localStorage:", error);
       }
-      
+
       // Update local state immediately
       setLocalUser(user);
-      
+
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
-      
+
       // No need to invalidate immediately since we're already setting the data
       // This causes an unnecessary refetch
       // queryClient.invalidateQueries({queryKey: ["/api/user"]});
-      
+
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
         setLocation("/");
-        
+
         toast({
           title: "Registro bem-sucedido",
           description: "Sua conta foi criada!",
@@ -229,17 +229,17 @@ function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Error removing user from localStorage:", error);
       }
-      
+
       // Update local state
       setLocalUser(null);
-      
+
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], null);
       queryClient.invalidateQueries({queryKey: ["/api/user"]});
-      
+
       // Redirect to auth page after logout
       setLocation("/auth");
-      
+
       toast({
         title: "Logout bem-sucedido",
         description: "Você foi desconectado.",

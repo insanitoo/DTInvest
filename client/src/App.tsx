@@ -30,8 +30,8 @@ export default function App() {
           <Route path="/auth" component={AuthPage} />
           
           <Route path="/" component={HomePage} />
-          <Route path="/produtos" component={ProductsPage} />
-          <Route path="/equipe" component={TeamPage} />
+          <Route path="/products" component={ProductsPage} />
+          <Route path="/team" component={TeamPage} />
           <Route path="/servico" component={ServicePage} />
           
           <ProtectedRoute path="/user" component={UserPage} />
