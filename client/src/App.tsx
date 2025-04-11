@@ -32,7 +32,7 @@ export default function App() {
           <Route path="/" component={HomePage} />
           <Route path="/products" component={ProductsPage} />
           <Route path="/team" component={TeamPage} />
-          <Route path="/servico" component={ServicePage} />
+          <Route path="/service" component={ServicePage} />
           
           <ProtectedRoute path="/user" component={UserPage} />
           

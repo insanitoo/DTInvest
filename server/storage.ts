@@ -1,4 +1,4 @@
-import { InsertUser, User, BankInfo, InsertBankInfo, Transaction, InsertTransaction } from "@shared/schema";
+import { InsertUser, User, BankInfo, InsertBankInfo, Transaction, InsertTransaction, Product, InsertProduct, Purchase, InsertPurchase } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -20,6 +20,18 @@ export interface IStorage {
   getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: number, status: string): Promise<Transaction>;
+  
+  // Métodos produtos
+  getProducts(): Promise<Product[]>;
+  getProduct(id: number): Promise<Product | undefined>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(id: number): Promise<void>;
+  getActiveProducts(): Promise<Product[]>;
+
+  // Métodos compras
+  getUserPurchases(userId: number): Promise<Purchase[]>;
+  createPurchase(purchase: InsertPurchase): Promise<Purchase>;
 
   sessionStore: session.Store;
 }
@@ -29,18 +41,26 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private bankInfo: Map<number, BankInfo & { userId: number }>;
   private transactions: Map<number, Transaction>;
+  private products: Map<number, Product>;
+  private purchases: Map<number, Purchase>;
   private currentUserId: number;
   private currentBankInfoId: number;
   private currentTransactionId: number;
+  private currentProductId: number;
+  private currentPurchaseId: number;
   sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
     this.bankInfo = new Map();
     this.transactions = new Map();
+    this.products = new Map();
+    this.purchases = new Map();
     this.currentUserId = 1;
     this.currentBankInfoId = 1;
     this.currentTransactionId = 1;
+    this.currentProductId = 1;
+    this.currentPurchaseId = 1;
 
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
