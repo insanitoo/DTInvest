@@ -4,26 +4,41 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 
 // Middleware para verificar se o usuário é administrador
-function isAdmin(req: any, res: any, next: any) {
+async function isAdmin(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
     console.log("Admin check: Usuário não autenticado");
     return res.status(401).json({ message: "Não autenticado" });
   }
   
-  console.log("Admin check: Usuário autenticado:", req.user);
+  console.log("Admin check: Usuário autenticado:", req.user.phoneNumber);
   
-  // Para o protótipo, consideramos o usuário 999999999 como administrador
-  if (req.user.phoneNumber === "999999999") {
-    console.log("Admin check: Usuário é administrador (999999999)");
-    return next();
-  }
-  
-  if (!req.user.isAdmin) {
+  try {
+    // Se o usuário já está marcado como admin no objeto de sessão
+    if (req.user.isAdmin) {
+      console.log("Admin check: Usuário já é administrador (sessão)");
+      return next();
+    }
+    
+    // Para o protótipo, garantimos que 999999999 seja sempre administrador
+    if (req.user.phoneNumber === "999999999") {
+      console.log("Admin check: Usuário é administrador pelo número (999999999)");
+      
+      // Atualizar usuário para ser admin permanentemente
+      const userId = req.user.id;
+      await storage.updateUser(userId, { isAdmin: true });
+      
+      // Atualizar o usuário na sessão
+      req.user.isAdmin = true;
+      
+      return next();
+    }
+    
     console.log("Admin check: Usuário não é administrador");
     return res.status(403).json({ message: "Acesso negado" });
+  } catch (error) {
+    console.error("Erro na verificação de admin:", error);
+    return res.status(500).json({ message: "Erro interno na verificação" });
   }
-  
-  next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

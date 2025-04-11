@@ -10,6 +10,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, newBalance: number): Promise<User>;
+  updateUser(userId: number, updates: Partial<User>): Promise<User>; // Método para atualizar qualquer propriedade do usuário
 
   getBankInfoByUserId(userId: number): Promise<BankInfo | undefined>;
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
@@ -349,8 +350,8 @@ export class MemStorage implements IStorage {
     return newPurchase;
   }
 
-  // Método auxiliar para atualizar propriedades do usuário
-  private async updateUser(userId: number, updates: Partial<User>): Promise<User> {
+  // Método para atualizar propriedades do usuário
+  async updateUser(userId: number, updates: Partial<User>): Promise<User> {
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
