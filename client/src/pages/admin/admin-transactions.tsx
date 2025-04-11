@@ -103,6 +103,8 @@ export default function AdminTransactions() {
         return 'Processando';
       case 'completed':
         return 'Concluído';
+      case 'approved':
+        return 'Aprovado';
       case 'failed':
         return 'Falhou';
       default:
@@ -119,6 +121,8 @@ export default function AdminTransactions() {
         return 'bg-blue-500';
       case 'completed':
         return 'bg-green-500';
+      case 'approved':
+        return 'bg-purple-500';
       case 'failed':
         return 'bg-red-500';
       default:
@@ -260,6 +264,7 @@ export default function AdminTransactions() {
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="processing">Processando</SelectItem>
                     <SelectItem value="completed">Concluído</SelectItem>
+                    <SelectItem value="approved">Aprovado</SelectItem>
                     <SelectItem value="failed">Falhou</SelectItem>
                   </SelectContent>
                 </Select>
