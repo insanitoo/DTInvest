@@ -73,6 +73,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   referralCode: true,
   referredBy: true,
+  isAdmin: true,
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).pick({

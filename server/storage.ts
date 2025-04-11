@@ -12,6 +12,8 @@ export interface IStorage {
 
   getBankInfoByUserId(userId: number): Promise<BankInfo | undefined>;
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
+  createBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
+  deleteBankInfo(userId: number): Promise<void>;
 
   getTransactions(userId: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
@@ -76,6 +78,8 @@ export class MemStorage implements IStorage {
       hasDeposited: false,
       createdAt: now,
       updatedAt: now,
+      isAdmin: insertUser.hasOwnProperty('isAdmin') ? (insertUser as any).isAdmin : false,
+      referredBy: insertUser.referredBy || null,
     };
 
     this.users.set(id, user);
@@ -113,7 +117,43 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async updateBankInfo(userId: number, bankInfoData: Omit<BankInfo, "userId">): Promise<BankInfo> {
+  async createBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
+    // Check if user exists
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    // Check if bank info already exists for user
+    const existingBankInfo = Array.from(this.bankInfo.values()).find(
+      (info) => info.userId === userId,
+    );
+
+    if (existingBankInfo) {
+      throw new Error('Usuário já possui informações bancárias cadastradas');
+    }
+
+    const now = new Date();
+    const id = this.currentBankInfoId++;
+
+    const newBankInfo = {
+      id,
+      userId,
+      ...bankInfoData,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.bankInfo.set(id, newBankInfo);
+
+    return {
+      bank: newBankInfo.bank,
+      ownerName: newBankInfo.ownerName,
+      accountNumber: newBankInfo.accountNumber,
+    };
+  }
+
+  async updateBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
     // Check if user exists
     const user = await this.getUser(userId);
     if (!user) {
@@ -125,43 +165,36 @@ export class MemStorage implements IStorage {
       (info) => info.userId === userId,
     );
 
-    const now = new Date();
-
-    if (existingBankInfo) {
-      // Update existing bank info
-      const updatedBankInfo = {
-        ...existingBankInfo,
-        ...bankInfoData,
-        updatedAt: now,
-      };
-
-      this.bankInfo.set(existingBankInfo.id, updatedBankInfo);
-
-      return {
-        bank: updatedBankInfo.bank,
-        ownerName: updatedBankInfo.ownerName,
-        accountNumber: updatedBankInfo.accountNumber,
-      };
-    } else {
-      // Create new bank info
-      const id = this.currentBankInfoId++;
-
-      const newBankInfo = {
-        id,
-        userId,
-        ...bankInfoData,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      this.bankInfo.set(id, newBankInfo);
-
-      return {
-        bank: newBankInfo.bank,
-        ownerName: newBankInfo.ownerName,
-        accountNumber: newBankInfo.accountNumber,
-      };
+    if (!existingBankInfo) {
+      throw new Error('Informações bancárias não encontradas');
     }
+
+    const now = new Date();
+    const updatedBankInfo = {
+      ...existingBankInfo,
+      ...bankInfoData,
+      updatedAt: now,
+    };
+
+    this.bankInfo.set(existingBankInfo.id, updatedBankInfo);
+
+    return {
+      bank: updatedBankInfo.bank,
+      ownerName: updatedBankInfo.ownerName,
+      accountNumber: updatedBankInfo.accountNumber,
+    };
+  }
+
+  async deleteBankInfo(userId: number): Promise<void> {
+    const existingBankInfo = Array.from(this.bankInfo.entries()).find(
+      ([_, info]) => info.userId === userId,
+    );
+
+    if (!existingBankInfo) {
+      throw new Error('Informações bancárias não encontradas');
+    }
+
+    this.bankInfo.delete(existingBankInfo[0]);
   }
 
   // Transaction methods
@@ -206,54 +239,13 @@ export class MemStorage implements IStorage {
 // Export storage instance
 export const storage = new MemStorage();
 
-// Get dashboard stats
-export async function getTotalUsers() {
-  const result = await db.select({ count: sql`count(*)` }).from(users);
-  return Number(result[0].count);
-}
-
-export async function getTotalDeposits() {
-  const result = await db
-    .select({ sum: sql`sum(amount)` })
-    .from(transactions)
-    .where(eq(transactions.type, 'deposit'))
-    .where(eq(transactions.status, 'completed'));
-  return Number(result[0].sum) || 0;
-}
-
-export async function getTotalWithdrawals() {
-  const result = await db
-    .select({ sum: sql`sum(amount)` })
-    .from(transactions)
-    .where(eq(transactions.type, 'withdrawal'))
-    .where(eq(transactions.status, 'completed'));
-  return Number(result[0].sum) || 0;
-}
-
-export async function getPopularProducts() {
-  const result = await db
-    .select({
-      productId: products.id,
-      name: products.name,
-      count: sql`count(*)`.as('count')
-    })
-    .from(purchases)
-    .innerJoin(products, eq(purchases.productId, products.id))
-    .groupBy(products.id, products.name)
-    .orderBy(sql`count(*) desc`)
-    .limit(5);
-  return result;
-}
-
 // Initialize with a test user
 (async () => {
   try {
-    const { hashPassword } = await import('./auth.js');
-
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({
       phoneNumber: "999999999",
-      password: await hashPassword("123456"),
+      password: "protótipo", // Plain password, will be handled by auth.ts
       referralCode: "AA1234",
       referredBy: null,
       isAdmin: true
