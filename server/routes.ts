@@ -3,6 +3,17 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 
+// Middleware para verificar se o usuário é administrador
+function isAdmin(req: any, res: any, next: any) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Acesso negado" });
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
@@ -19,6 +30,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(transactions);
       })
       .catch(next);
+  });
+  
+  // Admin routes
+  // Get admin stats (usuários, estatísticas, etc.)
+  app.get("/api/admin/stats", isAdmin, (req, res) => {
+    const adminStats = {
+      totalUsers: 1, // Para este protótipo, informamos dados fixos
+      totalDeposits: 5000,
+      totalWithdrawals: 2000,
+      popularProducts: [
+        {
+          productId: 1,
+          name: "Produto Premium",
+          count: 10
+        },
+        {
+          productId: 2,
+          name: "Produto Básico",
+          count: 5
+        }
+      ]
+    };
+    
+    res.json(adminStats);
+  });
+  
+  // Lista de todos os usuários
+  app.get("/api/admin/users", isAdmin, (req, res) => {
+    // Para o protótipo, retornamos um array com o usuário de teste
+    const users = [
+      {
+        id: 1,
+        phoneNumber: "999999999",
+        balance: 10000,
+        referralCode: "AA1234",
+        level1Commission: 0,
+        level2Commission: 0,
+        level3Commission: 0,
+        hasProduct: true,
+        hasDeposited: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+    
+    res.json(users);
+  });
+  
+  // Lista de todas as transações
+  app.get("/api/admin/transactions", isAdmin, (req, res) => {
+    // Para o protótipo, retornamos algumas transações de exemplo
+    const transactions = [
+      {
+        id: 1,
+        userId: 1,
+        type: "deposit",
+        amount: 5000,
+        status: "completed",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        userId: 1,
+        type: "withdrawal",
+        amount: 2000,
+        status: "pending",
+        bankAccount: "BFA - 123456789",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+    
+    res.json(transactions);
+  });
+  
+  // Lista de produtos
+  app.get("/api/admin/products", isAdmin, (req, res) => {
+    // Para o protótipo, retornamos produtos de exemplo
+    const products = [
+      {
+        id: 1,
+        name: "Produto Premium",
+        description: "Produto com alto retorno",
+        price: 5000,
+        returnRate: 3.0,
+        cycleDays: 30,
+        dailyIncome: 500,
+        totalReturn: 15000,
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        name: "Produto Básico",
+        description: "Produto para iniciantes",
+        price: 2000,
+        returnRate: 2.0,
+        cycleDays: 30,
+        dailyIncome: 133,
+        totalReturn: 4000,
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+    
+    res.json(products);
+  });
+  
+  // Criar produto
+  app.post("/api/admin/products", isAdmin, (req, res) => {
+    // Para o protótipo, fingimos que criamos o produto e retornamos o que foi enviado
+    const product = {
+      id: 3, // ID simulado
+      ...req.body,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    res.status(201).json(product);
   });
 
   // Deposits
@@ -122,11 +256,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingBank = await storage.getBankInfoByUserId(userId);
       if (existingBank) {
         // Se existe, atualiza
-        const bankInfo = await storage.updateBankInfo(userId, { bank, ownerName, accountNumber });
+        const bankInfo = await storage.updateBankInfo(userId, { 
+          bank, 
+          ownerName, 
+          accountNumber, 
+          userId 
+        });
         return res.status(200).json(bankInfo);
       } else {
         // Se não existe, cria novo
-        const bankInfo = await storage.createBankInfo(userId, { bank, ownerName, accountNumber });
+        const bankInfo = await storage.createBankInfo(userId, { 
+          bank, 
+          ownerName, 
+          accountNumber, 
+          userId 
+        });
         return res.status(201).json(bankInfo);
       }
     } catch (error) {
