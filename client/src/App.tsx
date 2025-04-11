@@ -34,7 +34,7 @@ export default function App() {
           <Route path="/equipe" component={TeamPage} />
           <Route path="/servico" component={ServicePage} />
           
-          <ProtectedRoute path="/perfil" component={UserPage} />
+          <ProtectedRoute path="/user" component={UserPage} />
           
           {/* Rotas Admin */}
           <ProtectedRoute path="/admin" component={AdminDashboard} />

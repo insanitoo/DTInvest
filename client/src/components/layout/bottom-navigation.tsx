@@ -20,7 +20,7 @@ export function BottomNavigation() {
           <Home className="h-6 w-6 mb-1" />
           <span>Início</span>
         </Link>
-        
+
         <Link href="/products" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
           isActive("/products") ? "text-primary" : "text-gray-400"
@@ -28,7 +28,7 @@ export function BottomNavigation() {
           <ShoppingCart className="h-6 w-6 mb-1" />
           <span>Produtos</span>
         </Link>
-        
+
         <Link href="/team" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
           isActive("/team") ? "text-primary" : "text-gray-400"
@@ -36,7 +36,7 @@ export function BottomNavigation() {
           <Users className="h-6 w-6 mb-1" />
           <span>Equipa</span>
         </Link>
-        
+
         <Link href="/user" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
           isActive("/user") ? "text-primary" : "text-gray-400"
