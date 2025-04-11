@@ -265,12 +265,112 @@ export class MemStorage implements IStorage {
     this.transactions.set(id, updatedTransaction);
     return updatedTransaction;
   }
+
+  // Product methods
+  async getProducts(): Promise<Product[]> {
+    return Array.from(this.products.values())
+      .sort((a, b) => a.price - b.price);
+  }
+
+  async getActiveProducts(): Promise<Product[]> {
+    return Array.from(this.products.values())
+      .filter(product => product.active)
+      .sort((a, b) => a.price - b.price);
+  }
+
+  async getProduct(id: number): Promise<Product | undefined> {
+    return this.products.get(id);
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const id = this.currentProductId++;
+    const now = new Date();
+
+    const newProduct: Product = {
+      id,
+      ...product,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.products.set(id, newProduct);
+    return newProduct;
+  }
+
+  async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product> {
+    const existingProduct = this.products.get(id);
+    if (!existingProduct) {
+      throw new Error('Produto não encontrado');
+    }
+
+    const updatedProduct = {
+      ...existingProduct,
+      ...product,
+      updatedAt: new Date(),
+    };
+
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    if (!this.products.has(id)) {
+      throw new Error('Produto não encontrado');
+    }
+
+    this.products.delete(id);
+  }
+
+  // Purchase methods
+  async getUserPurchases(userId: number): Promise<Purchase[]> {
+    return Array.from(this.purchases.values())
+      .filter(purchase => purchase.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
+    const id = this.currentPurchaseId++;
+    const now = new Date();
+
+    const newPurchase: Purchase = {
+      id,
+      ...purchase,
+      createdAt: now,
+    };
+
+    this.purchases.set(id, newPurchase);
+    
+    // Atualizar o usuário para indicar que ele possui um produto
+    const user = await this.getUser(purchase.userId);
+    if (user) {
+      await this.updateUser(purchase.userId, { hasProduct: true });
+    }
+
+    return newPurchase;
+  }
+
+  // Método auxiliar para atualizar propriedades do usuário
+  private async updateUser(userId: number, updates: Partial<User>): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
 }
 
 // Export storage instance
 export const storage = new MemStorage();
 
-// Initialize with a test user
+// Initialize with test data
 (async () => {
   try {
     // Create test user with phone number 999999999
@@ -283,7 +383,48 @@ export const storage = new MemStorage();
     });
 
     console.log("Test user created:", testUser.phoneNumber);
+    
+    // Criar produtos de teste
+    const testProducts = [
+      {
+        name: "Produto Premium",
+        description: "Produto com alto retorno para investidores experientes",
+        price: 5000,
+        returnRate: 3.0,
+        cycleDays: 30,
+        dailyIncome: 500,
+        totalReturn: 15000,
+        active: true
+      },
+      {
+        name: "Produto Básico",
+        description: "Produto para iniciantes com retorno moderado",
+        price: 2000,
+        returnRate: 2.0,
+        cycleDays: 30,
+        dailyIncome: 133,
+        totalReturn: 4000,
+        active: true
+      },
+      {
+        name: "Produto VIP",
+        description: "Produto exclusivo com alto retorno garantido",
+        price: 10000,
+        returnRate: 3.5,
+        cycleDays: 30,
+        dailyIncome: 1167,
+        totalReturn: 35000,
+        active: true
+      }
+    ];
+    
+    for (const productData of testProducts) {
+      await storage.createProduct(productData);
+    }
+    
+    console.log("Produtos de teste criados");
+    
   } catch (error) {
-    console.error("Error creating test user:", error);
+    console.error("Error creating test data:", error);
   }
 })();

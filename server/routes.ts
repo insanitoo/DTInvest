@@ -102,52 +102,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Lista de produtos
-  app.get("/api/admin/products", isAdmin, (req, res) => {
-    // Para o protótipo, retornamos produtos de exemplo
-    const products = [
-      {
-        id: 1,
-        name: "Produto Premium",
-        description: "Produto com alto retorno",
-        price: 5000,
-        returnRate: 3.0,
-        cycleDays: 30,
-        dailyIncome: 500,
-        totalReturn: 15000,
-        active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 2,
-        name: "Produto Básico",
-        description: "Produto para iniciantes",
-        price: 2000,
-        returnRate: 2.0,
-        cycleDays: 30,
-        dailyIncome: 133,
-        totalReturn: 4000,
-        active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+  app.get("/api/admin/products", isAdmin, async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar produtos" });
+    }
+  });
+  
+  // Listar produtos ativos (para usuários comuns)
+  app.get("/api/products", async (req, res) => {
+    try {
+      const products = await storage.getActiveProducts();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar produtos" });
+    }
+  });
+  
+  // Detalhes de um produto específico
+  app.get("/api/products/:id", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const product = await storage.getProduct(productId);
+      
+      if (!product) {
+        return res.status(404).json({ error: "Produto não encontrado" });
       }
-    ];
-    
-    res.json(products);
+      
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar produto" });
+    }
   });
   
   // Criar produto
-  app.post("/api/admin/products", isAdmin, (req, res) => {
-    // Para o protótipo, fingimos que criamos o produto e retornamos o que foi enviado
-    const product = {
-      id: 3, // ID simulado
-      ...req.body,
-      active: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    res.status(201).json(product);
+  app.post("/api/admin/products", isAdmin, async (req, res) => {
+    try {
+      const product = await storage.createProduct(req.body);
+      res.status(201).json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao criar produto" });
+    }
+  });
+  
+  // Atualizar produto
+  app.put("/api/admin/products/:id", isAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const product = await storage.updateProduct(productId, req.body);
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar produto" });
+    }
+  });
+  
+  // Excluir produto
+  app.delete("/api/admin/products/:id", isAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      await storage.deleteProduct(productId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao excluir produto" });
+    }
   });
 
   // Deposits
@@ -281,6 +300,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.deleteBankInfo(req.user.id);
       res.status(200).json({ message: "Informações bancárias removidas com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Comprar um produto
+  app.post("/api/purchases", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    const userId = req.user.id;
+    const { productId } = req.body;
+    
+    try {
+      if (!productId) {
+        return res.status(400).json({ message: "ID do produto é obrigatório" });
+      }
+      
+      // Verificar se o produto existe e está ativo
+      const product = await storage.getProduct(parseInt(productId));
+      if (!product) {
+        return res.status(404).json({ message: "Produto não encontrado" });
+      }
+      
+      if (!product.active) {
+        return res.status(400).json({ message: "Este produto não está disponível para compra" });
+      }
+      
+      // Verificar se o usuário tem saldo suficiente
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      if (user.balance < product.price) {
+        return res.status(400).json({ message: "Saldo insuficiente para comprar este produto" });
+      }
+      
+      // Registrar a compra
+      const purchase = await storage.createPurchase({
+        userId,
+        productId: product.id,
+        amount: product.price
+      });
+      
+      // Atualizar o saldo do usuário
+      const newBalance = user.balance - product.price;
+      await storage.updateUserBalance(userId, newBalance);
+      
+      // Registrar a transação
+      await storage.createTransaction({
+        userId,
+        type: "purchase",
+        amount: product.price,
+        status: "completed",
+        bankAccount: null
+      });
+      
+      res.status(201).json(purchase);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Listar compras do usuário
+  app.get("/api/purchases", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const purchases = await storage.getUserPurchases(req.user.id);
+      res.json(purchases);
     } catch (error) {
       next(error);
     }
