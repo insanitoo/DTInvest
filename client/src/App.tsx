@@ -24,8 +24,8 @@ import AdminSettings from '@/pages/admin/admin-settings';
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
         <Switch>
           <Route path="/auth" component={AuthPage} />
           
