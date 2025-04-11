@@ -9,14 +9,14 @@ export interface IStorage {
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, newBalance: number): Promise<User>;
-  
+
   getBankInfoByUserId(userId: number): Promise<BankInfo | undefined>;
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
-  
+
   getTransactions(userId: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: number, status: string): Promise<Transaction>;
-  
+
   sessionStore: session.Store;
 }
 
@@ -37,7 +37,7 @@ export class MemStorage implements IStorage {
     this.currentUserId = 1;
     this.currentBankInfoId = 1;
     this.currentTransactionId = 1;
-    
+
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // 24 hours
@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
-    
+
     const user: User = {
       id,
       ...insertUser,
@@ -77,7 +77,7 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     this.users.set(id, user);
     return user;
   }
@@ -87,13 +87,13 @@ export class MemStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     const updatedUser = {
       ...user,
       balance: newBalance,
       updatedAt: new Date(),
     };
-    
+
     this.users.set(userId, updatedUser);
     return updatedUser;
   }
@@ -103,9 +103,9 @@ export class MemStorage implements IStorage {
     const bankInfoEntry = Array.from(this.bankInfo.values()).find(
       (info) => info.userId === userId,
     );
-    
+
     if (!bankInfoEntry) return undefined;
-    
+
     return {
       bank: bankInfoEntry.bank,
       ownerName: bankInfoEntry.ownerName,
@@ -119,14 +119,14 @@ export class MemStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     // Check if bank info exists for user
     const existingBankInfo = Array.from(this.bankInfo.values()).find(
       (info) => info.userId === userId,
     );
-    
+
     const now = new Date();
-    
+
     if (existingBankInfo) {
       // Update existing bank info
       const updatedBankInfo = {
@@ -134,9 +134,9 @@ export class MemStorage implements IStorage {
         ...bankInfoData,
         updatedAt: now,
       };
-      
+
       this.bankInfo.set(existingBankInfo.id, updatedBankInfo);
-      
+
       return {
         bank: updatedBankInfo.bank,
         ownerName: updatedBankInfo.ownerName,
@@ -145,7 +145,7 @@ export class MemStorage implements IStorage {
     } else {
       // Create new bank info
       const id = this.currentBankInfoId++;
-      
+
       const newBankInfo = {
         id,
         userId,
@@ -153,9 +153,9 @@ export class MemStorage implements IStorage {
         createdAt: now,
         updatedAt: now,
       };
-      
+
       this.bankInfo.set(id, newBankInfo);
-      
+
       return {
         bank: newBankInfo.bank,
         ownerName: newBankInfo.ownerName,
@@ -174,14 +174,14 @@ export class MemStorage implements IStorage {
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const id = this.currentTransactionId++;
     const now = new Date();
-    
+
     const newTransaction: Transaction = {
       id,
       ...transaction,
       createdAt: now,
       updatedAt: now,
     };
-    
+
     this.transactions.set(id, newTransaction);
     return newTransaction;
   }
@@ -191,13 +191,13 @@ export class MemStorage implements IStorage {
     if (!transaction) {
       throw new Error('Transação não encontrada');
     }
-    
+
     const updatedTransaction = {
       ...transaction,
       status,
       updatedAt: new Date(),
     };
-    
+
     this.transactions.set(id, updatedTransaction);
     return updatedTransaction;
   }
@@ -248,8 +248,9 @@ export async function getPopularProducts() {
 // Initialize with a test user
 (async () => {
   try {
-    const { hashPassword } = await import('./auth');
-    
+    const auth = require('./auth');
+    const hashPassword = auth.hashPassword;
+
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({
       phoneNumber: "999999999",
