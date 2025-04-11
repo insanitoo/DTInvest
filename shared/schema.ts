@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   balance: doublePrecision("balance").default(0).notNull(),
   referralCode: text("referral_code").notNull().unique(),
   referredBy: text("referred_by"),
+  isAdmin: boolean("is_admin").default(false).notNull(),
   level1Commission: doublePrecision("level1_commission").default(0).notNull(),
   level2Commission: doublePrecision("level2_commission").default(0).notNull(),
   level3Commission: doublePrecision("level3_commission").default(0).notNull(),
