@@ -209,7 +209,7 @@ export const storage = new MemStorage();
 // Initialize with a test user
 (async () => {
   try {
-    const { hashPassword } = await import('./auth');
+    const { hashPassword } = require('./auth');
     
     // Create test user with phone number 999999999
     const testUser = await storage.createUser({
