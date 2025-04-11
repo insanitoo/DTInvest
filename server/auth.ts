@@ -55,13 +55,15 @@ function generateReferralCode(): string {
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || 'sp_global_session_secret',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days para persistência longa
+      secure: false, // desabilitado para desenvolvimento
       httpOnly: true,
+      path: '/',
+      sameSite: 'lax'
     }
   };
 
