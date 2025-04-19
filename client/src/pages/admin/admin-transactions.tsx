@@ -49,28 +49,9 @@ export default function AdminTransactions() {
           status: newStatus 
         });
         
-        // Verificar se a resposta tem conteúdo antes de tentar parsear o JSON
-        let data;
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const text = await res.text();
-          if (text) {
-            try {
-              data = JSON.parse(text);
-              console.log('Resposta JSON recebida:', data);
-            } catch (e) {
-              console.log('Resposta recebida, mas não é JSON válido:', text);
-              // Retornar objeto simples para indicar sucesso
-              data = { success: true };
-            }
-          } else {
-            console.log('Resposta recebida com status OK, mas sem conteúdo');
-            data = { success: true };
-          }
-        } else {
-          console.log('Resposta recebida com status OK, mas não é JSON');
-          data = { success: true };
-        }
+        // Pegar os dados da resposta em JSON
+        const data = await res.json();
+        console.log('Resposta JSON recebida da API:', data);
         
         return data || { success: true };
       } catch (error) {
@@ -80,7 +61,28 @@ export default function AdminTransactions() {
     },
     onSuccess: (data) => {
       console.log('Mutation concluída com sucesso:', data);
+      
+      // Forçar atualização do cache
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
+      
+      // Também invalidar as transações do usuário para que apareça atualizado na tela do usuário
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      
+      // Atualizar manualmente o cache para mostrar a mudança imediatamente
+      if (selectedTransaction) {
+        // Obter os dados atuais do cache
+        const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
+        
+        // Atualizar o objeto da transação no cache com o novo status
+        const updatedTransactions = currentTransactions.map(tx => 
+          tx.id === selectedTransaction.id ? { ...tx, status: newStatus } : tx
+        );
+        
+        // Atualizar o cache diretamente
+        queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
+        
+        console.log('Cache atualizado manualmente:', updatedTransactions);
+      }
       
       toast({
         title: 'Status atualizado',

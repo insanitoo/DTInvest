@@ -142,10 +142,19 @@ export function setupAdminRoutes(app: Express) {
         // Atualiza o cache das transações do usuário também
         await storage.getTransactions(updatedTransaction.userId);
         
-        // Garante que o corpo da resposta seja sempre um JSON válido
+        // Agora antes de retornar, buscamos todas as transações do usuário para garantir que o cache esteja atualizado
+        const userTransactions = await storage.getTransactions(updatedTransaction.userId);
+        console.log(`Transações do usuário ${updatedTransaction.userId} atualizadas no servidor:`, userTransactions);
+        
+        // Buscar todas as transações também para atualizar o cache de admin
+        const allTransactions = await storage.getAllTransactions();
+        console.log('Todas as transações atualizadas no servidor:', allTransactions);
+        
+        // Garante que o corpo da resposta seja sempre um JSON válido com a transação atualizada
         return res.status(200).json({ 
           success: true, 
-          transaction: updatedTransaction
+          transaction: updatedTransaction,
+          updatedAt: new Date().toISOString()
         });
       } catch (error) {
         console.error('Erro ao atualizar transação:', error);
