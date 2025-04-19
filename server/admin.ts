@@ -116,6 +116,7 @@ export function setupAdminRoutes(app: Express) {
       const { status } = req.body;
       
       console.log(`Atualizando transação ${transactionId} para status: ${status}`);
+      console.log('Corpo da requisição:', req.body);
       
       if (!status) {
         return res.status(400).json({ message: "Status é obrigatório" });
@@ -125,19 +126,34 @@ export function setupAdminRoutes(app: Express) {
         return res.status(400).json({ message: "Status inválido" });
       }
       
+      // Obter a transação atual para verificar se existe
+      const existingTransaction = await storage.getTransaction(transactionId);
+      if (!existingTransaction) {
+        return res.status(404).json({ message: "Transação não encontrada" });
+      }
+      
+      console.log('Transação atual:', existingTransaction);
+      
+      // Atualizar o status
       try {
-        const transaction = await storage.updateTransactionStatus(transactionId, status);
-        console.log(`Transação atualizada com sucesso:`, transaction);
-        return res.json(transaction);
+        const updatedTransaction = await storage.updateTransactionStatus(transactionId, status);
+        console.log('Transação atualizada com sucesso:', updatedTransaction);
+        
+        // Atualiza o cache das transações do usuário também
+        await storage.getTransactions(updatedTransaction.userId);
+        
+        return res.json(updatedTransaction);
       } catch (error) {
-        console.error(`Erro ao atualizar transação:`, error);
-        if (error instanceof Error && error.message === 'Transação não encontrada') {
-          return res.status(404).json({ message: "Transação não encontrada" });
-        }
+        console.error('Erro ao atualizar transação:', error);
         throw error;
       }
     } catch (error) {
-      console.error(`Erro geral ao processar atualização:`, error);
+      console.error('Erro geral ao processar atualização:', error);
+      
+      if (error instanceof Error) {
+        return res.status(500).json({ message: error.message || "Erro ao atualizar transação" });
+      }
+      
       res.status(500).json({ message: "Erro ao atualizar transação" });
     }
   });

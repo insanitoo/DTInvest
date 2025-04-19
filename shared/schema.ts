@@ -126,6 +126,11 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
   bankAccount: true,
 });
 
+// Forçar bankAccount a ser string | null
+export const transactionSchema = insertTransactionSchema.extend({
+  bankAccount: z.string().nullable()
+});
+
 export const insertBankInfoSchema = createInsertSchema(bankInfo).pick({
   userId: true,
   bank: true,

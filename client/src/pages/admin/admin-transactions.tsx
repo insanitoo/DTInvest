@@ -38,14 +38,26 @@ export default function AdminTransactions() {
   // Update transaction status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedTransaction || !newStatus) return;
+      if (!selectedTransaction || !newStatus) {
+        throw new Error("Transação ou status não selecionados");
+      }
       
-      const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
-        status: newStatus 
-      });
-      return await res.json();
+      console.log(`Enviando status '${newStatus}' para transação ${selectedTransaction.id}`);
+      
+      try {
+        const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
+          status: newStatus 
+        });
+        const data = await res.json();
+        console.log('Resposta recebida:', data);
+        return data;
+      } catch (error) {
+        console.error('Erro na requisição:', error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Mutation concluída com sucesso:', data);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
       
       toast({
@@ -58,6 +70,7 @@ export default function AdminTransactions() {
       setNewStatus('');
     },
     onError: (error: Error) => {
+      console.error('Erro na mutation:', error);
       toast({
         title: 'Erro ao atualizar',
         description: error.message,
