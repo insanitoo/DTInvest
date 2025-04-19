@@ -710,6 +710,66 @@ export const storage = new MemStorage();
     
     console.log("Links sociais criados");
     
+    // Criar bancos padrão
+    const banksData = [
+      {
+        name: "Banco Angolano de Investimentos (BAI)",
+        logo: "bank-bai.png",
+        active: true
+      },
+      {
+        name: "Banco de Fomento Angola (BFA)",
+        logo: "bank-bfa.png",
+        active: true
+      },
+      {
+        name: "Banco Económico (BE)",
+        logo: "bank-be.png",
+        active: true
+      },
+      {
+        name: "Banco Millennium Atlântico (BMA)",
+        logo: "bank-bma.png",
+        active: true
+      }
+    ];
+    
+    for (const bankData of banksData) {
+      await storage.createBank(bankData);
+    }
+    
+    console.log("Bancos padrão criados");
+    
+    // Criar configurações iniciais
+    const settingsData = [
+      {
+        key: "deposit_min",
+        value: "1000"
+      },
+      {
+        key: "withdrawal_min",
+        value: "2000"
+      },
+      {
+        key: "company_name",
+        value: "S&P Global"
+      },
+      {
+        key: "support_email",
+        value: "suporte@spglobal.com"
+      },
+      {
+        key: "support_phone",
+        value: "+244 000 000 000"
+      }
+    ];
+    
+    for (const settingData of settingsData) {
+      await storage.createSetting(settingData);
+    }
+    
+    console.log("Configurações iniciais criadas");
+    
   } catch (error) {
     console.error("Error creating test data:", error);
   }

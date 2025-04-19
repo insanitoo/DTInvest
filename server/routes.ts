@@ -552,6 +552,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas para Links Sociais
+  app.get("/api/social-links", async (req, res) => {
+    try {
+      const links = await storage.getActiveSocialLinks();
+      res.json(links);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar links sociais" });
+    }
+  });
+
+  app.get("/api/admin/social-links", isAdmin, async (req, res) => {
+    try {
+      const links = await storage.getSocialLinks();
+      res.json(links);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar links sociais" });
+    }
+  });
+
+  app.post("/api/admin/social-links", isAdmin, async (req, res) => {
+    try {
+      const link = await storage.createSocialLink(req.body);
+      res.status(201).json(link);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao criar link social" });
+    }
+  });
+
+  app.put("/api/admin/social-links/:id", isAdmin, async (req, res) => {
+    try {
+      const linkId = parseInt(req.params.id);
+      const link = await storage.updateSocialLink(linkId, req.body);
+      res.json(link);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar link social" });
+    }
+  });
+
+  app.delete("/api/admin/social-links/:id", isAdmin, async (req, res) => {
+    try {
+      const linkId = parseInt(req.params.id);
+      await storage.deleteSocialLink(linkId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao deletar link social" });
+    }
+  });
+
+  // Rotas para Bancos
+  app.get("/api/banks", async (req, res) => {
+    try {
+      const banks = await storage.getAllBanks();
+      res.json(banks.filter(bank => bank.active));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+    }
+  });
+
+  app.get("/api/admin/banks", isAdmin, async (req, res) => {
+    try {
+      const banks = await storage.getAllBanks();
+      res.json(banks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+    }
+  });
+
+  app.post("/api/admin/banks", isAdmin, async (req, res) => {
+    try {
+      const bank = await storage.createBank(req.body);
+      res.status(201).json(bank);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao criar banco" });
+    }
+  });
+
+  app.put("/api/admin/banks/:id", isAdmin, async (req, res) => {
+    try {
+      const bankId = parseInt(req.params.id);
+      const bank = await storage.updateBank(bankId, req.body);
+      res.json(bank);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar banco" });
+    }
+  });
+
+  app.delete("/api/admin/banks/:id", isAdmin, async (req, res) => {
+    try {
+      const bankId = parseInt(req.params.id);
+      await storage.deleteBank(bankId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao deletar banco" });
+    }
+  });
+
+  // Rotas para Configurações
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar configurações" });
+    }
+  });
+
+  app.get("/api/admin/settings", isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar configurações" });
+    }
+  });
+
+  app.post("/api/admin/settings", isAdmin, async (req, res) => {
+    try {
+      const setting = await storage.createSetting(req.body);
+      res.status(201).json(setting);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao criar configuração" });
+    }
+  });
+
+  app.put("/api/admin/settings/:key", isAdmin, async (req, res) => {
+    try {
+      const key = req.params.key;
+      const { value } = req.body;
+      
+      if (!value) {
+        return res.status(400).json({ error: "Valor é obrigatório" });
+      }
+      
+      const setting = await storage.updateSetting(key, value);
+      res.json(setting);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar configuração" });
+    }
+  });
+
+  // Rotas para Carrossel
+  app.get("/api/carousel", async (req, res) => {
+    try {
+      const images = await storage.getActiveCarouselImages();
+      res.json(images);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar imagens do carrossel" });
+    }
+  });
+
+  app.get("/api/admin/carousel", isAdmin, async (req, res) => {
+    try {
+      const images = await storage.getAllCarouselImages();
+      res.json(images);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao buscar imagens do carrossel" });
+    }
+  });
+
+  app.post("/api/admin/carousel", isAdmin, async (req, res) => {
+    try {
+      const image = await storage.createCarouselImage(req.body);
+      res.status(201).json(image);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao criar imagem do carrossel" });
+    }
+  });
+
+  app.put("/api/admin/carousel/:id", isAdmin, async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id);
+      const image = await storage.updateCarouselImage(imageId, req.body);
+      res.json(image);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar imagem do carrossel" });
+    }
+  });
+
+  app.delete("/api/admin/carousel/:id", isAdmin, async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id);
+      await storage.deleteCarouselImage(imageId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao deletar imagem do carrossel" });
+    }
+  });
+
+  // Rota para informações sobre o site
+  app.get("/api/about", async (req, res) => {
+    res.json({
+      appName: "S&P Global",
+      version: "1.0.0",
+      description: "Plataforma de investimentos e gerenciamento financeiro",
+      contactEmail: "contato@spglobal.com",
+      supportPhone: "+244 000 000 000"
+    });
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
