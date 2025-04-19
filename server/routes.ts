@@ -343,28 +343,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deposits
-  app.post("/api/deposits", (req, res, next) => {
+  app.post("/api/deposits", async (req, res, next) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
 
-    const { amount } = req.body;
+    const { amount, bankId } = req.body;
 
-    if (!amount || amount < 1000) {
-      return res.status(400).json({ message: "Valor mínimo para depósito é KZ 1000" });
+    try {
+      // Obter o valor mínimo de depósito das configurações
+      const depositMinSetting = await storage.getSetting("deposit_min");
+      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 1000;
+
+      if (!amount || amount < minDeposit) {
+        return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
+      }
+
+      // Se foi fornecido um ID de banco, pegar informações dele
+      let bankInfo = null;
+      if (bankId) {
+        const bank = await storage.getBank(parseInt(bankId));
+        if (bank) {
+          bankInfo = bank.name;
+        }
+      }
+
+      const transaction = await storage.createTransaction({
+        userId: req.user.id,
+        type: "deposit",
+        amount,
+        status: "pending",
+        bankAccount: bankInfo
+      });
+
+      // Atualizar o usuário para indicar que ele já fez um depósito
+      await storage.updateUser(req.user.id, { hasDeposited: true });
+
+      res.status(201).json(transaction);
+    } catch (error) {
+      next(error);
     }
-
-    storage.createTransaction({
-      userId: req.user.id,
-      type: "deposit",
-      amount,
-      status: "pending",
-      bankAccount: null
-    })
-      .then(transaction => {
-        res.status(201).json(transaction);
-      })
-      .catch(next);
   });
 
   // Withdrawals
@@ -685,8 +703,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Valor é obrigatório" });
       }
       
-      const setting = await storage.updateSetting(key, value);
-      res.json(setting);
+      // Verifica se a configuração existe
+      const existingSetting = await storage.getSetting(key);
+      
+      if (existingSetting) {
+        // Se existir, atualiza
+        const setting = await storage.updateSetting(key, value);
+        res.json(setting);
+      } else {
+        // Se não existir, cria uma nova
+        const setting = await storage.createSetting({ key, value });
+        res.status(201).json(setting);
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Erro ao atualizar configuração" });
     }

@@ -27,7 +27,7 @@ export const transactions = pgTable("transactions", {
   type: text("type").notNull(), // deposit, withdrawal, purchase, commission
   amount: doublePrecision("amount").notNull(),
   status: text("status").notNull(), // pending, completed, failed, processing
-  bankAccount: text("bank_account"),
+  bankAccount: text("bank_account").default(null),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

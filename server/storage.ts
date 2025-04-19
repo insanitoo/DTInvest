@@ -297,7 +297,11 @@ export class MemStorage implements IStorage {
 
     const newTransaction: Transaction = {
       id,
-      ...transaction,
+      userId: transaction.userId,
+      type: transaction.type,
+      amount: transaction.amount,
+      status: transaction.status,
+      bankAccount: transaction.bankAccount === undefined ? null : transaction.bankAccount,
       createdAt: now,
       updatedAt: now,
     };
@@ -761,6 +765,10 @@ export const storage = new MemStorage();
       {
         key: "support_phone",
         value: "+244 000 000 000"
+      },
+      {
+        key: "aboutUs",
+        value: "A S&P Global é uma plataforma líder em investimentos e gerenciamento financeiro, oferecendo soluções inovadoras e seguras para nossos clientes."
       }
     ];
     
