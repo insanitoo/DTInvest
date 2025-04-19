@@ -1,27 +1,37 @@
-import { InsertUser, User, BankInfo, InsertBankInfo, Transaction, InsertTransaction, Product, InsertProduct, Purchase, InsertPurchase } from "@shared/schema";
+import { 
+  InsertUser, User, BankInfo, InsertBankInfo, 
+  Transaction, InsertTransaction, Product, InsertProduct, 
+  Purchase, InsertPurchase, SocialLink, InsertSocialLink,
+  Bank, InsertBank, Setting, InsertSetting,
+  CarouselImage, InsertCarouselImage
+} from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
 // Interface for storage operations
 export interface IStorage {
+  // Usuários
   getUser(id: number): Promise<User | undefined>;
   getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, newBalance: number): Promise<User>;
+  updateUser(userId: number, updates: Partial<User>): Promise<User>;
 
+  // Informações bancárias dos usuários
   getBankInfoByUserId(userId: number): Promise<BankInfo | undefined>;
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   createBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   deleteBankInfo(userId: number): Promise<void>;
 
+  // Transações
   getTransactions(userId: number): Promise<Transaction[]>;
   getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: number, status: string): Promise<Transaction>;
   
-  // Métodos produtos
+  // Produtos
   getProducts(): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
@@ -29,9 +39,38 @@ export interface IStorage {
   deleteProduct(id: number): Promise<void>;
   getActiveProducts(): Promise<Product[]>;
 
-  // Métodos compras
+  // Compras
   getUserPurchases(userId: number): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
+
+  // Links Sociais
+  getSocialLinks(): Promise<SocialLink[]>;
+  getActiveSocialLinks(): Promise<SocialLink[]>;
+  getSocialLink(id: number): Promise<SocialLink | undefined>;
+  createSocialLink(link: InsertSocialLink): Promise<SocialLink>;
+  updateSocialLink(id: number, link: Partial<InsertSocialLink>): Promise<SocialLink>;
+  deleteSocialLink(id: number): Promise<void>;
+
+  // Bancos
+  getAllBanks(): Promise<Bank[]>;
+  getBank(id: number): Promise<Bank | undefined>;
+  createBank(bank: InsertBank): Promise<Bank>;
+  updateBank(id: number, bank: Partial<InsertBank>): Promise<Bank>;
+  deleteBank(id: number): Promise<boolean>;
+
+  // Configurações
+  getAllSettings(): Promise<Setting[]>;
+  getSetting(key: string): Promise<Setting | undefined>;
+  createSetting(setting: InsertSetting): Promise<Setting>;
+  updateSetting(key: string, value: string): Promise<Setting>;
+
+  // Carrossel
+  getAllCarouselImages(): Promise<CarouselImage[]>;
+  getActiveCarouselImages(): Promise<CarouselImage[]>;
+  getCarouselImage(id: number): Promise<CarouselImage | undefined>;
+  createCarouselImage(image: InsertCarouselImage): Promise<CarouselImage>;
+  updateCarouselImage(id: number, image: Partial<InsertCarouselImage>): Promise<CarouselImage>;
+  deleteCarouselImage(id: number): Promise<boolean>;
 
   sessionStore: session.Store;
 }
@@ -43,11 +82,19 @@ export class MemStorage implements IStorage {
   private transactions: Map<number, Transaction>;
   private products: Map<number, Product>;
   private purchases: Map<number, Purchase>;
+  private socialLinks: Map<number, SocialLink>;
+  private banks: Map<number, Bank>;
+  private settings: Map<string, Setting>;
+  private carouselImages: Map<number, CarouselImage>;
   private currentUserId: number;
   private currentBankInfoId: number;
   private currentTransactionId: number;
   private currentProductId: number;
   private currentPurchaseId: number;
+  private currentSocialLinkId: number;
+  private currentBankId: number;
+  private currentSettingId: number;
+  private currentCarouselImageId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -56,11 +103,20 @@ export class MemStorage implements IStorage {
     this.transactions = new Map();
     this.products = new Map();
     this.purchases = new Map();
+    this.socialLinks = new Map();
+    this.banks = new Map();
+    this.settings = new Map();
+    this.carouselImages = new Map();
+    
     this.currentUserId = 1;
     this.currentBankInfoId = 1;
     this.currentTransactionId = 1;
     this.currentProductId = 1;
     this.currentPurchaseId = 1;
+    this.currentSocialLinkId = 1;
+    this.currentBankId = 1;
+    this.currentSettingId = 1;
+    this.currentCarouselImageId = 1;
 
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
@@ -349,8 +405,8 @@ export class MemStorage implements IStorage {
     return newPurchase;
   }
 
-  // Método auxiliar para atualizar propriedades do usuário
-  private async updateUser(userId: number, updates: Partial<User>): Promise<User> {
+  // Método para atualizar propriedades do usuário
+  async updateUser(userId: number, updates: Partial<User>): Promise<User> {
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
@@ -364,6 +420,208 @@ export class MemStorage implements IStorage {
 
     this.users.set(userId, updatedUser);
     return updatedUser;
+  }
+
+  // Links Sociais
+  async getSocialLinks(): Promise<SocialLink[]> {
+    return Array.from(this.socialLinks.values())
+      .sort((a, b) => a.id - b.id);
+  }
+
+  async getActiveSocialLinks(): Promise<SocialLink[]> {
+    return Array.from(this.socialLinks.values())
+      .filter(link => link.active)
+      .sort((a, b) => a.id - b.id);
+  }
+
+  async getSocialLink(id: number): Promise<SocialLink | undefined> {
+    return this.socialLinks.get(id);
+  }
+
+  async createSocialLink(link: InsertSocialLink): Promise<SocialLink> {
+    const id = this.currentSocialLinkId++;
+    const now = new Date();
+
+    const newLink: SocialLink = {
+      id,
+      ...link,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.socialLinks.set(id, newLink);
+    return newLink;
+  }
+
+  async updateSocialLink(id: number, link: Partial<InsertSocialLink>): Promise<SocialLink> {
+    const existingLink = this.socialLinks.get(id);
+    if (!existingLink) {
+      throw new Error('Link social não encontrado');
+    }
+
+    const updatedLink = {
+      ...existingLink,
+      ...link,
+      updatedAt: new Date(),
+    };
+
+    this.socialLinks.set(id, updatedLink);
+    return updatedLink;
+  }
+
+  async deleteSocialLink(id: number): Promise<void> {
+    if (!this.socialLinks.has(id)) {
+      throw new Error('Link social não encontrado');
+    }
+
+    this.socialLinks.delete(id);
+  }
+
+  // Bancos
+  async getAllBanks(): Promise<Bank[]> {
+    return Array.from(this.banks.values())
+      .sort((a, b) => a.id - b.id);
+  }
+
+  async getBank(id: number): Promise<Bank | undefined> {
+    return this.banks.get(id);
+  }
+
+  async createBank(bank: InsertBank): Promise<Bank> {
+    const id = this.currentBankId++;
+    const now = new Date();
+
+    const newBank: Bank = {
+      id,
+      ...bank,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.banks.set(id, newBank);
+    return newBank;
+  }
+
+  async updateBank(id: number, bank: Partial<InsertBank>): Promise<Bank> {
+    const existingBank = this.banks.get(id);
+    if (!existingBank) {
+      throw new Error('Banco não encontrado');
+    }
+
+    const updatedBank = {
+      ...existingBank,
+      ...bank,
+      updatedAt: new Date(),
+    };
+
+    this.banks.set(id, updatedBank);
+    return updatedBank;
+  }
+
+  async deleteBank(id: number): Promise<boolean> {
+    if (!this.banks.has(id)) {
+      throw new Error('Banco não encontrado');
+    }
+
+    return this.banks.delete(id);
+  }
+
+  // Configurações
+  async getAllSettings(): Promise<Setting[]> {
+    return Array.from(this.settings.values())
+      .sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    return Array.from(this.settings.values()).find(s => s.key === key);
+  }
+
+  async createSetting(setting: InsertSetting): Promise<Setting> {
+    const id = this.currentSettingId++;
+    const now = new Date();
+
+    const newSetting: Setting = {
+      id,
+      ...setting,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.settings.set(setting.key, newSetting);
+    return newSetting;
+  }
+
+  async updateSetting(key: string, value: string): Promise<Setting> {
+    const existingSetting = Array.from(this.settings.values())
+      .find(s => s.key === key);
+
+    if (!existingSetting) {
+      throw new Error('Configuração não encontrada');
+    }
+
+    const updatedSetting = {
+      ...existingSetting,
+      value,
+      updatedAt: new Date(),
+    };
+
+    this.settings.set(key, updatedSetting);
+    return updatedSetting;
+  }
+
+  // Carrossel
+  async getAllCarouselImages(): Promise<CarouselImage[]> {
+    return Array.from(this.carouselImages.values())
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async getActiveCarouselImages(): Promise<CarouselImage[]> {
+    return Array.from(this.carouselImages.values())
+      .filter(img => img.active)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async getCarouselImage(id: number): Promise<CarouselImage | undefined> {
+    return this.carouselImages.get(id);
+  }
+
+  async createCarouselImage(image: InsertCarouselImage): Promise<CarouselImage> {
+    const id = this.currentCarouselImageId++;
+    const now = new Date();
+
+    const newImage: CarouselImage = {
+      id,
+      ...image,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.carouselImages.set(id, newImage);
+    return newImage;
+  }
+
+  async updateCarouselImage(id: number, image: Partial<InsertCarouselImage>): Promise<CarouselImage> {
+    const existingImage = this.carouselImages.get(id);
+    if (!existingImage) {
+      throw new Error('Imagem do carrossel não encontrada');
+    }
+
+    const updatedImage = {
+      ...existingImage,
+      ...image,
+      updatedAt: new Date(),
+    };
+
+    this.carouselImages.set(id, updatedImage);
+    return updatedImage;
+  }
+
+  async deleteCarouselImage(id: number): Promise<boolean> {
+    if (!this.carouselImages.has(id)) {
+      throw new Error('Imagem do carrossel não encontrada');
+    }
+
+    return this.carouselImages.delete(id);
   }
 }
 
@@ -423,6 +681,34 @@ export const storage = new MemStorage();
     }
     
     console.log("Produtos de teste criados");
+    
+    // Criar links sociais padrão
+    const socialLinksData = [
+      {
+        name: "WhatsApp",
+        url: "https://wa.me/00000000000",
+        icon: "FaWhatsapp",
+        active: true
+      },
+      {
+        name: "Telegram",
+        url: "https://t.me/example",
+        icon: "FaTelegram",
+        active: true
+      },
+      {
+        name: "Instagram",
+        url: "https://instagram.com/example",
+        icon: "FaInstagram",
+        active: true
+      }
+    ];
+    
+    for (const linkData of socialLinksData) {
+      await storage.createSocialLink(linkData);
+    }
+    
+    console.log("Links sociais criados");
     
   } catch (error) {
     console.error("Error creating test data:", error);
