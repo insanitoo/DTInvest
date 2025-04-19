@@ -67,6 +67,48 @@ export const purchases = pgTable("purchases", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Schema para links sociais
+export const socialLinks = pgTable("social_links", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  icon: text("icon").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema para bancos (para serem selecionados pelos usuários)
+export const banks = pgTable("banks", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("logo"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema para configurações gerais
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema para imagens do carrossel
+export const carouselImages = pgTable("carousel_images", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url"),
+  order: integer("order").default(0),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insertion schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   phoneNumber: true,
@@ -108,6 +150,32 @@ export const insertPurchaseSchema = createInsertSchema(purchases).pick({
   amount: true,
 });
 
+export const insertSocialLinkSchema = createInsertSchema(socialLinks).pick({
+  name: true, 
+  url: true,
+  icon: true,
+  active: true
+});
+
+export const insertBankSchema = createInsertSchema(banks).pick({
+  name: true,
+  logo: true,
+  active: true
+});
+
+export const insertSettingSchema = createInsertSchema(settings).pick({
+  key: true,
+  value: true
+});
+
+export const insertCarouselImageSchema = createInsertSchema(carouselImages).pick({
+  title: true,
+  imageUrl: true,
+  linkUrl: true,
+  order: true,
+  active: true
+});
+
 // Login data
 export interface LoginData {
   phoneNumber: string;
@@ -139,32 +207,5 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type InsertBankInfo = z.infer<typeof insertBankInfoSchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Purchase = typeof purchases.$inferSelect;
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
-export type SocialLink = typeof socialLinks.$inferSelect;
-export type InsertSocialLink = z.infer<typeof insertSocialLinkSchema>;
-
-export const settingsSchema = z.object({
-  aboutUs: z.string().optional(),
-  whatsapp: z.string().optional(),
-  telegram: z.string().optional(),
-});
-
-export const bankSchema = z.object({
-  name: z.string().min(1, "Nome do banco é obrigatório"),
-  ownerName: z.string().min(1, "Nome do proprietário é obrigatório"),
-  accountNumber: z.string().min(1, "Número da conta é obrigatório"),
-  accountType: z.string().optional(),
-  branch: z.string().optional(),
-  active: z.boolean().default(true),
-});
-
-export const carouselSchema = z.object({
-  imageUrl: z.string().url("URL da imagem inválida"),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  active: z.boolean().default(true),
-});
-
-export type Settings = z.infer<typeof settingsSchema>;
-export type Bank = z.infer<typeof bankSchema>;
-export type Carousel = z.infer<typeof carouselSchema>;
