@@ -142,7 +142,11 @@ export function setupAdminRoutes(app: Express) {
         // Atualiza o cache das transações do usuário também
         await storage.getTransactions(updatedTransaction.userId);
         
-        return res.json(updatedTransaction);
+        // Garante que o corpo da resposta seja sempre um JSON válido
+        return res.status(200).json({ 
+          success: true, 
+          transaction: updatedTransaction
+        });
       } catch (error) {
         console.error('Erro ao atualizar transação:', error);
         throw error;

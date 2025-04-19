@@ -48,9 +48,31 @@ export default function AdminTransactions() {
         const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
           status: newStatus 
         });
-        const data = await res.json();
-        console.log('Resposta recebida:', data);
-        return data;
+        
+        // Verificar se a resposta tem conteúdo antes de tentar parsear o JSON
+        let data;
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const text = await res.text();
+          if (text) {
+            try {
+              data = JSON.parse(text);
+              console.log('Resposta JSON recebida:', data);
+            } catch (e) {
+              console.log('Resposta recebida, mas não é JSON válido:', text);
+              // Retornar objeto simples para indicar sucesso
+              data = { success: true };
+            }
+          } else {
+            console.log('Resposta recebida com status OK, mas sem conteúdo');
+            data = { success: true };
+          }
+        } else {
+          console.log('Resposta recebida com status OK, mas não é JSON');
+          data = { success: true };
+        }
+        
+        return data || { success: true };
       } catch (error) {
         console.error('Erro na requisição:', error);
         throw error;
