@@ -128,8 +128,8 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
         </div>
         
         <Button
-          variant="primary"
-          className="w-full"
+          variant="default"
+          className="w-full bg-primary hover:bg-primary/90"
           onClick={() => depositMutation.mutate()}
           disabled={
             depositMutation.isPending || 

@@ -125,8 +125,8 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
         </div>
         
         <Button
-          variant="primary"
-          className="w-full"
+          variant="default"
+          className="w-full bg-primary hover:bg-primary/90"
           onClick={() => withdrawalMutation.mutate()}
           disabled={
             !canWithdraw || 
