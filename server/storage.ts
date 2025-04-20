@@ -30,7 +30,9 @@ export interface IStorage {
   // Transações (histórico)
   getTransactions(userId: number): Promise<Transaction[]>;
   getAllTransactions(): Promise<Transaction[]>;
+  getTransaction(id: number): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransactionStatus(id: number, status: string): Promise<Transaction>;
   
   // Solicitações de depósito
   createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest>;
@@ -89,88 +91,65 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-// Memory storage implementation
+// In-memory storage implementation
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private bankInfo: Map<number, BankInfo & { userId: number }>;
   private transactions: Map<number, Transaction>;
+  private depositRequests: Map<number, DepositRequest>;
+  private withdrawalRequests: Map<number, WithdrawalRequest>;
   private products: Map<number, Product>;
   private purchases: Map<number, Purchase>;
   private socialLinks: Map<number, SocialLink>;
   private banks: Map<number, Bank>;
   private settings: Map<string, Setting>;
   private carouselImages: Map<number, CarouselImage>;
+  
   private currentUserId: number;
   private currentBankInfoId: number;
   private currentTransactionId: number;
+  private currentDepositRequestId: number;
+  private currentWithdrawalRequestId: number;
   private currentProductId: number;
   private currentPurchaseId: number;
   private currentSocialLinkId: number;
   private currentBankId: number;
   private currentSettingId: number;
   private currentCarouselImageId: number;
+  
   sessionStore: session.Store;
 
-  // Método auxiliar para verificar e atualizar o saldo para depósitos concluídos
-  async _verificarEAtualizarSaldoDeposito(transaction: Transaction): Promise<void> {
-    /**************************************************************************
-     * MÉTODO LEGADO - MANTIDO APENAS PARA COMPATIBILIDADE
-     * Este método foi substituído pela lógica interna de updateTransactionStatus
-     * Versão 1.0 - Abril 2025
-     **************************************************************************/
-     
-    console.log(`\n=== DEPOSIT >>> INICIANDO PROCESSAMENTO LEGADO DE DEPÓSITO ===`);
-    console.log(`DEPOSIT >>> AVISO: Esta função está obsoleta. Usando fluxo direto do updateTransactionStatus`);
-    
-    try {
-      // Verificações básicas de segurança
-      if (transaction.type !== 'deposit') {
-        console.log(`DEPOSIT >>> Não é um depósito (${transaction.type}). Ignorando.`);
-        return;
-      }
-      
-      if (transaction.status !== 'completed') {
-        console.log(`DEPOSIT >>> Status não é 'completed' (${transaction.status}). Ignorando.`);
-        return;
-      }
-      
-      // Redirecionar para o fluxo atualizado 
-      console.log(`DEPOSIT >>> Redirecionando para o novo fluxo de processamento...`);
-      
-      // Forçar uma nova atualização de status para o mesmo valor para acionar o fluxo correto
-      await this.updateTransactionStatus(transaction.id, 'completed');
-      
-      console.log(`DEPOSIT >>> Processamento redirecionado com sucesso`);
-      console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO LEGADO DE DEPÓSITO ===\n`);
-    } catch (error) {
-      console.error(`DEPOSIT >>> ERRO ao redirecionar processamento:`, error);
-    }
-  }
-
   constructor() {
+    // Initialize maps
     this.users = new Map();
     this.bankInfo = new Map();
     this.transactions = new Map();
+    this.depositRequests = new Map();
+    this.withdrawalRequests = new Map();
     this.products = new Map();
     this.purchases = new Map();
     this.socialLinks = new Map();
     this.banks = new Map();
     this.settings = new Map();
     this.carouselImages = new Map();
-
+    
+    // Initialize IDs
     this.currentUserId = 1;
     this.currentBankInfoId = 1;
     this.currentTransactionId = 1;
+    this.currentDepositRequestId = 1;
+    this.currentWithdrawalRequestId = 1;
     this.currentProductId = 1;
     this.currentPurchaseId = 1;
     this.currentSocialLinkId = 1;
     this.currentBankId = 1;
     this.currentSettingId = 1;
     this.currentCarouselImageId = 1;
-
+    
+    // Initialize memory store for express sessions
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // 24 hours
+      checkPeriod: 86400000,
     });
   }
 
@@ -178,31 +157,33 @@ export class MemStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
-
+  
   async getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.phoneNumber === phoneNumber,
-    );
+    return Array.from(this.users.values())
+      .find(user => user.phoneNumber === phoneNumber);
   }
-
+  
   async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.referralCode === referralCode,
-    );
+    return Array.from(this.users.values())
+      .find(user => user.referralCode === referralCode);
   }
-
+  
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
-
+  
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
-
+    
     const user: User = {
       id,
-      ...insertUser,
+      phoneNumber: insertUser.phoneNumber,
+      password: insertUser.password,
       balance: 0,
+      referralCode: insertUser.referralCode,
+      referredBy: insertUser.referredBy || null,
+      isAdmin: insertUser.isAdmin || false,
       level1Commission: 0,
       level2Commission: 0,
       level3Commission: 0,
@@ -210,235 +191,116 @@ export class MemStorage implements IStorage {
       hasDeposited: false,
       createdAt: now,
       updatedAt: now,
-      isAdmin: insertUser.hasOwnProperty('isAdmin') ? (insertUser as any).isAdmin : false,
-      referredBy: insertUser.referredBy || null,
     };
-
+    
     this.users.set(id, user);
     return user;
   }
 
   async updateUserBalance(userId: number, newBalance: number): Promise<User> {
-    /**************************************************************************
-     * NOVA IMPLEMENTAÇÃO DO SISTEMA DE ATUALIZAÇÃO DE SALDO
-     * Versão 1.0 - Abril 2025
-     * Sistema robusto e confiável para atualização atômica de saldo
-     **************************************************************************/
-    
-    console.log(`\n=== BALANCE >>> INÍCIO DA ATUALIZAÇÃO DE SALDO ===`);
-    console.log(`BALANCE >>> Usuário: ${userId}, Novo saldo: ${newBalance}`);
-    
-    // ETAPA 1: Verificação de parâmetros
-    if (isNaN(newBalance) || !isFinite(newBalance) || newBalance < 0) {
-      const errorMsg = `Valor de saldo inválido: ${newBalance}`;
-      console.error(`BALANCE >>> ERRO: ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-    
-    // ETAPA 2: Obter dados atuais do usuário
     const user = await this.getUser(userId);
     if (!user) {
-      const errorMsg = `Usuário ${userId} não encontrado`;
-      console.error(`BALANCE >>> ERRO: ${errorMsg}`);
-      throw new Error(errorMsg);
+      throw new Error('Usuário não encontrado');
     }
     
-    console.log(`BALANCE >>> Usuário encontrado: ${user.phoneNumber}`);
-    console.log(`BALANCE >>> Saldo atual: ${user.balance}, Novo saldo: ${newBalance}`);
-    
-    // ETAPA 3: Verificar se a atualização é necessária
-    if (Math.abs(user.balance - newBalance) < 0.01) {
-      console.log(`BALANCE >>> Saldo já está correto (${user.balance}), nenhuma alteração necessária`);
-      return user; // Retorna o usuário sem alterações
-    }
-    
-    // ETAPA 4: Criar objeto de usuário atualizado
-    const deltaBalance = newBalance - user.balance;
-    const isDeposit = deltaBalance > 0;
-    
-    console.log(`BALANCE >>> Alteração: ${isDeposit ? '+' : ''}${deltaBalance} KZ (${isDeposit ? 'aumento' : 'redução'})`);
-    
-    const updatedUser: User = {
+    const updatedUser = {
       ...user,
       balance: newBalance,
       updatedAt: new Date(),
-      // Atualiza o indicador hasDeposited apenas se for um depósito
-      hasDeposited: user.hasDeposited || isDeposit
     };
     
-    // ETAPA 5: Implementação principal - Process Atomic
-    try {
-      // 5.1 - Aplicar a atualização com verificação atômica
-      const oldBalance = user.balance;
-      
-      // Remover o usuário atual completamente - ruptura da referência
-      this.users.delete(userId);
-      
-      // Inserir o novo estado atômico
-      this.users.set(userId, updatedUser);
-      
-      // 5.2 - Verificar se a persistência funcionou
-      const verifiedUser = this.users.get(userId);
-      
-      if (!verifiedUser) {
-        throw new Error(`Falha crítica na operação - Usuário ${userId} desapareceu da base`);
-      }
-      
-      if (Math.abs(verifiedUser.balance - newBalance) > 0.01) {
-        throw new Error(`Falha na persistência do saldo - Esperado: ${newBalance}, Atual: ${verifiedUser.balance}`);
-      }
-      
-      // 5.3 - Relatório de sucesso
-      console.log(`BALANCE >>> SUCESSO: Saldo atualizado de ${oldBalance} para ${verifiedUser.balance}`);
-      console.log(`BALANCE >>> Variação: ${isDeposit ? '+' : ''}${deltaBalance} KZ`);
-      console.log(`=== BALANCE >>> FIM DA ATUALIZAÇÃO DE SALDO (SUCESSO) ===\n`);
-      
-      return verifiedUser;
-    } 
-    catch (error) {
-      // 5.4 - Procedimento de recuperação em caso de falha
-      console.error(`BALANCE >>> ERRO CRÍTICO: ${error instanceof Error ? error.message : String(error)}`);
-      console.log(`BALANCE >>> Iniciando procedimento de recuperação...`);
-      
-      try {
-        // Recuperação de emergência - implementação de baixo nível
-        // Criar um objeto completamente novo para evitar contaminação
-        const recoveryUser: User = {
-          id: user.id,
-          phoneNumber: user.phoneNumber,
-          password: user.password,
-          referralCode: user.referralCode,
-          referredBy: user.referredBy,
-          isAdmin: user.isAdmin,
-          balance: newBalance, // Garante o novo valor
-          level1Commission: user.level1Commission,
-          level2Commission: user.level2Commission,
-          level3Commission: user.level3Commission,
-          hasProduct: user.hasProduct,
-          hasDeposited: user.hasDeposited || isDeposit,
-          createdAt: user.createdAt,
-          updatedAt: new Date()
-        };
-        
-        // Forçar atualização direta no Map
-        this.users.delete(userId);
-        this.users.set(userId, recoveryUser);
-        
-        // Verificar recuperação
-        const finalCheck = this.users.get(userId);
-        if (!finalCheck || Math.abs(finalCheck.balance - newBalance) > 0.01) {
-          throw new Error(`Falha na recuperação de emergência`);
-        } else {
-          console.log(`BALANCE >>> Recuperação bem-sucedida! Saldo final: ${finalCheck.balance}`);
-          console.log(`=== BALANCE >>> FIM DA ATUALIZAÇÃO DE SALDO (RECUPERAÇÃO) ===\n`);
-          return finalCheck;
-        }
-      } 
-      catch (recoveryError) {
-        console.error(`BALANCE >>> FALHA FATAL NA RECUPERAÇÃO: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
-        console.error(`=== BALANCE >>> FIM DA ATUALIZAÇÃO DE SALDO (FALHA) ===\n`);
-        
-        // Reestabelecer o estado original como último recurso
-        this.users.set(userId, user);
-        
-        // Propagação do erro para tratamento em níveis superiores
-        throw new Error(`Falha crítica na atualização de saldo: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
+    this.users.set(userId, updatedUser);
+    return updatedUser;
   }
 
   // Bank info methods
   async getBankInfoByUserId(userId: number): Promise<BankInfo | undefined> {
-    const bankInfoEntry = Array.from(this.bankInfo.values()).find(
-      (info) => info.userId === userId,
-    );
-
+    const bankInfoEntry = Array.from(this.bankInfo.values())
+      .find(info => info.userId === userId);
+    
     if (!bankInfoEntry) return undefined;
-
-    return {
-      bank: bankInfoEntry.bank,
-      ownerName: bankInfoEntry.ownerName,
-      accountNumber: bankInfoEntry.accountNumber,
-    };
+    
+    const { userId: _, ...bankInfo } = bankInfoEntry;
+    return bankInfo;
   }
-
+  
   async createBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
-    // Check if user exists
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-
-    // Check if bank info already exists for user
-    const existingBankInfo = Array.from(this.bankInfo.values()).find(
-      (info) => info.userId === userId,
-    );
-
+    
+    // Verificar se já existe informação bancária para este usuário
+    const existingBankInfo = Array.from(this.bankInfo.entries())
+      .find(([_, info]) => info.userId === userId);
+    
     if (existingBankInfo) {
-      throw new Error('Usuário já possui informações bancárias cadastradas');
+      // Se já existe, atualize ao invés de criar uma nova
+      return this.updateBankInfo(userId, bankInfoData);
     }
-
-    const now = new Date();
+    
     const id = this.currentBankInfoId++;
-
-    const newBankInfo = {
+    const now = new Date();
+    
+    const bankInfoEntry = {
       id,
       userId,
-      ...bankInfoData,
+      bank: bankInfoData.bank,
+      ownerName: bankInfoData.ownerName,
+      accountNumber: bankInfoData.accountNumber,
       createdAt: now,
       updatedAt: now,
     };
-
-    this.bankInfo.set(id, newBankInfo);
-
-    return {
-      bank: newBankInfo.bank,
-      ownerName: newBankInfo.ownerName,
-      accountNumber: newBankInfo.accountNumber,
-    };
+    
+    this.bankInfo.set(id, bankInfoEntry);
+    
+    const { userId: _, ...bankInfo } = bankInfoEntry;
+    return bankInfo;
   }
-
+  
   async updateBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
-    // Check if user exists
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-
-    // Check if bank info exists for user
-    const existingBankInfo = Array.from(this.bankInfo.values()).find(
-      (info) => info.userId === userId,
-    );
-
+    
+    const existingBankInfo = Array.from(this.bankInfo.entries())
+      .find(([_, info]) => info.userId === userId);
+    
     if (!existingBankInfo) {
-      throw new Error('Informações bancárias não encontradas');
+      // Se não existe, crie um novo ao invés de atualizar
+      return this.createBankInfo(userId, bankInfoData);
     }
-
-    const now = new Date();
-    const updatedBankInfo = {
-      ...existingBankInfo,
-      ...bankInfoData,
-      updatedAt: now,
+    
+    const [existingId, existing] = existingBankInfo;
+    
+    const updated = {
+      ...existing,
+      bank: bankInfoData.bank,
+      ownerName: bankInfoData.ownerName,
+      accountNumber: bankInfoData.accountNumber,
+      updatedAt: new Date(),
     };
-
-    this.bankInfo.set(existingBankInfo.id, updatedBankInfo);
-
-    return {
-      bank: updatedBankInfo.bank,
-      ownerName: updatedBankInfo.ownerName,
-      accountNumber: updatedBankInfo.accountNumber,
-    };
+    
+    this.bankInfo.set(existingId, updated);
+    
+    const { userId: _, ...bankInfo } = updated;
+    return bankInfo;
   }
-
+  
   async deleteBankInfo(userId: number): Promise<void> {
-    const existingBankInfo = Array.from(this.bankInfo.entries()).find(
-      ([_, info]) => info.userId === userId,
-    );
-
-    if (!existingBankInfo) {
-      throw new Error('Informações bancárias não encontradas');
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
     }
-
+    
+    const existingBankInfo = Array.from(this.bankInfo.entries())
+      .find(([_, info]) => info.userId === userId);
+    
+    if (!existingBankInfo) {
+      return; // Nada para excluir
+    }
+    
     this.bankInfo.delete(existingBankInfo[0]);
   }
 
@@ -467,168 +329,304 @@ export class MemStorage implements IStorage {
       userId: transaction.userId,
       type: transaction.type,
       amount: transaction.amount,
-      status: transaction.status,
       bankAccount: transaction.bankAccount === undefined ? null : transaction.bankAccount,
       bankName: transaction.bankName === undefined ? null : transaction.bankName,
       receipt: transaction.receipt === undefined ? null : transaction.receipt,
-      createdAt: now,
-      updatedAt: now,
+      transactionId: transaction.transactionId === undefined ? null : transaction.transactionId,
+      createdAt: now
     };
 
     this.transactions.set(id, newTransaction);
     return newTransaction;
   }
 
+  // Método legado para compatibilidade - será removido em versões futuras
   async updateTransactionStatus(id: number, status: string): Promise<Transaction> {
-    /**************************************************************************
-     * NOVA IMPLEMENTAÇÃO DO SISTEMA DE ATUALIZAÇÃO DE TRANSAÇÕES
-     * Criada do zero para garantir integridade e confiabilidade
-     * Versão 1.0 - Abril 2025
-     **************************************************************************/
+    console.log(`\n--- TRANSACT >>> AVISO: Método LEGADO chamado. Prefira usar as novas funções ---\n`);
     
-    console.log(`\n--- TRANSACT >>> INÍCIO DA OPERAÇÃO [${id}:${status}] ---\n`);
-    
-    // ETAPA 1: Validação básica
     const transaction = this.transactions.get(id);
     if (!transaction) {
-      console.error(`TRANSACT >>> ERRO: Transação ${id} não encontrada`);
-      throw new Error('Transação não encontrada');
+      throw new Error(`Transação ${id} não encontrada`);
     }
     
-    const validStatus = ['pending', 'processing', 'completed', 'failed'];
-    if (!validStatus.includes(status)) {
-      console.error(`TRANSACT >>> ERRO: Status inválido: ${status}`);
-      throw new Error(`Status inválido: ${status}`);
-    }
+    // Não faz nada, apenas retorna a transação
+    console.log(`TRANSACT >>> AVISO: Método não possui mais efeito. Usando apenas para compatibilidade.`);
     
-    // ETAPA 2: Informações de diagnóstico
-    console.log(`TRANSACT >>> ID: ${id}, Tipo: ${transaction.type}, Valor: ${transaction.amount}`);
-    console.log(`TRANSACT >>> Status atual: ${transaction.status}, Novo status: ${status}`);
-    
-    // ETAPA 3: Verificar usuário antes da atualização
-    const user = await this.getUser(transaction.userId);
+    return transaction;
+  }
+  
+  // Métodos para solicitações de depósito
+  async createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest> {
+    // Verificar se o usuário existe
+    const user = await this.getUser(request.userId);
     if (!user) {
-      console.error(`TRANSACT >>> ERRO: Usuário ${transaction.userId} não encontrado`);
-      throw new Error(`Usuário ${transaction.userId} não encontrado`);
-    }
-    console.log(`TRANSACT >>> Usuário: ${user.phoneNumber}, Saldo atual: ${user.balance}`);
-    
-    // ETAPA 4: Verificar idempotência (mesmo status)
-    if (transaction.status === status) {
-      console.log(`TRANSACT >>> Status já é '${status}' - sem alterações necessárias`);
-      return transaction; // Retorna sem alterações
+      throw new Error('Usuário não encontrado');
     }
     
-    // ETAPA 5: Criar e salvar transação com novo status
-    const updatedTransaction: Transaction = {
-      ...transaction,
-      status: status,
-      updatedAt: new Date()
+    // Gerar ID de depósito
+    const id = this.currentDepositRequestId++;
+    const now = new Date();
+    
+    // Criar solicitação de depósito
+    const depositRequest: DepositRequest = {
+      id,
+      userId: request.userId,
+      amount: request.amount,
+      transactionId: request.transactionId,
+      bankName: request.bankName || null,
+      receipt: request.receipt || null,
+      createdAt: now
     };
     
-    // Salvar a transação atualizada
-    this.transactions.set(id, updatedTransaction);
+    // Salvar solicitação
+    this.depositRequests.set(id, depositRequest);
+    console.log(`DEPOSIT >>> Nova solicitação de depósito criada: ID=${id}, Valor=${request.amount}, TransactionID=${request.transactionId}`);
     
-    // ETAPA 6: Verificar se a alteração foi aplicada corretamente
-    const savedTransaction = this.transactions.get(id);
-    if (!savedTransaction || savedTransaction.status !== status) {
-      console.error(`TRANSACT >>> ERRO: Falha ao salvar status da transação`);
-      throw new Error('Falha ao salvar alteração de status');
+    return depositRequest;
+  }
+  
+  async getDepositRequests(): Promise<DepositRequest[]> {
+    return Array.from(this.depositRequests.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
+    return Array.from(this.depositRequests.values())
+      .find(request => request.transactionId === transactionId);
+  }
+  
+  async approveDepositRequest(id: number): Promise<Transaction> {
+    // Obter solicitação de depósito
+    const depositRequest = this.depositRequests.get(id);
+    if (!depositRequest) {
+      throw new Error(`Solicitação de depósito ${id} não encontrada`);
     }
-    console.log(`TRANSACT >>> Status da transação atualizado com sucesso para: ${status}`);
     
-    // ETAPA 7: Processar efeitos da atualização de transação
-    let balanceUpdated = false;
+    // Verificar usuário
+    const user = await this.getUser(depositRequest.userId);
+    if (!user) {
+      throw new Error(`Usuário ${depositRequest.userId} não encontrado`);
+    }
     
-    // 7.1 - Tratar depósito concluído (principal caso que causa problemas)
-    if (status === 'completed' && transaction.type === 'deposit') {
-      console.log(`\nTRANSACT >>> PROCESSANDO DEPÓSITO CONCLUÍDO`);
+    console.log(`\n=== DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
+    console.log(`DEPOSIT >>> Usuário: ${user.phoneNumber}, Valor: ${depositRequest.amount} KZ`);
+    
+    try {
+      // Atualizar saldo do usuário
+      const newBalance = user.balance + depositRequest.amount;
+      await this.updateUserBalance(depositRequest.userId, newBalance);
       
-      try {
-        // Calcular novo saldo
-        const newBalance = user.balance + transaction.amount;
-        console.log(`TRANSACT >>> Saldo atual: ${user.balance}, Depósito: ${transaction.amount}, Novo saldo: ${newBalance}`);
-        
-        // Atualizar saldo - OPERAÇÃO CRÍTICA
-        const beforeUpdate = Date.now();
-        const updatedUser = await this.updateUserBalance(user.id, newBalance);
-        const afterUpdate = Date.now();
-        console.log(`TRANSACT >>> Atualização de saldo completada em ${afterUpdate - beforeUpdate}ms`);
-        
-        // Verificar se a atualização funcionou
-        if (Math.abs(updatedUser.balance - newBalance) < 0.01) {
-          console.log(`TRANSACT >>> SUCESSO: Saldo atualizado para ${updatedUser.balance}`);
-          balanceUpdated = true;
-          
-          // Atualizar status do usuário
-          await this.updateUser(user.id, { 
-            hasDeposited: true,
-            updatedAt: new Date()
-          });
-        } else {
-          console.error(`TRANSACT >>> ERRO: Saldo não foi atualizado corretamente!`);
-          console.error(`TRANSACT >>> Esperado: ${newBalance}, Atual: ${updatedUser.balance}`);
-          
-          // PROCEDIMENTO DE RECUPERAÇÃO DE EMERGÊNCIA
-          console.log(`TRANSACT >>> Iniciando procedimento de recuperação de emergência...`);
-          
-          // Recuperação direta - última tentativa
-          this.users.delete(user.id);
-          const recoveryUser = { 
-            ...user, 
-            balance: newBalance,
-            hasDeposited: true,
-            updatedAt: new Date()
-          };
-          this.users.set(user.id, recoveryUser);
-          
-          // Verificar recuperação
-          const finalUser = this.users.get(user.id);
-          if (finalUser && Math.abs(finalUser.balance - newBalance) < 0.01) {
-            console.log(`TRANSACT >>> Recuperação de emergência bem-sucedida! Saldo final: ${finalUser.balance}`);
-            balanceUpdated = true;
-          } else {
-            console.error(`TRANSACT >>> FALHA CRÍTICA: Não foi possível atualizar o saldo mesmo após tentativa de recuperação!`);
-          }
-        }
-      } catch (error) {
-        console.error(`TRANSACT >>> ERRO durante atualização de saldo:`, error);
+      // Marcar que o usuário já realizou depósito
+      if (!user.hasDeposited) {
+        console.log(`DEPOSIT >>> Marcando usuário como tendo realizado depósito`);
+        await this.updateUser(user.id, { hasDeposited: true });
       }
-    }
-    
-    // 7.2 - Tratar saque falhado (estorno)
-    else if (status === 'failed' && transaction.type === 'withdrawal') {
-      console.log(`\nTRANSACT >>> PROCESSANDO SAQUE FALHO (ESTORNO)`);
       
-      try {
-        // Calcular valor a ser devolvido
-        const newBalance = user.balance + transaction.amount;
-        console.log(`TRANSACT >>> Saldo atual: ${user.balance}, Estorno: ${transaction.amount}, Novo saldo: ${newBalance}`);
-        
-        // Realizar estorno
-        const updatedUser = await this.updateUserBalance(user.id, newBalance);
-        
-        if (Math.abs(updatedUser.balance - newBalance) < 0.01) {
-          console.log(`TRANSACT >>> SUCESSO: Saldo estornado para ${updatedUser.balance}`);
-          balanceUpdated = true;
-        } else {
-          console.error(`TRANSACT >>> ERRO: Falha no estorno de saque!`);
-        }
-      } catch (error) {
-        console.error(`TRANSACT >>> ERRO durante estorno:`, error);
-      }
+      // Registrar uma transação completada no histórico
+      const transaction = await this.createTransaction({
+        userId: depositRequest.userId,
+        type: 'deposit',
+        amount: depositRequest.amount,
+        bankName: depositRequest.bankName,
+        receipt: depositRequest.receipt,
+        bankAccount: null,
+        transactionId: depositRequest.transactionId
+      });
+      
+      // Remover a solicitação de depósito pendente
+      this.depositRequests.delete(id);
+      
+      console.log(`DEPOSIT >>> Depósito processado com sucesso`);
+      console.log(`DEPOSIT >>> Transação registrada: ID=${transaction.id}`);
+      console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO ===\n`);
+      
+      return transaction;
+    } catch (error) {
+      console.error(`DEPOSIT >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
+  
+  // Métodos para solicitações de saque
+  async createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest> {
+    // Verificar se o usuário existe
+    const user = await this.getUser(request.userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
     }
     
-    // ETAPA 8: Concluir operação
-    const finalUserState = await this.getUser(transaction.userId);
-    console.log(`\nTRANSACT >>> RESUMO DA OPERAÇÃO:`);
-    console.log(`TRANSACT >>> Transação ${id}: ${transaction.status} -> ${status}`);
-    console.log(`TRANSACT >>> Usuário ${transaction.userId} (${user.phoneNumber}):`);
-    console.log(`TRANSACT >>> Saldo inicial: ${user.balance}, Saldo final: ${finalUserState?.balance || 'N/A'}`);
-    console.log(`TRANSACT >>> Atualização de saldo: ${balanceUpdated ? 'SUCESSO' : 'NÃO NECESSÁRIA/FALHA'}`);
-    console.log(`\n--- TRANSACT >>> FIM DA OPERAÇÃO [${id}:${status}] ---\n`);
+    // Verificar se o usuário tem saldo suficiente
+    if (user.balance < request.amount) {
+      throw new Error(`Saldo insuficiente. Disponível: KZ ${user.balance}, Solicitado: KZ ${request.amount}`);
+    }
     
-    return updatedTransaction;
+    // Verificar se o usuário tem um produto ativo
+    if (!user.hasProduct) {
+      throw new Error('É necessário ter um produto ativo para realizar saques');
+    }
+    
+    // Verificar se o usuário já fez depósito
+    if (!user.hasDeposited) {
+      throw new Error('É necessário ter realizado pelo menos um depósito para sacar');
+    }
+    
+    // Verificar horário permitido (10h às 15h horário de Angola)
+    const now = new Date();
+    const angolaHour = now.getUTCHours() + 1; // Angola está em UTC+1
+    if (angolaHour < 10 || angolaHour >= 15) {
+      throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
+    }
+    
+    // Bloquear o valor no saldo do usuário
+    const newBalance = user.balance - request.amount;
+    await this.updateUserBalance(user.id, newBalance);
+    
+    // Gerar ID de saque
+    const id = this.currentWithdrawalRequestId++;
+    
+    // Criar solicitação de saque
+    const withdrawalRequest: WithdrawalRequest = {
+      id,
+      userId: request.userId,
+      amount: request.amount,
+      status: 'requested',
+      bankAccount: request.bankAccount,
+      bankName: request.bankName,
+      ownerName: request.ownerName,
+      createdAt: now,
+      processedAt: null,
+      processedBy: null
+    };
+    
+    // Salvar solicitação
+    this.withdrawalRequests.set(id, withdrawalRequest);
+    console.log(`WITHDRAWAL >>> Nova solicitação de saque criada: ID=${id}, Valor=${request.amount}, Usuário=${request.userId}`);
+    
+    return withdrawalRequest;
+  }
+  
+  async getWithdrawalRequests(): Promise<WithdrawalRequest[]> {
+    return Array.from(this.withdrawalRequests.values())
+      .filter(req => req.status === 'requested')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getUserWithdrawalRequests(userId: number): Promise<WithdrawalRequest[]> {
+    return Array.from(this.withdrawalRequests.values())
+      .filter(req => req.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async approveWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
+    // Obter solicitação de saque
+    const withdrawalRequest = this.withdrawalRequests.get(id);
+    if (!withdrawalRequest) {
+      throw new Error(`Solicitação de saque ${id} não encontrada`);
+    }
+    
+    // Verificar se a solicitação está pendente
+    if (withdrawalRequest.status !== 'requested') {
+      throw new Error(`Solicitação de saque ${id} já foi processada como '${withdrawalRequest.status}'`);
+    }
+    
+    console.log(`\n=== WITHDRAWAL >>> APROVANDO SAQUE ID=${id} ===`);
+    
+    try {
+      // Atualizar a solicitação
+      const updatedRequest: WithdrawalRequest = {
+        ...withdrawalRequest,
+        status: 'approved',
+        processedAt: new Date(),
+        processedBy: adminId
+      };
+      
+      this.withdrawalRequests.set(id, updatedRequest);
+      
+      // Registrar transação no histórico
+      const transaction = await this.createTransaction({
+        userId: withdrawalRequest.userId,
+        type: 'withdrawal',
+        amount: withdrawalRequest.amount,
+        bankAccount: withdrawalRequest.bankAccount,
+        bankName: withdrawalRequest.bankName,
+        receipt: null,
+        transactionId: null
+      });
+      
+      console.log(`WITHDRAWAL >>> Saque aprovado com sucesso`);
+      console.log(`WITHDRAWAL >>> Transação registrada: ID=${transaction.id}`);
+      console.log(`=== WITHDRAWAL >>> FIM DO PROCESSAMENTO ===\n`);
+      
+      return transaction;
+    } catch (error) {
+      console.error(`WITHDRAWAL >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
+  
+  async rejectWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
+    // Obter solicitação de saque
+    const withdrawalRequest = this.withdrawalRequests.get(id);
+    if (!withdrawalRequest) {
+      throw new Error(`Solicitação de saque ${id} não encontrada`);
+    }
+    
+    // Verificar se a solicitação está pendente
+    if (withdrawalRequest.status !== 'requested') {
+      throw new Error(`Solicitação de saque ${id} já foi processada como '${withdrawalRequest.status}'`);
+    }
+    
+    console.log(`\n=== WITHDRAWAL >>> REJEITANDO SAQUE ID=${id} ===`);
+    
+    try {
+      // Verificar usuário
+      const user = await this.getUser(withdrawalRequest.userId);
+      if (!user) {
+        throw new Error(`Usuário ${withdrawalRequest.userId} não encontrado`);
+      }
+      
+      // Aplicar taxa de 20% e devolver o restante para o saldo do usuário
+      const penaltyFee = withdrawalRequest.amount * 0.2;
+      const amountToReturn = withdrawalRequest.amount - penaltyFee;
+      
+      console.log(`WITHDRAWAL >>> Usuário: ${user.phoneNumber}, Valor rejeitado: ${withdrawalRequest.amount} KZ`);
+      console.log(`WITHDRAWAL >>> Taxa (20%): ${penaltyFee} KZ, Valor a devolver: ${amountToReturn} KZ`);
+      
+      // Devolver o valor (menos a taxa) ao saldo do usuário
+      const newBalance = user.balance + amountToReturn;
+      await this.updateUserBalance(user.id, newBalance);
+      
+      // Atualizar a solicitação
+      const updatedRequest: WithdrawalRequest = {
+        ...withdrawalRequest,
+        status: 'rejected',
+        processedAt: new Date(),
+        processedBy: adminId
+      };
+      
+      this.withdrawalRequests.set(id, updatedRequest);
+      
+      // Registrar transação no histórico
+      const transaction = await this.createTransaction({
+        userId: withdrawalRequest.userId,
+        type: 'withdrawal',
+        amount: -amountToReturn, // Valor negativo para indicar devolução
+        bankAccount: withdrawalRequest.bankAccount,
+        bankName: withdrawalRequest.bankName,
+        receipt: null,
+        transactionId: null
+      });
+      
+      console.log(`WITHDRAWAL >>> Saque rejeitado com sucesso`);
+      console.log(`WITHDRAWAL >>> Taxa de ${penaltyFee} KZ aplicada`);
+      console.log(`WITHDRAWAL >>> Transação registrada: ID=${transaction.id}`);
+      console.log(`=== WITHDRAWAL >>> FIM DO PROCESSAMENTO ===\n`);
+      
+      return transaction;
+    } catch (error) {
+      console.error(`WITHDRAWAL >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   }
 
   // Product methods
@@ -764,7 +762,8 @@ export class MemStorage implements IStorage {
 
   async updateSocialLink(id: number, link: Partial<InsertSocialLink>): Promise<SocialLink> {
     const existingLink = this.socialLinks.get(id);
-    if (!existingLink) {      throw new Error('Link social não encontrado');
+    if (!existingLink) {
+      throw new Error('Link social não encontrado');
     }
 
     const updatedLink = {
@@ -880,13 +879,13 @@ export class MemStorage implements IStorage {
   // Carrossel
   async getAllCarouselImages(): Promise<CarouselImage[]> {
     return Array.from(this.carouselImages.values())
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   async getActiveCarouselImages(): Promise<CarouselImage[]> {
     return Array.from(this.carouselImages.values())
       .filter(img => img.active)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   async getCarouselImage(id: number): Promise<CarouselImage | undefined> {
@@ -1067,16 +1066,20 @@ export const storage = new MemStorage();
         value: "S&P Global"
       },
       {
-        key: "support_email",
-        value: "suporte@spglobal.com"
+        key: "company_address",
+        value: "Luanda, Angola"
       },
       {
-        key: "support_phone",
-        value: "+244 000 000 000"
+        key: "level1_commission",
+        value: "0.1"
       },
       {
-        key: "aboutUs",
-        value: "A S&P Global é uma plataforma líder em investimentos e gerenciamento financeiro, oferecendo soluções inovadoras e seguras para nossos clientes."
+        key: "level2_commission",
+        value: "0.05"
+      },
+      {
+        key: "level3_commission",
+        value: "0.02"
       }
     ];
 
@@ -1087,6 +1090,6 @@ export const storage = new MemStorage();
     console.log("Configurações iniciais criadas");
 
   } catch (error) {
-    console.error("Error creating test data:", error);
+    console.error("Erro ao inicializar dados de teste:", error);
   }
 })();
