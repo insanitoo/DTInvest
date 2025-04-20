@@ -118,12 +118,12 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
-export const insertTransactionSchema = createInsertSchema(transactions).pick({
-  userId: true,
-  type: true,
-  amount: true,
-  status: true,
-  bankAccount: true,
+export const insertTransactionSchema = createInsertSchema(transactions).extend({
+  userId: z.number(),
+  type: z.enum(['deposit', 'withdrawal', 'commission', 'purchase']),
+  amount: z.number().positive(),
+  status: z.enum(['pending', 'processing', 'completed', 'failed', 'approved']),
+  bankAccount: z.string().nullable()
 });
 
 // Forçar bankAccount a ser string | null
