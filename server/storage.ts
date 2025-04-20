@@ -315,9 +315,21 @@ export class MemStorage implements IStorage {
   }
 
   async updateTransactionStatus(id: number, status: string): Promise<Transaction> {
+    console.log(`Iniciando atualização da transação ${id} para status ${status}`);
+    
     const transaction = this.transactions.get(id);
     if (!transaction) {
+      console.error(`Transação ${id} não encontrada`);
       throw new Error('Transação não encontrada');
+    }
+    
+    console.log(`Estado anterior da transação ${id}:`, transaction);
+    
+    // Validar se o status é válido para evitar estados inconsistentes
+    const validStatus = ['pending', 'processing', 'completed', 'failed', 'approved'];
+    if (!validStatus.includes(status)) {
+      console.error(`Status inválido: ${status}. Valores permitidos: ${validStatus.join(', ')}`);
+      throw new Error(`Status inválido: ${status}`);
     }
 
     const updatedTransaction = {
@@ -326,7 +338,20 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
 
+    console.log(`Novo estado da transação ${id}:`, updatedTransaction);
+    
     this.transactions.set(id, updatedTransaction);
+    
+    // Verificar se a atualização foi persistida corretamente
+    const persistedTransaction = this.transactions.get(id);
+    console.log(`Estado persistido da transação ${id}:`, persistedTransaction);
+    
+    if (persistedTransaction?.status !== status) {
+      console.error(`Falha ao persistir o status: esperado=${status}, atual=${persistedTransaction?.status}`);
+    } else {
+      console.log(`Status da transação ${id} atualizado com sucesso para ${status}`);
+    }
+    
     return updatedTransaction;
   }
 

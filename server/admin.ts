@@ -115,8 +115,63 @@ export function setupAdminRoutes(app: Express) {
     try {
       const transactionId = parseInt(req.params.id);
       
-      console.log('Dados recebidos:', req.body);
+      // Log de diagnóstico completo
+      console.log('Dados brutos recebidos (req.body):', req.body);
+      console.log('Content-Type:', req.headers['content-type']);
+      console.log('Request Method:', req.method);
       
+      // Para casos onde o body parser não entende o content-type
+      let rawData = '';
+      req.on('data', chunk => {
+        rawData += chunk;
+      });
+      
+      // Processar como texto bruto para diagnóstico
+      await new Promise<void>((resolve) => {
+        req.on('end', () => {
+          if (rawData) {
+            try {
+              console.log('Raw data recebido:', rawData);
+              console.log('Raw data como JSON:', JSON.parse(rawData));
+            } catch (e) {
+              console.log('Raw data não é JSON válido:', rawData);
+            }
+          }
+          resolve();
+        });
+      });
+      
+      // Se não tiver status, mas tiver raw data, tenta extrair
+      if (!req.body || !req.body.status) {
+        try {
+          const parsedRawData = JSON.parse(rawData);
+          if (parsedRawData && parsedRawData.status) {
+            req.body = parsedRawData;
+            console.log('Body reconstruído a partir do raw data:', req.body);
+          }
+        } catch (e) {
+          console.log('Não foi possível reconstruir o body a partir do raw data');
+        }
+      }
+      
+      // Validação manual (pré-schema) para detectar problemas estruturais
+      if (!req.body) {
+        console.error('Corpo da requisição está vazio');
+        return res.status(400).json({ 
+          error: 'Erro de validação',
+          details: 'Corpo da requisição está vazio'
+        });
+      }
+      
+      if (typeof req.body.status !== 'string') {
+        console.error(`Status inválido: '${req.body.status}' (tipo: ${typeof req.body.status})`);
+        return res.status(400).json({ 
+          error: 'Erro de validação',
+          details: `Status inválido: tipo ${typeof req.body.status}, esperado string`
+        });
+      }
+      
+      // Validação via schema
       let validatedData;
       try {
         validatedData = updateTransactionSchema.parse(req.body);
