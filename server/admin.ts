@@ -314,6 +314,12 @@ export function setupAdminRoutes(app: Express) {
         // Buscar o usuário atualizado também para incluir na resposta
         const updatedUser = await storage.getUser(existingTransaction.userId);
         
+        // CONFIGURAR CABEÇALHOS PARA FORÇAR RESPOSTA JSON
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+
         // Formatamos manualmente para garantir um JSON válido e completo
         const responseData = { 
           success: true, 
@@ -333,6 +339,9 @@ export function setupAdminRoutes(app: Express) {
           user: updatedUser ? {
             id: updatedUser.id,
             balance: updatedUser.balance,
+            previousBalance: userBefore ? userBefore.balance : 0,
+            balanceDiff: updatedUser.balance - (userBefore ? userBefore.balance : 0),
+            expectedBalance: expectedNewBalance,
             // Incluir estas informações adicionais para que o cliente saiba se precisa atualizar outras telas
             hasDeposited: updatedUser.hasDeposited,
             hasProduct: updatedUser.hasProduct
@@ -346,12 +355,17 @@ export function setupAdminRoutes(app: Express) {
                            Math.abs(userAfter.balance - userBefore.balance - existingTransaction.amount) < 0.01,
             transactionType: existingTransaction.type,
             previousStatus: existingTransaction.status,
-            newStatus: status
+            newStatus: status,
+            depositAmount: existingTransaction.type === 'deposit' ? existingTransaction.amount : null
           }
         };
         
-        console.log(`Enviando resposta JSON: ${JSON.stringify(responseData)}`);
-        return res.status(200).json(responseData);
+        // TENTAR GARANTIR QUE O CLIENTE RECEBA JSON VÁLIDO E COMPLETO
+        const safeJsonResponse = JSON.stringify(responseData);
+        console.log(`Enviando resposta JSON: ${safeJsonResponse}`);
+        
+        // RESPONDER USANDO RESPOSTA SEGURA
+        return res.status(200).send(safeJsonResponse);
       } catch (error) {
         console.error('Erro ao atualizar transação:', error);
         throw error;
