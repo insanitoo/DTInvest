@@ -19,9 +19,10 @@ import NotFound from '@/pages/not-found';
 import AdminDashboard from '@/pages/admin/admin-dashboard';
 import AdminUsers from '@/pages/admin/admin-users';
 import AdminProducts from '@/pages/admin/admin-products';
-import AdminTransactions from '@/pages/admin/admin-transactions';
 import AdminSettings from '@/pages/admin/admin-settings';
 import DebugTransactions from '@/pages/admin/debug-transactions';
+// Importando a versão nova do componente de transações
+import AdminTransactions from '@/pages/admin/admin-transactions-new';
 
 export default function App() {
   return (

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Transaction } from '@shared/schema';
 import { AdminNavigation } from './components/admin-navigation';
@@ -20,9 +19,9 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import { apiRequest, queryClient, forceTransactionUpdate } from '@/lib/queryClient';
 import { formatCurrency, formatDate, formatTransactionAmount, getTransactionAmountColor } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useTransactions } from '@/hooks/use-transactions';
 
 export default function AdminTransactions() {
   const { toast } = useToast();
@@ -30,10 +29,13 @@ export default function AdminTransactions() {
   const [showDialog, setShowDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
 
-  // Get all transactions
-  const { data: transactions, isLoading } = useQuery<Transaction[]>({
-    queryKey: ['/api/admin/transactions'],
-  });
+  // Usar o novo hook para gerenciar transações
+  const { 
+    transactions, 
+    isLoading, 
+    updateTransactionStatus, 
+    refetchTransactions 
+  } = useTransactions(true); // true = modo admin
 
   // Update transaction status mutation
   const updateStatusMutation = useMutation({

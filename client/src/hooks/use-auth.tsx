@@ -85,6 +85,37 @@ function AuthProvider({ children }: { children: ReactNode }) {
       setLocalUser(user);
     }
   }, [user]);
+  
+  // Observar mudanças em transações para atualizar automaticamente o saldo do usuário
+  useEffect(() => {
+    // Função para monitorar mudanças em transações
+    const handleTransactionChanges = () => {
+      console.log('Transações atualizadas, verificando necessidade de atualizar dados do usuário...');
+      refetchUser();
+    };
+    
+    // Inscrever-se no evento de invalidação de consultas do React Query
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
+      // Verificar se alguma query de transação foi invalidada
+      const transactionQueries = ['/api/transactions', '/api/admin/transactions'];
+      const queries = queryClient.getQueryCache().getAll();
+      
+      // Se alguma query de transação foi atualizada, refetch o usuário
+      const shouldRefetchUser = queries.some(query => 
+        transactionQueries.includes(query.queryKey[0] as string) && 
+        query.state.dataUpdateCount > 0
+      );
+      
+      if (shouldRefetchUser) {
+        console.log('Transações foram atualizadas, recarregando dados do usuário...');
+        refetchUser();
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [refetchUser]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
