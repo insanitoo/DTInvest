@@ -172,6 +172,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Comprar um produto específico
   app.post("/api/products/:id/purchase", async (req, res, next) => {
+    console.log(`===== INICIANDO COMPRA DE PRODUTO =====`);
+    
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
@@ -179,56 +181,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user.id;
     const productId = parseInt(req.params.id);
     
+    console.log(`Compra solicitada para: userId=${userId}, productId=${productId}`);
+    
     try {
       // Verificar se o produto existe e está ativo
       const product = await storage.getProduct(productId);
       if (!product) {
+        console.log(`Produto ${productId} não encontrado`);
         return res.status(404).json({ message: "Produto não encontrado" });
       }
       
+      console.log(`Produto encontrado: ${product.name}, preço: ${product.price}, ativo: ${product.active}`);
+      
       if (!product.active) {
+        console.log(`Produto ${product.name} não está ativo`);
         return res.status(400).json({ message: "Este produto não está disponível para compra" });
       }
       
       // Verificar se o usuário tem saldo suficiente
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log(`Usuário ${userId} não encontrado`);
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
+      console.log(`Usuário encontrado: ${user.phoneNumber}, saldo atual: ${user.balance}`);
+      
       if (user.balance < product.price) {
-        return res.status(400).json({ message: "Saldo insuficiente para comprar este produto" });
+        console.log(`Saldo insuficiente: ${user.balance} < ${product.price}`);
+        return res.status(400).json({ 
+          message: "Saldo insuficiente para comprar este produto",
+          currentBalance: user.balance,
+          required: product.price
+        });
       }
       
-      // Registrar a compra
+      console.log(`Saldo verificado, prosseguindo com a compra`);
+      
+      // Calcular novo saldo
+      const newBalance = user.balance - product.price;
+      console.log(`Novo saldo calculado: ${newBalance}`);
+      
+      // 1. Primeiro: Registrar a compra
+      console.log(`Registrando compra no sistema...`);
       const purchase = await storage.createPurchase({
         userId,
         productId: product.id,
         amount: product.price
       });
+      console.log(`Compra registrada com sucesso: ID=${purchase.id}`);
       
-      // Atualizar o saldo do usuário
-      const newBalance = user.balance - product.price;
-      
-      // Marcar que o usuário tem produtos (importante para funcionalidades que exigem isso)
+      // 2. Segundo: Atualizar o saldo do usuário
+      console.log(`Atualizando saldo do usuário...`);
       const updatedUser = await storage.updateUserBalance(userId, newBalance);
+      console.log(`Saldo atualizado com sucesso: ${updatedUser.balance}`);
       
-      // Registrar a transação
-      await storage.createTransaction({
+      // 3. Terceiro: Registrar a transação
+      console.log(`Registrando transação...`);
+      const transaction = await storage.createTransaction({
         userId,
         type: "purchase",
         amount: product.price,
         status: "completed",
         bankAccount: null
       });
+      console.log(`Transação registrada com sucesso: ID=${transaction.id}`);
       
+      // Verificar se o usuário realmente está marcado como tendo produtos
+      if (!updatedUser.hasProduct) {
+        console.log(`Garantindo que o usuário está marcado como tendo produtos...`);
+        await storage.updateUser(userId, { hasProduct: true });
+      }
+      
+      console.log(`===== COMPRA DE PRODUTO CONCLUÍDA COM SUCESSO =====`);
+      
+      // Retornar resposta com informações detalhadas
       res.status(200).json({
         success: true,
         purchase,
+        transaction,
         message: `Produto ${product.name} adquirido com sucesso!`,
-        newBalance
+        previousBalance: user.balance,
+        newBalance: updatedUser.balance,
+        product: {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          dailyIncome: product.dailyIncome,
+          cycleDays: product.cycleDays
+        }
       });
     } catch (error) {
+      console.error(`ERRO na compra de produto:`, error);
       next(error);
     }
   });
