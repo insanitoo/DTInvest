@@ -559,8 +559,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: "purchase",
         amount: product.price,
-        status: "completed",
-        bankAccount: null
+        bankAccount: null,
+        bankName: null,
+        receipt: null,
+        transactionId: null
       });
       console.log(`Transação registrada com sucesso: ID=${transaction.id}`);
       
