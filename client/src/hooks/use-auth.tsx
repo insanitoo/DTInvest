@@ -60,9 +60,9 @@ function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     initialData: localUser,
-    staleTime: 5 * 1000, // 5 segundos para atualizações muito frequentes
-    refetchInterval: 15 * 1000, // 15 segundos
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000, // 30 segundos antes de considerar dados obsoletos
+    refetchInterval: 60 * 1000, // 1 minuto entre refreshes
+    refetchOnWindowFocus: false, // Desabilitar refresh ao focar janela
   });
   
   // Separamos o handling de erro para evitar problemas com o LSP
