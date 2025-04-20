@@ -57,19 +57,24 @@ export default function DebugTransactions() {
         throw new Error('ID da transação inválido');
       }
 
-      // Log para debug
-      console.log('Enviando atualização:', {
-        transactionId,
-        status,
-        body: JSON.stringify({ status })
-      });
-
       // Verificar se o status é válido antes de enviar
       if (!['pending', 'processing', 'completed', 'failed', 'approved'].includes(status)) {
         throw new Error(`Status '${status}' não é válido. Use apenas: pending, processing, completed, failed, approved`);
       }
+      
+      // Criar um objeto com apenas o campo status
+      // Note que estamos garantindo que apenas o campo "status" vai no body
+      const requestData = { status };
+      
+      // Log para debug
+      console.log('Enviando atualização:', {
+        transactionId,
+        status,
+        requestData
+      });
 
-      const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, { status });
+      // Nota: apiRequest já foi modificado para garantir que apenas { status: valor } seja enviado
+      const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, requestData);
       
       // Tratamento especial para erros de resposta
       let data;

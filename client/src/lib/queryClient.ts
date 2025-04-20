@@ -29,10 +29,41 @@ export async function apiRequest(
     });
   }
   
+  // Tratamento especial para atualização de transações
+  if (url.startsWith('/api/admin/transactions/') && method === 'PUT') {
+    // Garantir formatação correta para o schema de validação
+    if (data && typeof data === 'object' && 'status' in data) {
+      const status = (data as any).status;
+      
+      // Verificar se é um status válido 
+      const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Status inválido: '${status}'. Use um dos valores: ${validStatuses.join(', ')}`);
+      }
+      
+      // Sobrescrever data para garantir que é apenas { status: "valor" }
+      // Isso evita que outros campos causem erros de validação
+      data = { status };
+      console.log('Requisição sanitizada para atualização de transação:', data);
+    }
+  }
+  
+  // Tratamento seguro para JSON
+  let body: string | undefined;
+  if (data) {
+    try {
+      body = JSON.stringify(data);
+      console.log(`Enviando requisição ${method} para ${url}, corpo:`, body);
+    } catch (jsonError) {
+      console.error('Erro ao converter dados para JSON:', jsonError);
+      throw new Error(`Erro ao formatar dados da requisição: ${jsonError}`);
+    }
+  }
+  
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 
