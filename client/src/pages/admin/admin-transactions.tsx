@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Transaction } from '@shared/schema';
 import { AdminNavigation } from './components/admin-navigation';
 import { CyberneticBox } from '@/components/ui/cybernetic-box';
@@ -20,7 +20,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, forceTransactionUpdate } from '@/lib/queryClient';
 import { formatCurrency, formatDate, formatTransactionAmount, getTransactionAmountColor } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -413,7 +413,7 @@ export default function AdminTransactions() {
                     <td className="px-4 py-3">{formatDate(transaction.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button 
-                        variant="primary" 
+                        variant="default" 
                         size="sm"
                         onClick={() => handleTransactionClick(transaction)}
                       >
@@ -493,8 +493,36 @@ export default function AdminTransactions() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <p className="text-sm text-gray-400">Alterar Status</p>
+              <div className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  onClick={async () => {
+                    if (selectedTransaction) {
+                      try {
+                        setNewStatus('completed');
+                        await forceTransactionUpdate(selectedTransaction.id, 'completed');
+                        toast({
+                          title: 'Atualização direta',
+                          description: 'Transação atualizada para "Concluído" e cache sincronizado',
+                          variant: 'default',
+                        });
+                      } catch (error) {
+                        console.error('Erro na atualização direta:', error);
+                        toast({
+                          title: 'Erro',
+                          description: 'Não foi possível atualizar a transação diretamente',
+                          variant: 'destructive',
+                        });
+                      }
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Aprovar Diretamente
+                </Button>
+
+                <p className="text-sm text-gray-400 pt-2">Ou Alterar Status</p>
                 <Select
                   value={newStatus}
                   onValueChange={setNewStatus}
@@ -516,7 +544,7 @@ export default function AdminTransactions() {
 
           <DialogFooter>
             <Button
-              variant="primary"
+              variant="default"
               onClick={handleUpdateStatus}
               disabled={updateStatusMutation.isPending}
             >
