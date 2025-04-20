@@ -781,6 +781,10 @@ export const storage = new MemStorage();
       referredBy: null,
       isAdmin: true
     });
+    
+    // Definir um saldo inicial para teste (não passar pelo createUser para focar no problema real)
+    const updatedUser = await storage.updateUserBalance(testUser.id, 50000);
+    console.log(`Usuário de teste criado com saldo inicial de KZ ${updatedUser.balance}`);
 
     console.log("Test user created:", testUser.phoneNumber);
     
