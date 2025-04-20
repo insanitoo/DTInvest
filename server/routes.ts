@@ -171,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // um método para obter depósitos por usuário
       const allDepositRequests = await storage.getDepositRequests();
       const userDepositRequests = allDepositRequests.filter(
-        req => req.userId === req.user.id
+        request => request.userId === req.user.id
       );
       
       res.json(userDepositRequests);
