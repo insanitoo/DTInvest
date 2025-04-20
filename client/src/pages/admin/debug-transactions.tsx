@@ -64,8 +64,21 @@ export default function DebugTransactions() {
         body: JSON.stringify({ status })
       });
 
+      // Verificar se o status é válido antes de enviar
+      if (!['pending', 'processing', 'completed', 'failed', 'approved'].includes(status)) {
+        throw new Error(`Status '${status}' não é válido. Use apenas: pending, processing, completed, failed, approved`);
+      }
+
       const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, { status });
-      const data = await res.json();
+      
+      // Tratamento especial para erros de resposta
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error('Erro ao analisar resposta JSON:', parseError);
+        throw new Error(`Erro de resposta: ${res.status} ${res.statusText}. A resposta não é um JSON válido.`);
+      }
       setResponse(JSON.stringify(data, null, 2));
       
       // Forçar atualização do cache
