@@ -240,6 +240,10 @@ export function setupAdminRoutes(app: Express) {
         const allTransactions = await storage.getAllTransactions();
         console.log('Todas as transações atualizadas no servidor:', allTransactions);
         
+        // Verificar o saldo do usuário para confirmar que foi atualizado corretamente
+        const user = await storage.getUser(updatedTransaction.userId);
+        console.log(`Saldo atual do usuário ${updatedTransaction.userId} após atualização: ${user?.balance}`);
+        
         // Garante que o corpo da resposta seja sempre um JSON válido com a transação atualizada
         // Retornar a transação atualizada com status explícito
         // Buscar a transação atualizada para garantir que está correta

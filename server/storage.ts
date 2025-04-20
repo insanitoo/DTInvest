@@ -368,7 +368,10 @@ export class MemStorage implements IStorage {
           console.error(`Erro ao atualizar saldo do usuário ${transaction.userId}:`, error);
           // Continuamos com a atualização do status mesmo se falhar a atualização do saldo
         }
-      } else if (transaction.type === 'withdrawal' && status === 'failed') {
+      } 
+      
+      // Lógica separada para saques que falharam - corrigindo o erro de comparação
+      if (transaction.type === 'withdrawal' && status === 'failed') {
         // Para saques que falharam, devolvemos o valor ao saldo do usuário
         console.log(`Devolvendo valor ao usuário ${transaction.userId} para saque que falhou`);
         try {

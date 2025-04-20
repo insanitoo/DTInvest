@@ -59,8 +59,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     initialData: localUser,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchInterval: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 segundos
+    refetchInterval: 60 * 1000, // 1 minuto
     refetchOnWindowFocus: true,
     onError: (error) => {
       // If we get a 401, clear the user from local storage
