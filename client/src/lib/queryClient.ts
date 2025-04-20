@@ -110,17 +110,62 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Utilitário para forçar atualização de transações
+export async function forceTransactionUpdate(transactionId: number, newStatus: string) {
+  console.log(`ForceUpdate: Atualizando transação ${transactionId} para status ${newStatus}`);
+  
+  // 1. Atualizar transação na cache do administrador
+  const adminTransactions = queryClient.getQueryData<any[]>(['/api/admin/transactions']);
+  if (adminTransactions) {
+    const updatedAdminTransactions = adminTransactions.map(tx => 
+      tx.id === transactionId ? { ...tx, status: newStatus } : tx
+    );
+    queryClient.setQueryData(['/api/admin/transactions'], updatedAdminTransactions);
+    console.log('ForceUpdate: Cache de transações admin atualizado');
+  }
+  
+  // 2. Atualizar transação na cache do usuário
+  const userTransactions = queryClient.getQueryData<any[]>(['/api/transactions']);
+  if (userTransactions) {
+    const updatedUserTransactions = userTransactions.map(tx => 
+      tx.id === transactionId ? { ...tx, status: newStatus } : tx
+    );
+    queryClient.setQueryData(['/api/transactions'], updatedUserTransactions);
+    console.log('ForceUpdate: Cache de transações do usuário atualizado');
+  }
+  
+  // 3. Invalidar e recarregar todos os dados
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+    queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+    queryClient.invalidateQueries({ queryKey: ['/api/user'] })
+  ]);
+  
+  console.log('ForceUpdate: Todas as queries invalidadas');
+  
+  // 4. Forçar refetch imediato
+  await Promise.all([
+    queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
+    queryClient.refetchQueries({ queryKey: ['/api/transactions'] }),
+    queryClient.refetchQueries({ queryKey: ['/api/user'] })
+  ]);
+  
+  console.log('ForceUpdate: Refetch completo');
+  return true;
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchInterval: 10000, // Revalidar a cada 10 segundos
+      refetchOnWindowFocus: true, // Revalidar quando o usuário voltar à janela
+      staleTime: 3000, // Considerar dados obsoletos após 3 segundos
+      retry: 1, // Uma tentativa adicional em caso de falha
+      gcTime: 5 * 60 * 1000 // 5 minutos de cache (era cacheTime no React Query v4)
     },
     mutations: {
-      retry: false,
+      retry: 1, // Uma tentativa adicional em caso de falha
     },
   },
 });
