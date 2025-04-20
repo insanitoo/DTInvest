@@ -118,6 +118,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
+// Nota: Temos 'approved' aqui, apesar de não ser mencionado no comentário do schema da tabela
+// Isso poderia ser uma fonte de confusão, garantindo que todos os status possíveis estejam aqui
 export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed', 'approved']);
 
 export const insertTransactionSchema = createInsertSchema(transactions).extend({

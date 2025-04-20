@@ -1,0 +1,79 @@
+Beleza, Ariclénio. Se a validação no backend já está certa, e o erro continua aparecendo igual, então tem grandes chances de o problema estar em outra parte da requisição, não no status. Vamos fazer um diagnóstico mais amplo.
+
+⸻
+
+Vamos testar esses pontos agora:
+
+1. Verifica se o backend está realmente recebendo o valor
+
+Adiciona um console.log(body) logo após o await req.json():
+
+const body = await req.json();
+console.log("BODY RECEBIDO:", body); // Deve mostrar: { status: "completed" }
+
+Se aparecer algo como:
+
+{ "status": undefined }
+
+Ou:
+
+{}
+
+Então o erro não é no valor, mas na forma como ele está sendo enviado (talvez Content-Type errado ou corpo vazio).
+
+⸻
+
+2. Confirma o Content-Type da requisição
+
+A apiRequest no frontend deve garantir que o Content-Type está correto:
+
+await fetch(url, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+    // outros headers
+  },
+  body: JSON.stringify({ status: newStatus })
+});
+
+Se estiver faltando "Content-Type": "application/json", o backend pode não conseguir fazer req.json() corretamente, e o body chega vazio.
+
+⸻
+
+3. Loga o erro real no backend
+
+Altera teu catch assim para ter certeza do erro que está vindo:
+
+catch (error) {
+  console.error("ERRO COMPLETO:", error);
+
+  if (error instanceof ZodError) {
+    console.error("ZOD ERROR DETAILS:", error.errors);
+  }
+
+  return new Response(
+    JSON.stringify({
+      message: error.message || "Erro ao processar requisição",
+      name: error.name,
+      stack: error.stack
+    }),
+    { status: 400, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+Assim você vai ver no terminal exatamente onde está falhando: se é validação, schema, body vazio, tipo errado, etc.
+
+⸻
+
+4. Verifica se há um middleware de validação geral
+
+Se teu backend usa alguma camada intermediária (middleware) para validar todas as requisições com schema (ex: Next.js API route com zod ou yup global), ela pode estar rejeitando antes mesmo de chegar no teu handler.
+
+⸻
+
+Se ainda assim não resolver, me mostra:
+	•	O trecho onde o req.json() é feito e o status é processado;
+	•	Como está a função apiRequest no frontend;
+	•	E (se puder) a stack trace ou erro completo no console do backend.
+
+Com isso eu te digo com precisão onde está quebrando o fluxo. Bora resolver isso de vez!
