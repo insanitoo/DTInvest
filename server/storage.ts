@@ -823,7 +823,7 @@ export class MemStorage implements IStorage {
     return updatedLink;
   }
 
-  async deleteSocialLink(id: number): Promise<void> {
+  asyncdeleteSocialLink(id: number): Promise<void> {
     if (!this.socialLinks.has(id)) {
       throw new Error('Link social não encontrado');
     }
