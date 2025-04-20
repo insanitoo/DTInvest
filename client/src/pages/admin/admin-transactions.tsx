@@ -48,60 +48,140 @@ export default function AdminTransactions() {
         // Remover espaços extras do status para prevenir erros de validação
         const trimmedStatus = newStatus.trim();
 
-        const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
-          status: trimmedStatus 
+        // Usar fetch diretamente em vez de apiRequest para adicionar cabeçalhos especiais
+        console.log('Usando fetch avançado para garantir resposta JSON...');
+        
+        // Adicionar cabeçalhos específicos para esta requisição crítica
+        const headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        };
+        
+        // Fazer a requisição com cabeçalhos especiais
+        const res = await fetch(`/api/admin/transactions/${selectedTransaction.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ status: trimmedStatus }),
+          credentials: 'include'
         });
-
-        // Tratar a resposta com cuidado para evitar erros de JSON
+        
+        // Log de diagnóstico com headers da resposta
+        console.log('Cabeçalhos da resposta:', {
+          contentType: res.headers.get('Content-Type'),
+          contentLength: res.headers.get('Content-Length'),
+          cacheControl: res.headers.get('Cache-Control')
+        });
+        
         try {
-          // Verificar se a resposta está vazia
+          // Obter o texto da resposta
           const responseText = await res.text();
-
+          console.log(`Resposta recebida (${responseText.length} caracteres)`);
+          
+          // Resposta vazia
           if (!responseText || responseText.trim() === '') {
-            // Se a resposta estiver vazia mas o status for 200 OK, considerar sucesso
+            console.log('Resposta vazia, usando status HTTP para determinar resultado');
+            
+            // Se status for de sucesso, forçar atualização de caches
             if (res.ok) {
-              console.log('Resposta vazia mas status OK, retornando sucesso');
-              return { success: true };
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+                queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+                queryClient.refetchQueries({ queryKey: ['/api/user'] })
+              ]);
             }
-          } else {
-            // Verificar se parece ser HTML (começa com <!DOCTYPE ou <html)
-            if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
-              console.log('Resposta é HTML, não JSON. Status:', res.status);
-              // Se sucesso, criar um objeto de sucesso
-              if (res.ok) {
-                return { 
-                  success: true, 
-                  message: "Operação realizada com sucesso",
-                  info: "A resposta continha HTML em vez de JSON, mas o status de sucesso foi confirmado."
-                };
-              } else {
-                throw new Error(`Recebido HTML em vez de JSON. Status: ${res.status}`);
-              }
+            
+            return { 
+              success: res.ok, 
+              message: res.ok ? "Operação realizada com sucesso" : "Falha na operação",
+              statusCode: res.status
+            };
+          }
+          
+          // Verificar se é HTML (múltiplas verificações)
+          const isHtml = responseText.trim().startsWith('<!DOCTYPE') || 
+                        responseText.trim().startsWith('<html') ||
+                        responseText.includes('<head>') ||
+                        responseText.includes('<body>');
+          
+          // Tratar respostas HTML
+          if (isHtml) {
+            console.log('Resposta é HTML em vez de JSON. Status:', res.status);
+            
+            // Se status for OK, considerar sucesso e forçar atualização
+            if (res.ok) {
+              console.log('Status OK com HTML. Forçando atualização de caches...');
+              
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+                queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+                queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+                queryClient.refetchQueries({ queryKey: ['/api/user'] })
+              ]);
+              
+              return { 
+                success: true, 
+                message: "Operação realizada com sucesso",
+                info: "A resposta continha HTML em vez de JSON, mas o status de sucesso foi confirmado."
+              };
             } else {
-              // Tentar converter para JSON apenas se não for HTML
-              try {
-                const data = JSON.parse(responseText);
-                console.log('Resposta JSON recebida da API:', data);
-                return data;
-              } catch (jsonError) {
-                console.warn('Resposta não é um JSON válido:', responseText.substring(0, 200) + '...');
-                // Retornar um objeto de sucesso se o status for 200 OK
-                if (res.ok) {
-                  return { 
-                    success: true, 
-                    message: "Operação realizada com sucesso (resposta não é JSON)",
-                    info: "A requisição retornou status 200 OK, mas o corpo da resposta não é um JSON válido."
-                  };
-                }
-                throw new Error('Resposta não é um JSON válido');
+              throw new Error(`Recebido HTML em vez de JSON. Status: ${res.status}`);
+            }
+          }
+          
+          // Tentar processar como JSON
+          try {
+            const data = JSON.parse(responseText);
+            console.log('Resposta JSON processada com sucesso:', data);
+            
+            // Verificar se temos meta-informações sobre atualização de saldo
+            if (data.meta && data.meta.transactionType === 'deposit' && 
+                (trimmedStatus === 'completed' || trimmedStatus === 'approved')) {
+              console.log('Meta-informações para depósito:', data.meta);
+              
+              // Se o servidor indicar que o saldo não foi atualizado corretamente
+              if (data.meta.balanceUpdated === false) {
+                console.warn('ALERTA: Servidor indicou que o saldo NÃO foi atualizado! Forçando atualização...');
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+                  queryClient.refetchQueries({ queryKey: ['/api/user'] })
+                ]);
               }
             }
+            
+            return data;
+          } catch (jsonError) {
+            console.error('Erro ao processar JSON:', jsonError);
+            
+            // Se status for OK, considerar sucesso mesmo com erro de parsing
+            if (res.ok) {
+              // Forçar atualização de caches em caso de erro com status 200
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+                queryClient.invalidateQueries({ queryKey: ['/api/user'] })
+              ]);
+              
+              return { 
+                success: true, 
+                message: "Operação realizada com sucesso",
+                info: "Status de sucesso com resposta não-JSON",
+                statusCode: res.status
+              };
+            }
+            
+            throw new Error(`Erro ${res.status}: Resposta não é um JSON válido`);
           }
         } catch (parseError) {
           console.error('Erro ao processar resposta:', parseError);
+          
+          // Se status for OK, retornar sucesso mesmo com erro de parsing
           if (res.ok) {
+            await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
             return { success: true };
           }
+          
           throw parseError;
         }
 
