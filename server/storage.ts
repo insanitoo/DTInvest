@@ -99,10 +99,22 @@ export class MemStorage implements IStorage {
   
   // Método auxiliar para verificar e atualizar o saldo para depósitos aprovados
   async _verificarEAtualizarSaldoDeposito(transaction: Transaction): Promise<void> {
-    console.log(`===== PROCESSANDO ATUALIZAÇÃO DE SALDO PARA DEPÓSITO APROVADO =====`);
-    console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}`);
+    console.log(`\n===== PROCESSANDO ATUALIZAÇÃO DE SALDO PARA DEPÓSITO ${transaction.status} =====`);
+    console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}, Status: ${transaction.status}`);
     
     try {
+      // Verificar se o tipo de transação é realmente depósito
+      if (transaction.type !== 'deposit') {
+        console.error(`ERRO: Tentativa de atualizar saldo para uma transação que não é depósito: ${transaction.type}`);
+        return;
+      }
+      
+      // Verificar se o status permite atualização de saldo
+      if (transaction.status !== 'completed' && transaction.status !== 'approved') {
+        console.error(`ERRO: Tentativa de atualizar saldo para um depósito com status inválido: ${transaction.status}`);
+        return;
+      }
+      
       // Buscar o usuário
       const user = await this.getUser(transaction.userId);
       if (!user) {
@@ -110,8 +122,35 @@ export class MemStorage implements IStorage {
         throw new Error(`Usuário ${transaction.userId} não encontrado`);
       }
       
-      console.log(`Usuário encontrado:`, JSON.stringify(user, null, 2));
+      console.log(`Usuário encontrado: ID ${user.id}, Telefone: ${user.phoneNumber}`);
       console.log(`Saldo atual: ${user.balance}, Valor do depósito: ${transaction.amount}`);
+      
+      // Verificar se já existem registros de transações anteriores que indicam que este depósito já foi processado
+      // Isso evita processamento duplo de um mesmo depósito
+      const transacoes = await this.getTransactions(user.id);
+      const depositos = transacoes.filter(tx => 
+        tx.type === 'deposit' && 
+        (tx.status === 'completed' || tx.status === 'approved') &&
+        tx.id === transaction.id
+      );
+      
+      // Se houver mais de um registro, isso pode indicar que já atualizamos antes
+      if (depositos.length > 1) {
+        console.log(`ALERTA: Este depósito já possui ${depositos.length} registros processados`);
+        console.log(`Verificando se o saldo atual já reflete o valor do depósito...`);
+        
+        // Verificar se o saldo já foi atualizado com base nas transações posteriores
+        const dataDeposito = new Date(transaction.createdAt);
+        const transacoesPosteriores = transacoes.filter(tx => 
+          new Date(tx.createdAt) > dataDeposito && 
+          tx.type === 'purchase'
+        );
+        
+        if (transacoesPosteriores.length > 0) {
+          console.log(`Existem ${transacoesPosteriores.length} transações após este depósito. O saldo já deve estar atualizado.`);
+          return;
+        }
+      }
       
       // Calcular novo saldo
       const newBalance = user.balance + transaction.amount;
@@ -133,6 +172,8 @@ export class MemStorage implements IStorage {
         // Marcar que o usuário fez um depósito
         await this.updateUser(transaction.userId, { hasDeposited: true });
       }
+      
+      console.log(`===== FIM DO PROCESSAMENTO DE ATUALIZAÇÃO DE SALDO =====\n`);
     } catch (error) {
       console.error(`ERRO GRAVE ao processar atualização de saldo:`, error);
       // Não lançamos o erro para permitir que a transação continue atualizada
@@ -367,6 +408,8 @@ export class MemStorage implements IStorage {
       amount: transaction.amount,
       status: transaction.status,
       bankAccount: transaction.bankAccount === undefined ? null : transaction.bankAccount,
+      bankName: transaction.bankName === undefined ? null : transaction.bankName,
+      receipt: transaction.receipt === undefined ? null : transaction.receipt,
       createdAt: now,
       updatedAt: now,
     };

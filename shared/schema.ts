@@ -129,16 +129,20 @@ export const insertTransactionSchema = createInsertSchema(transactions).extend({
   type: z.enum(['deposit', 'withdrawal', 'commission', 'purchase']),
   amount: z.number().positive(),
   status: transactionStatusEnum,
-  bankAccount: z.string().nullable()
+  bankAccount: z.string().nullable(),
+  bankName: z.string().nullable(),
+  receipt: z.string().nullable()
 });
 
 export const updateTransactionSchema = z.object({
   status: transactionStatusEnum
 });
 
-// Forçar bankAccount a ser string | null
+// Garantir que os campos opcionais sejam tratados corretamente
 export const transactionSchema = insertTransactionSchema.extend({
-  bankAccount: z.string().nullable()
+  bankAccount: z.string().nullable(),
+  bankName: z.string().nullable(),
+  receipt: z.string().nullable()
 });
 
 export const insertBankInfoSchema = createInsertSchema(bankInfo).pick({
