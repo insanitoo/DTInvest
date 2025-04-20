@@ -376,8 +376,9 @@ export class MemStorage implements IStorage {
   }
 
   async updateTransactionStatus(id: number, status: string): Promise<Transaction> {
-    console.log(`===== INICIANDO ATUALIZAÇÃO DE TRANSAÇÃO =====`);
-    console.log(`ID: ${id}, Novo Status: ${status}`);
+    console.log(`\n==============================================================`);
+    console.log(`INÍCIO DA ATUALIZAÇÃO DE TRANSAÇÃO - ID: ${id}, NOVO STATUS: ${status}`);
+    console.log(`==============================================================\n`);
     
     const transaction = this.transactions.get(id);
     if (!transaction) {
@@ -400,35 +401,24 @@ export class MemStorage implements IStorage {
     
     // Não fazer nada se o status já for o mesmo (idempotência)
     if (transaction.status === status) {
-      console.log(`INFO: Transação ${id} já está com status ${status}, verificando saldo...`);
+      console.log(`INFO: Transação ${id} já está com status ${status}`);
       
-      // Mesmo assim, garantir que o saldo foi atualizado para depósitos
+      // Mesmo assim, garantir que o saldo foi atualizado para depósitos aprovados
       if ((status === 'completed' || status === 'approved') && transaction.type === 'deposit') {
-        console.log(`Verificando se o saldo foi atualizado para depósito já ${status}...`);
+        console.log(`VERIFICAÇÃO DE SEGURANÇA: Transação já está como ${status}, verificando saldo...`);
         
         // Verificar se o usuário recebeu o valor do depósito
         if (userBefore) {
-          let shouldUpdateBalance = true;
+          // Verificar se o saldo atual reflete o valor do depósito
+          const expectedBalance = userBefore.balance + transaction.amount; 
+          console.log(`Saldo atual: ${userBefore.balance}, Valor do depósito: ${transaction.amount}, Saldo esperado: ${expectedBalance}`);
           
-          // Buscar todas as transações do usuário para verificar se este depósito já foi contabilizado
-          const userTransactions = await this.getTransactions(transaction.userId);
+          // Forçar a atualização do saldo se ele ainda não foi atualizado
+          await this._verificarEAtualizarSaldoDeposito(transaction);
           
-          // Verificar se há outras transações que podem indicar que o depósito já foi processado
-          // Por exemplo, uma transação de compra após esta data sugere que o depósito foi processado
-          const laterTransactions = userTransactions.filter(tx => 
-            new Date(tx.createdAt) > new Date(transaction.createdAt) && 
-            tx.type === 'purchase'
-          );
-          
-          if (laterTransactions.length > 0) {
-            console.log(`Existem ${laterTransactions.length} transações POSTERIORES a este depósito: provavelmente já foi processado`);
-            shouldUpdateBalance = false;
-          }
-          
-          if (shouldUpdateBalance) {
-            console.log(`Forçando atualização de saldo para depósito já aprovado...`);
-            await this._verificarEAtualizarSaldoDeposito(transaction);
-          }
+          // Verificar a correção
+          const userAfterCorrection = await this.getUser(transaction.userId);
+          console.log(`SALDO APÓS CORREÇÃO: ${userAfterCorrection?.balance || 0}`);
         }
       }
       return transaction;
@@ -521,7 +511,9 @@ export class MemStorage implements IStorage {
       }
     }
     
-    console.log(`===== ATUALIZAÇÃO DE TRANSAÇÃO FINALIZADA =====`);
+    console.log(`\n==============================================================`);
+    console.log(`FIM DA ATUALIZAÇÃO DE TRANSAÇÃO - ID: ${id}, STATUS FINAL: ${updatedTransaction.status}`);
+    console.log(`==============================================================\n`);
     return updatedTransaction;
   }
 

@@ -296,14 +296,38 @@ export function setupAdminRoutes(app: Express) {
         console.log(`Obtendo transação finalizada para resposta...`);
         const confirmedTransaction = await storage.getTransaction(transactionId);
         
-        return res.status(200).json({ 
+        if (!confirmedTransaction) {
+          console.error(`ERRO: Não foi possível encontrar a transação ${transactionId} após atualização`);
+          return res.status(200).json({ 
+            success: true, 
+            message: "Transação atualizada, mas não foi possível recuperá-la"
+          });
+        }
+        
+        // Buscar o usuário atualizado também para incluir na resposta
+        const updatedUser = await storage.getUser(existingTransaction.userId);
+        
+        // Formatamos manualmente para garantir um JSON válido
+        const responseData = { 
           success: true, 
           transaction: {
-            ...confirmedTransaction,
-            status: status, // Garantir que o status está explícito
-            updatedAt: new Date().toISOString()
-          }
-        });
+            id: confirmedTransaction.id,
+            userId: confirmedTransaction.userId,
+            type: confirmedTransaction.type,
+            amount: confirmedTransaction.amount,
+            status: status, // Garantir que o status está atualizado
+            createdAt: confirmedTransaction.createdAt.toISOString(),
+            updatedAt: new Date().toISOString(),
+            bankAccount: confirmedTransaction.bankAccount
+          },
+          user: updatedUser ? {
+            id: updatedUser.id,
+            balance: updatedUser.balance
+          } : null
+        };
+        
+        console.log(`Enviando resposta JSON: ${JSON.stringify(responseData)}`);
+        return res.status(200).json(responseData);
       } catch (error) {
         console.error('Erro ao atualizar transação:', error);
         throw error;
