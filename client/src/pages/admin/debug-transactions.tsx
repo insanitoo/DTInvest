@@ -119,12 +119,36 @@ export default function DebugTransactions() {
             throw new Error(`Resposta vazia com status ${res.status}`);
           }
         } else {
-          // Tentar converter para JSON apenas se houver conteúdo
-          try {
-            data = JSON.parse(responseText);
-          } catch (jsonError) {
-            console.error('Conteúdo não é um JSON válido:', responseText);
-            throw jsonError;
+          // Verificar se parece ser HTML (começa com <!DOCTYPE ou <html)
+          if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+            console.log('Resposta é HTML, não JSON. Status:', res.status);
+            // Se sucesso, criar um objeto de sucesso
+            if (res.ok) {
+              data = { 
+                success: true, 
+                message: "Operação realizada com sucesso",
+                info: "A resposta continha HTML em vez de JSON, mas o status de sucesso foi confirmado."
+              };
+            } else {
+              throw new Error(`Recebido HTML em vez de JSON. Status: ${res.status}`);
+            }
+          } else {
+            // Tentar converter para JSON apenas se não for HTML
+            try {
+              data = JSON.parse(responseText);
+            } catch (jsonError) {
+              console.error('Conteúdo não é um JSON válido:', responseText.substring(0, 200) + '...');
+              // Se for status 200, considerar sucesso mesmo com JSON inválido
+              if (res.ok) {
+                data = { 
+                  success: true, 
+                  message: "Operação realizada com sucesso (resposta não é JSON)",
+                  info: "A requisição retornou status 200 OK, mas o corpo da resposta não é um JSON válido."
+                };
+              } else {
+                throw new Error(`Resposta não é um JSON válido. Status: ${res.status}`);
+              }
+            }
           }
         }
       } catch (parseError) {

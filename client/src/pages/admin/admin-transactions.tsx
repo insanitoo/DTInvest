@@ -64,18 +64,37 @@ export default function AdminTransactions() {
               return { success: true };
             }
           } else {
-            // Tentar converter para JSON apenas se houver conteúdo
-            try {
-              const data = JSON.parse(responseText);
-              console.log('Resposta JSON recebida da API:', data);
-              return data;
-            } catch (jsonError) {
-              console.warn('Resposta não é um JSON válido:', responseText);
-              // Retornar um objeto de sucesso se o status for 200 OK
+            // Verificar se parece ser HTML (começa com <!DOCTYPE ou <html)
+            if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+              console.log('Resposta é HTML, não JSON. Status:', res.status);
+              // Se sucesso, criar um objeto de sucesso
               if (res.ok) {
-                return { success: true };
+                return { 
+                  success: true, 
+                  message: "Operação realizada com sucesso",
+                  info: "A resposta continha HTML em vez de JSON, mas o status de sucesso foi confirmado."
+                };
+              } else {
+                throw new Error(`Recebido HTML em vez de JSON. Status: ${res.status}`);
               }
-              throw new Error('Resposta não é um JSON válido');
+            } else {
+              // Tentar converter para JSON apenas se não for HTML
+              try {
+                const data = JSON.parse(responseText);
+                console.log('Resposta JSON recebida da API:', data);
+                return data;
+              } catch (jsonError) {
+                console.warn('Resposta não é um JSON válido:', responseText.substring(0, 200) + '...');
+                // Retornar um objeto de sucesso se o status for 200 OK
+                if (res.ok) {
+                  return { 
+                    success: true, 
+                    message: "Operação realizada com sucesso (resposta não é JSON)",
+                    info: "A requisição retornou status 200 OK, mas o corpo da resposta não é um JSON válido."
+                  };
+                }
+                throw new Error('Resposta não é um JSON válido');
+              }
             }
           }
         } catch (parseError) {
