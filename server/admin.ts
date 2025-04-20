@@ -122,8 +122,9 @@ export function setupAdminRoutes(app: Express) {
         return res.status(400).json({ message: "Status é obrigatório" });
       }
       
-      if (!['pending', 'processing', 'completed', 'failed'].includes(status)) {
-        return res.status(400).json({ message: "Status inválido" });
+      const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Status inválido. Use: pending, processing, completed, failed ou approved" });
       }
       
       // Obter a transação atual para verificar se existe

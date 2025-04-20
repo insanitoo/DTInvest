@@ -29,30 +29,30 @@ export default function AdminTransactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
-  
+
   // Get all transactions
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ['/api/admin/transactions'],
   });
-  
+
   // Update transaction status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async () => {
       if (!selectedTransaction || !newStatus) {
         throw new Error("Transação ou status não selecionados");
       }
-      
+
       console.log(`Enviando status '${newStatus}' para transação ${selectedTransaction.id}`);
-      
+
       try {
         const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
           status: newStatus 
         });
-        
+
         // Pegar os dados da resposta em JSON
         const data = await res.json();
         console.log('Resposta JSON recebida da API:', data);
-        
+
         return data || { success: true };
       } catch (error) {
         console.error('Erro na requisição:', error);
@@ -61,34 +61,34 @@ export default function AdminTransactions() {
     },
     onSuccess: (data) => {
       console.log('Mutation concluída com sucesso:', data);
-      
+
       // Forçar atualização do cache
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
-      
+
       // Também invalidar as transações do usuário para que apareça atualizado na tela do usuário
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-      
+
       // Atualizar manualmente o cache para mostrar a mudança imediatamente
       if (selectedTransaction) {
         // Obter os dados atuais do cache
         const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
-        
+
         // Atualizar o objeto da transação no cache com o novo status
         const updatedTransactions = currentTransactions.map(tx => 
           tx.id === selectedTransaction.id ? { ...tx, status: newStatus } : tx
         );
-        
+
         // Atualizar o cache diretamente
         queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
-        
+
         console.log('Cache atualizado manualmente:', updatedTransactions);
       }
-      
+
       toast({
         title: 'Status atualizado',
         description: 'O status da transação foi atualizado com sucesso.',
       });
-      
+
       setShowDialog(false);
       setSelectedTransaction(null);
       setNewStatus('');
@@ -102,19 +102,19 @@ export default function AdminTransactions() {
       });
     },
   });
-  
+
   // Handle transaction click
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setNewStatus(transaction.status);
     setShowDialog(true);
   };
-  
+
   // Handle update status
   const handleUpdateStatus = () => {
     updateStatusMutation.mutate();
   };
-  
+
   // Get transaction type label
   const getTransactionTypeLabel = (type: string) => {
     switch (type) {
@@ -130,7 +130,7 @@ export default function AdminTransactions() {
         return type;
     }
   };
-  
+
   // Get transaction status label
   const getTransactionStatusLabel = (status: string) => {
     switch (status) {
@@ -142,11 +142,13 @@ export default function AdminTransactions() {
         return 'Concluído';
       case 'failed':
         return 'Falhou';
+      case 'approved':
+        return 'Aprovado'; // Added 'approved' case
       default:
         return status;
     }
   };
-  
+
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -158,6 +160,8 @@ export default function AdminTransactions() {
         return 'bg-green-500';
       case 'failed':
         return 'bg-red-500';
+      case 'approved':
+        return 'bg-green-500'; // Added 'approved' case, using green as it implies success.
       default:
         return 'bg-gray-500';
     }
@@ -166,10 +170,10 @@ export default function AdminTransactions() {
   return (
     <div className="min-h-screen pb-8">
       <AdminNavigation />
-      
+
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Gerenciar Transações</h1>
-        
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
@@ -225,7 +229,7 @@ export default function AdminTransactions() {
           </CyberneticBox>
         )}
       </div>
-      
+
       {/* Transaction Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="bg-dark-secondary border-gray-800 text-white">
@@ -237,7 +241,7 @@ export default function AdminTransactions() {
               </DialogDescription>
             )}
           </DialogHeader>
-          
+
           {selectedTransaction && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -262,28 +266,28 @@ export default function AdminTransactions() {
                   </p>
                 </div>
               </div>
-              
+
               {selectedTransaction.bankName && (
                 <div>
                   <p className="text-sm text-gray-400">Banco</p>
                   <p>{selectedTransaction.bankName}</p>
                 </div>
               )}
-              
+
               {selectedTransaction.bankAccount && (
                 <div>
                   <p className="text-sm text-gray-400">Conta Bancária</p>
                   <p>{selectedTransaction.bankAccount}</p>
                 </div>
               )}
-              
+
               {selectedTransaction.receipt && (
                 <div>
                   <p className="text-sm text-gray-400">Comprovante</p>
                   <p>{selectedTransaction.receipt}</p>
                 </div>
               )}
-              
+
               <div className="space-y-2">
                 <p className="text-sm text-gray-400">Alterar Status</p>
                 <Select
@@ -298,12 +302,13 @@ export default function AdminTransactions() {
                     <SelectItem value="processing">Processando</SelectItem>
                     <SelectItem value="completed">Concluído</SelectItem>
                     <SelectItem value="failed">Falhou</SelectItem>
+                    <SelectItem value="approved">Aprovado</SelectItem> {/* Added approved option */}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button
               variant="primary"
