@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth-new';
 import { BottomNavigation } from '@/components/layout/bottom-navigation';
 import { BalanceCard } from '@/components/home/balance-card';
 import { WithdrawalModal } from '@/components/modals/withdrawal-modal';

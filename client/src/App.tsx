@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { ProtectedRoute } from '@/lib/protected-route';
-import { AuthProvider } from '@/hooks/use-auth';
+import { AuthProvider } from '@/hooks/use-auth-new';
 
 // Pages
 import HomePage from '@/pages/home-page';

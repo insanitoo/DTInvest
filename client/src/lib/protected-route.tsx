@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-new";
 import { Loader2 } from "lucide-react";
 import { Route, useLocation } from "wouter";
 

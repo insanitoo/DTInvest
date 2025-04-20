@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-new";
 import { formatCurrency } from "@/lib/utils";
 import { Loader2, ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";

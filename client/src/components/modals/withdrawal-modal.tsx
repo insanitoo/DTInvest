@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { X, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatCurrency, calculateNetWithdrawal, isWithinAngolaBusinessHours, isWeekday } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth-new';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';

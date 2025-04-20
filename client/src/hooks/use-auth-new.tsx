@@ -25,15 +25,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // Key for storing the authenticated user in localStorage
 const AUTH_USER_KEY = 'sp_global_auth_user';
 
-// Hook to use the auth context
-function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
-
 // Auth provider component
 function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
@@ -86,20 +77,20 @@ function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
   
-  // Adicionar um listener simplificado para atualização de transações
+  // Simples sistema para observar mudanças em transações
   useEffect(() => {
-    // Função para recarregar dados do usuário quando transações são atualizadas
-    const handleTransactionUpdated = () => {
-      console.log('Evento de transação detectado, atualizando dados do usuário...');
+    // Definir uma função para observar evento customizado
+    const handleTransactionUpdate = () => {
+      console.log('Evento de atualização de transação detectado, atualizando dados do usuário...');
       refetchUser();
     };
     
-    // Adicionar evento global customizado
-    window.addEventListener('transaction-updated', handleTransactionUpdated);
+    // Adicionar listener para evento customizado
+    window.addEventListener('transaction-updated', handleTransactionUpdate);
     
-    // Limpar o listener quando o componente for desmontado
+    // Limpar listener quando componente desmontar
     return () => {
-      window.removeEventListener('transaction-updated', handleTransactionUpdated);
+      window.removeEventListener('transaction-updated', handleTransactionUpdate);
     };
   }, [refetchUser]);
 
@@ -146,10 +137,6 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
-
-      // No need to invalidate immediately since we're already setting the data
-      // This causes an unnecessary refetch
-      // queryClient.invalidateQueries({queryKey: ["/api/user"]});
 
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
@@ -213,10 +200,6 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
       // Update React Query cache
       queryClient.setQueryData(["/api/user"], user);
-
-      // No need to invalidate immediately since we're already setting the data
-      // This causes an unnecessary refetch
-      // queryClient.invalidateQueries({queryKey: ["/api/user"]});
 
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
@@ -288,6 +271,15 @@ function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+// Hook para usar o contexto de autenticação
+function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }
 
 export { AuthContext, AuthProvider, useAuth };
