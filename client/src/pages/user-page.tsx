@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, LogOut, ChevronRight } from 'lucide-react';
 import { Transaction, BankInfo } from '@shared/schema';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth-new';
 import { BottomNavigation } from '@/components/layout/bottom-navigation';
 import { BalanceCard } from '@/components/home/balance-card';
 import { Button } from '@/components/ui/button';

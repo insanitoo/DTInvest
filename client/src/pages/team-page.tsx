@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Ticket, Link2 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth-new';
 import { BottomNavigation } from '@/components/layout/bottom-navigation';
 import { ReferralItem } from '@/components/team/referral-item';
 import { LevelCard } from '@/components/team/level-card';
