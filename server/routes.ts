@@ -346,9 +346,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOVO FLUXO: Lista de solicitações de depósito pendentes
   app.get("/api/admin/deposit-requests", isAdmin, async (req, res) => {
     try {
+      console.log('Buscando solicitações de depósito para admin...');
       const depositRequests = await storage.getDepositRequests();
+      console.log('Solicitações encontradas:', depositRequests);
       res.json(depositRequests);
     } catch (error) {
+      console.error('Erro ao buscar depósitos:', error);
       res.status(500).json({ 
         error: "Erro ao buscar solicitações de depósito",
         message: error instanceof Error ? error.message : "Erro desconhecido" 

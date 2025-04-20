@@ -386,8 +386,9 @@ export class MemStorage implements IStorage {
   }
   
   async getDepositRequests(): Promise<DepositRequest[]> {
-    return Array.from(this.depositRequests.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const requests = Array.from(this.depositRequests.values());
+    console.log('Recuperando solicitações de depósito:', requests);
+    return requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
   
   async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
