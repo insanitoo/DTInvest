@@ -210,6 +210,18 @@ export interface BankInfo {
   accountNumber: string;
 }
 
+// Interface para Investimentos do Usuário (baseado em Purchase + dados do produto)
+export interface UserProduct {
+  id: number;
+  productId: number;
+  productName: string;
+  price: number;
+  dailyIncome: number;
+  isActive: boolean;
+  daysRemaining: number;
+  purchasedAt: Date;
+}
+
 // Types
 export type User = typeof users.$inferSelect & { 
   bankInfo?: BankInfo;

@@ -5,7 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number | undefined | null): string {
+  if (value === undefined || value === null) {
+    return "KZ 0.00";
+  }
   return `KZ ${value.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,")}`;
 }
 

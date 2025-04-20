@@ -242,18 +242,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const purchases = await storage.getUserPurchases(req.user.id);
       
-      // Para cada compra, obter os detalhes do produto
+      // Para cada compra, obter os detalhes do produto e formatar conforme UserProduct
       const investments = await Promise.all(
         purchases.map(async (purchase) => {
           const product = await storage.getProduct(purchase.productId);
+          if (!product) {
+            return null; // Produto pode ter sido excluído
+          }
+          
+          // Calcular dias restantes com base na data da compra e dias do ciclo
+          const purchaseDate = new Date(purchase.createdAt);
+          const today = new Date();
+          const daysPassed = Math.floor((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+          const daysRemaining = Math.max(0, product.cycleDays - daysPassed);
+          const isActive = daysRemaining > 0;
+          
+          // Formatar conforme interface UserProduct
           return {
-            ...purchase,
-            product
+            id: purchase.id,
+            productId: product.id,
+            productName: product.name,
+            price: purchase.amount, // Usar o valor pago na compra
+            dailyIncome: product.dailyIncome,
+            isActive: isActive,
+            daysRemaining: daysRemaining,
+            purchasedAt: purchase.createdAt
           };
         })
       );
       
-      res.json(investments);
+      // Filtrar nulls (caso produto tenha sido excluído)
+      const validInvestments = investments.filter(item => item !== null);
+      
+      res.json(validInvestments);
     } catch (error) {
       next(error);
     }
