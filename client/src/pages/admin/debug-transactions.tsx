@@ -12,7 +12,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { AdminNavigation } from './components/admin-navigation';
 import { Textarea } from '@/components/ui/textarea';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export default function DebugTransactions() {
   const { toast } = useToast();
@@ -68,9 +68,39 @@ export default function DebugTransactions() {
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
       
+      // Forçar atualização do cache
+      try {
+        console.log('Forçando atualização do cache...');
+        
+        // Invalidar cache das transações do admin e do usuário
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+        
+        // Também atualizar manualmente os caches existentes
+        const adminTransactions = queryClient.getQueryData<any[]>(['/api/admin/transactions']);
+        if (adminTransactions) {
+          const updatedAdminTransactions = adminTransactions.map(tx => 
+            tx.id === Number(transactionId) ? { ...tx, status } : tx
+          );
+          queryClient.setQueryData(['/api/admin/transactions'], updatedAdminTransactions);
+          console.log('Cache de admin atualizado:', updatedAdminTransactions);
+        }
+        
+        const userTransactions = queryClient.getQueryData<any[]>(['/api/transactions']);
+        if (userTransactions) {
+          const updatedUserTransactions = userTransactions.map(tx => 
+            tx.id === Number(transactionId) ? { ...tx, status } : tx
+          );
+          queryClient.setQueryData(['/api/transactions'], updatedUserTransactions);
+          console.log('Cache do usuário atualizado:', updatedUserTransactions);
+        }
+      } catch (cacheError) {
+        console.error('Erro ao atualizar cache:', cacheError);
+      }
+      
       toast({
-        title: 'Atualização enviada',
-        description: 'Verifique a resposta para detalhes',
+        title: 'Atualização realizada',
+        description: 'Status atualizado e cache forçado a atualizar',
         variant: 'default',
       });
     } catch (error) {
