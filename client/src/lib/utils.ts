@@ -5,11 +5,36 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number | undefined | null): string {
+export function formatCurrency(value: number | undefined | null, forcePositive: boolean = false): string {
   if (value === undefined || value === null) {
     return "KZ 0.00";
   }
-  return `KZ ${value.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,")}`;
+  
+  // Se forcePositive for true, sempre exibe como valor positivo
+  const formattedValue = Math.abs(value).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,");
+  return `KZ ${formattedValue}`;
+}
+
+// Função específica para formatar valores de transação - adiciona sinal de - para compras e saques
+export function formatTransactionAmount(transaction: { type: string; amount: number }): string {
+  if (!transaction) {
+    return "KZ 0.00";
+  }
+  
+  const isNegativeType = transaction.type === 'withdrawal' || transaction.type === 'purchase';
+  const sign = isNegativeType ? '-' : '+';
+  const formattedValue = Math.abs(transaction.amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,");
+  return `${sign}KZ ${formattedValue}`;
+}
+
+// Retorna a classe CSS para colorir o valor da transação
+export function getTransactionAmountColor(type: string): string {
+  if (type === 'withdrawal' || type === 'purchase') {
+    return 'text-red-400';
+  } else if (type === 'deposit' || type === 'commission') {
+    return 'text-green-400';
+  }
+  return 'text-yellow-400';
 }
 
 export function formatPhoneNumber(phoneNumber: string): string {

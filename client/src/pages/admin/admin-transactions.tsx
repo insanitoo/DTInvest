@@ -21,7 +21,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatTransactionAmount, getTransactionAmountColor } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminTransactions() {
@@ -250,19 +250,8 @@ export default function AdminTransactions() {
                     <td className="px-4 py-3">{transaction.id}</td>
                     <td className="px-4 py-3">{transaction.userId}</td>
                     <td className="px-4 py-3">{getTransactionTypeLabel(transaction.type)}</td>
-                    <td className={`px-4 py-3 ${
-                      transaction.type === 'withdrawal' || transaction.type === 'purchase' 
-                        ? 'text-red-400' 
-                        : transaction.type === 'deposit' || transaction.type === 'commission' 
-                          ? 'text-green-400' 
-                          : ''
-                    }`}>
-                      {transaction.type === 'withdrawal' || transaction.type === 'purchase' 
-                        ? '-' 
-                        : transaction.type === 'deposit' || transaction.type === 'commission' 
-                          ? '+' 
-                          : ''}
-                      {formatCurrency(transaction.amount)}
+                    <td className={`px-4 py-3 ${getTransactionAmountColor(transaction.type)}`}>
+                      {formatTransactionAmount(transaction)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(transaction.status)} bg-opacity-20 text-white`}>
@@ -313,19 +302,8 @@ export default function AdminTransactions() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Valor</p>
-                  <p className={`${
-                    selectedTransaction.type === 'withdrawal' || selectedTransaction.type === 'purchase' 
-                      ? 'text-red-400' 
-                      : selectedTransaction.type === 'deposit' || selectedTransaction.type === 'commission' 
-                        ? 'text-green-400' 
-                        : ''
-                  }`}>
-                    {selectedTransaction.type === 'withdrawal' || selectedTransaction.type === 'purchase' 
-                      ? '-' 
-                      : selectedTransaction.type === 'deposit' || selectedTransaction.type === 'commission' 
-                        ? '+' 
-                        : ''}
-                    {formatCurrency(selectedTransaction.amount)}
+                  <p className={getTransactionAmountColor(selectedTransaction.type)}>
+                    {formatTransactionAmount(selectedTransaction)}
                   </p>
                 </div>
                 <div>

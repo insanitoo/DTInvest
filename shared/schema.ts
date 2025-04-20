@@ -26,8 +26,10 @@ export const transactions = pgTable("transactions", {
   userId: integer("user_id").notNull().references(() => users.id),
   type: text("type").notNull(), // deposit, withdrawal, purchase, commission
   amount: doublePrecision("amount").notNull(),
-  status: text("status").notNull(), // pending, completed, failed, processing
+  status: text("status").notNull(), // pending, completed, failed, processing, approved
   bankAccount: text("bank_account").default(null),
+  bankName: text("bank_name").default(null),
+  receipt: text("receipt").default(null), // Comprovante para depósitos
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
