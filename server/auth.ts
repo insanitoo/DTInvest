@@ -248,11 +248,37 @@ export function setupAuth(app: Express) {
   });
 
   // Get current user
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
-    return res.json(req.user);
+    
+    try {
+      // Buscar os dados mais recentes do usuário diretamente do banco
+      const userId = req.user.id;
+      const freshUserData = await storage.getUser(userId);
+      
+      if (!freshUserData) {
+        console.error(`ERRO: Usuário ${userId} não encontrado na verificação de /api/user`);
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Adicionar informações bancárias, se existirem
+      const bankInfo = await storage.getBankInfoByUserId(userId);
+      const freshUserWithBank = bankInfo 
+        ? { ...freshUserData, bankInfo } 
+        : freshUserData;
+      
+      // Atualizar a sessão com os dados mais recentes
+      req.user = freshUserWithBank;
+      
+      console.log(`Enviando dados atualizados do usuário ${userId}. Saldo atual: ${freshUserData.balance}`);
+      return res.json(freshUserWithBank);
+    } catch (error) {
+      console.error('Erro ao buscar dados atualizados do usuário:', error);
+      // Em caso de erro, retornar os dados da sessão como fallback
+      return res.json(req.user);
+    }
   });
   
   // Update bank info

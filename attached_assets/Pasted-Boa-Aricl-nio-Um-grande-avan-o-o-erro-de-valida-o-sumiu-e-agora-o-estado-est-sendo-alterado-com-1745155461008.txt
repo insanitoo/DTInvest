@@ -1,0 +1,74 @@
+Boa, Ariclénio! Um grande avanço: o erro de validação sumiu e agora o estado está sendo alterado com sucesso no painel do administrador. Agora só falta garantir que a mudança:
+	1.	Apareça também na área do usuário
+	2.	Atualize o saldo do usuário se for o caso
+
+⸻
+
+Prováveis causas do problema atual:
+
+1. Banco de dados não está sendo atualizado corretamente
+
+Você pode estar atualizando somente o estado da transação na interface/admin, mas não persistindo no banco. Ou pode estar atualizando na tabela errada.
+
+2. API da área do usuário está puxando dados desatualizados
+
+Pode estar a buscar os dados diretamente do banco sem considerar o novo status, ou sem refetch após a mudança.
+
+3. A lógica de adicionar saldo está faltando ou está incorreta
+
+Você pode ter esquecido de implementar a regra que diz:
+“se a transação mudar para ‘completed’, aumentar o saldo do usuário”.
+
+⸻
+
+Como resolver passo a passo
+
+1. Confirma se o backend realmente salva a mudança
+
+No endpoint de PUT /api/admin/transactions/:id, confirma que há uma lógica parecida com isso:
+
+await prisma.transaction.update({
+  where: { id: transactionId },
+  data: { status: "completed" }
+});
+
+Se essa parte estiver ok, passa para o próximo passo.
+
+⸻
+
+2. Atualiza o saldo do usuário ao mudar para “completed”
+
+Logo após mudar o status no backend, adiciona algo assim:
+
+if (newStatus === "completed") {
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: transactionId }
+  });
+
+  if (transaction) {
+    await prisma.user.update({
+      where: { id: transaction.userId },
+      data: {
+        balance: {
+          increment: transaction.amount
+        }
+      }
+    });
+  }
+}
+
+Assim, sempre que o status da transação virar “completed”, o sistema soma o valor da transação ao saldo do usuário.
+
+⸻
+
+3. Verifica se a área do usuário está puxando dados atualizados
+	•	A API da área do usuário (GET /api/user/transactions ou algo parecido) precisa buscar as transações atualizadas.
+	•	Se estiver usando SWR, React Query ou caching, talvez precise forçar um refetch ou limpar cache após a atualização.
+
+⸻
+
+Se quiser, me mostra:
+	•	O endpoint que atualiza o status da transação (código completo)
+	•	O endpoint ou componente onde o usuário vê suas transações e saldo
+
+Aí eu confirmo onde ajustar exatamente. Mas está quase fechado!
