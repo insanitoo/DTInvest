@@ -116,8 +116,20 @@ export default function AdminTransactions() {
       console.log('Mutation concluída com sucesso:', data);
 
       // Forçar revalidação dos dados
-      await queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+        // Forçar refetch imediato
+        queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
+        queryClient.refetchQueries({ queryKey: ['/api/transactions'] })
+      ]);
+
+      // Atualizar o cache manualmente também
+      const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
+      const updatedTransactions = currentTransactions.map(tx => 
+        tx.id === selectedTransaction?.id ? { ...tx, status: newStatus } : tx
+      );
+      queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
 
       toast({
         title: 'Status atualizado',

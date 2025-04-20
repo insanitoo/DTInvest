@@ -242,10 +242,13 @@ export function setupAdminRoutes(app: Express) {
         
         // Garante que o corpo da resposta seja sempre um JSON válido com a transação atualizada
         // Retornar a transação atualizada com status explícito
+        // Buscar a transação atualizada para garantir que está correta
+        const confirmedTransaction = await storage.getTransaction(transactionId);
+        
         return res.status(200).json({ 
           success: true, 
           transaction: {
-            ...updatedTransaction,
+            ...confirmedTransaction,
             status: status, // Garantir que o status está explícito
             updatedAt: new Date().toISOString()
           }
