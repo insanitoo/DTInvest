@@ -785,10 +785,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id,
         type: "deposit",
         amount,
-        status: "pending",
         bankName: bankName,
         bankAccount: bankAccount,
-        receipt: receipt || null
+        receipt: receipt || null,
+        transactionId: `DEP${Date.now().toString(36).toUpperCase()}`
       });
 
       console.log(`Transação de depósito criada com sucesso: ${JSON.stringify(transaction)}`);
@@ -848,10 +848,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: "withdrawal",
         amount,
-        status: "pending",
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
-        receipt: null
+        receipt: null,
+        transactionId: `WDR${Date.now().toString(36).toUpperCase()}`
       });
 
       // Update user balance
@@ -966,10 +966,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: "purchase",
         amount: product.price,
-        status: "completed",
         bankAccount: null,
         bankName: null,
-        receipt: null
+        receipt: null,
+        transactionId: `PURCH${Date.now().toString(36).toUpperCase()}`
       });
       
       res.status(201).json(purchase);
