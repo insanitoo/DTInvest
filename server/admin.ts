@@ -184,7 +184,7 @@ export function setupAdminRoutes(app: Express) {
         }
         
         // Validar valores de status permitidos manualmente
-        const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
+        const validStatuses = ['pending', 'processing', 'completed', 'failed'];
         if (!validStatuses.includes(req.body.status)) {
           console.error(`Status '${req.body.status}' não é permitido. Valores permitidos: ${validStatuses.join(', ')}`);
           return res.status(400).json({

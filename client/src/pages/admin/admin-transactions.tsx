@@ -487,7 +487,7 @@ export default function AdminTransactions() {
                     <SelectItem value="processing">Processando</SelectItem>
                     <SelectItem value="completed">Concluído</SelectItem>
                     <SelectItem value="failed">Falhou</SelectItem>
-                    <SelectItem value="approved">Aprovado</SelectItem> {/* Added approved option */}
+                    {/* Status approved removido conforme novo fluxo */}
                   </SelectContent>
                 </Select>
               </div>

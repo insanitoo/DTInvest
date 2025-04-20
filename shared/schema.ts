@@ -26,7 +26,7 @@ export const transactions = pgTable("transactions", {
   userId: integer("user_id").notNull().references(() => users.id),
   type: text("type").notNull(), // deposit, withdrawal, purchase, commission
   amount: doublePrecision("amount").notNull(),
-  status: text("status").notNull(), // pending, completed, failed, processing, approved
+  status: text("status").notNull(), // pending, completed, failed, processing
   bankAccount: text("bank_account").default(null),
   bankName: text("bank_name").default(null),
   receipt: text("receipt").default(null), // Comprovante para depósitos
@@ -122,7 +122,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 // Nota: Temos 'approved' aqui, apesar de não ser mencionado no comentário do schema da tabela
 // Isso poderia ser uma fonte de confusão, garantindo que todos os status possíveis estejam aqui
-export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed', 'approved']);
+export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed']);
 
 export const insertTransactionSchema = createInsertSchema(transactions).extend({
   userId: z.number(),
