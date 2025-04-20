@@ -3,7 +3,9 @@ import {
   Transaction, InsertTransaction, Product, InsertProduct, 
   Purchase, InsertPurchase, SocialLink, InsertSocialLink,
   Bank, InsertBank, Setting, InsertSetting,
-  CarouselImage, InsertCarouselImage
+  CarouselImage, InsertCarouselImage,
+  DepositRequest, InsertDepositRequest,
+  WithdrawalRequest, InsertWithdrawalRequest
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -25,11 +27,23 @@ export interface IStorage {
   createBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   deleteBankInfo(userId: number): Promise<void>;
 
-  // Transações
+  // Transações (histórico)
   getTransactions(userId: number): Promise<Transaction[]>;
   getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  updateTransactionStatus(id: number, status: string): Promise<Transaction>;
+  
+  // Solicitações de depósito
+  createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest>;
+  getDepositRequests(): Promise<DepositRequest[]>;
+  getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined>;
+  approveDepositRequest(id: number): Promise<Transaction>;
+  
+  // Solicitações de saque
+  createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest>;
+  getWithdrawalRequests(): Promise<WithdrawalRequest[]>;
+  getUserWithdrawalRequests(userId: number): Promise<WithdrawalRequest[]>;
+  approveWithdrawalRequest(id: number, adminId: number): Promise<Transaction>;
+  rejectWithdrawalRequest(id: number, adminId: number): Promise<Transaction>;
 
   // Produtos
   getProducts(): Promise<Product[]>;

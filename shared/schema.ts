@@ -20,18 +20,42 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Transaction schema
+// Transaction schema (histórico de transações)
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   type: text("type").notNull(), // deposit, withdrawal, purchase, commission
   amount: doublePrecision("amount").notNull(),
-  status: text("status").notNull(), // pending, completed, failed, processing
-  bankAccount: text("bank_account").default(null),
-  bankName: text("bank_name").default(null),
-  receipt: text("receipt").default(null), // Comprovante para depósitos
+  bankAccount: text("bank_account"),
+  bankName: text("bank_name"),
+  receipt: text("receipt"), // Comprovante para depósitos
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  transactionId: text("transaction_id"), // ID de referência única para depósitos
+});
+
+// Depósitos pendentes (aguardando aprovação do admin)
+export const depositRequests = pgTable("deposit_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: doublePrecision("amount").notNull(),
+  bankName: text("bank_name"),
+  receipt: text("receipt"),
+  transactionId: text("transaction_id").notNull().unique(), // ID gerado para o usuário fornecer ao gerente
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Saques pendentes (aguardando aprovação/rejeição do admin)
+export const withdrawalRequests = pgTable("withdrawal_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: doublePrecision("amount").notNull(),
+  status: text("status").notNull().default("requested"), // requested, approved, rejected
+  bankAccount: text("bank_account"),
+  bankName: text("bank_name"),
+  ownerName: text("owner_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+  processedBy: integer("processed_by").references(() => users.id),
 });
 
 // Bank info schema
@@ -122,27 +146,43 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 // Nota: Temos 'approved' aqui, apesar de não ser mencionado no comentário do schema da tabela
 // Isso poderia ser uma fonte de confusão, garantindo que todos os status possíveis estejam aqui
-export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed']);
+// Status de saque: solicitado, aprovado, rejeitado
+export const withdrawalStatusEnum = z.enum(['requested', 'approved', 'rejected']);
 
+// Schema para inserir transações (histórico final)
 export const insertTransactionSchema = createInsertSchema(transactions).extend({
   userId: z.number(),
   type: z.enum(['deposit', 'withdrawal', 'commission', 'purchase']),
   amount: z.number().positive(),
-  status: transactionStatusEnum,
   bankAccount: z.string().nullable(),
   bankName: z.string().nullable(),
-  receipt: z.string().nullable()
+  receipt: z.string().nullable(),
+  transactionId: z.string().nullable()
 });
 
-export const updateTransactionSchema = z.object({
-  status: transactionStatusEnum
-});
-
-// Garantir que os campos opcionais sejam tratados corretamente
-export const transactionSchema = insertTransactionSchema.extend({
-  bankAccount: z.string().nullable(),
+// Schema para solicitar depósito
+export const insertDepositRequestSchema = createInsertSchema(depositRequests).extend({
+  userId: z.number(),
+  amount: z.number().positive().min(1000, "Valor mínimo para depósito é KZ 1000"),
   bankName: z.string().nullable(),
-  receipt: z.string().nullable()
+  receipt: z.string().nullable(),
+  transactionId: z.string()
+});
+
+// Schema para solicitar saque
+export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests).extend({
+  userId: z.number(),
+  amount: z.number().positive().min(1400, "Valor mínimo para saque é KZ 1400").max(50000, "Valor máximo para saque é KZ 50000"),
+  bankAccount: z.string(),
+  bankName: z.string(),
+  ownerName: z.string(),
+  status: withdrawalStatusEnum.default('requested')
+});
+
+// Schema para processar saque (aprovar/rejeitar)
+export const processWithdrawalSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  processedBy: z.number()
 });
 
 export const insertBankInfoSchema = createInsertSchema(bankInfo).pick({
@@ -235,6 +275,10 @@ export type User = typeof users.$inferSelect & {
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type DepositRequest = typeof depositRequests.$inferSelect;
+export type InsertDepositRequest = z.infer<typeof insertDepositRequestSchema>;
+export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
+export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
 export type InsertBankInfo = z.infer<typeof insertBankInfoSchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
