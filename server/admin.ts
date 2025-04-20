@@ -193,6 +193,13 @@ export function setupAdminRoutes(app: Express) {
           });
         }
         
+        // Diagnóstico detalhado para depuração
+        console.log('\n\n========= INÍCIO DO DIAGNÓSTICO DA SOLICITAÇÃO =========');
+        console.log('ID da transação:', transactionId);
+        console.log('Status solicitado:', req.body.status);
+        console.log('Corpo completo da requisição:', req.body);
+        console.log('========= FIM DO DIAGNÓSTICO DA SOLICITAÇÃO =========\n\n');
+        
         // Validação pelo schema
         validatedData = updateTransactionSchema.parse(req.body);
         console.log('Dados validados com sucesso:', validatedData);
