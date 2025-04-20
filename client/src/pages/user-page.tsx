@@ -53,9 +53,12 @@ export default function UserPage() {
     }
   }, [location]);
   
-  // Transactions query
+  // Transactions query - Agora com staleTime reduzido para forçar revalidação mais frequente
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
+    staleTime: 10 * 1000, // Considerar dados obsoletos após 10 segundos
+    refetchInterval: 30 * 1000, // Revalidar a cada 30 segundos
+    refetchOnWindowFocus: true, // Revalidar quando o usuário voltar para a janela
   });
   
   // Bank form

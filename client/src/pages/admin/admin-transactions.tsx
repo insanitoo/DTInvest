@@ -246,23 +246,43 @@ export default function AdminTransactions() {
         // Fallback para método antigo se a resposta não contiver os dados completos
         console.log('Resposta não contém dados completos, invalidando caches...');
         
-        // Forçar revalidação dos dados
+        // ATUALIZADO: Abordagem mais robusta para garantir que os dados sejam atualizados corretamente
+        console.log('Executando processo robusto de atualização de cache...');
+        
+        // Primeiro, atualizar manualmente o cache com o que sabemos que mudou
+        if (selectedTransaction) {
+          // Atualizar transações admin
+          const adminTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
+          const updatedAdminTransactions = adminTransactions.map(tx => 
+            tx.id === selectedTransaction.id ? { ...tx, status: newStatus } : tx
+          );
+          queryClient.setQueryData(['/api/admin/transactions'], updatedAdminTransactions);
+          
+          // Atualizar transações do usuário 
+          const userTransactions = queryClient.getQueryData<Transaction[]>(['/api/transactions']);
+          if (userTransactions) {
+            const updatedUserTransactions = userTransactions.map(tx => 
+              tx.id === selectedTransaction.id ? { ...tx, status: newStatus } : tx
+            );
+            queryClient.setQueryData(['/api/transactions'], updatedUserTransactions);
+          }
+          
+          console.log(`Cache atualizado manualmente para transação ID ${selectedTransaction.id}, status: ${newStatus}`);
+        }
+        
+        // Em seguida, invalidar caches para forçar recarregamento
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
           queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-          queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
-          // Forçar refetch imediato
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] })
+        ]);
+        
+        // Finalmente, forçar um refetch imediato para garantir dados mais recentes
+        await Promise.all([
           queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
           queryClient.refetchQueries({ queryKey: ['/api/transactions'] }),
           queryClient.refetchQueries({ queryKey: ['/api/user'] })
         ]);
-        
-        // Atualizar o cache manualmente também
-        const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
-        const updatedTransactions = currentTransactions.map(tx => 
-          tx.id === selectedTransaction?.id ? { ...tx, status: newStatus } : tx
-        );
-        queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
       }
 
       toast({

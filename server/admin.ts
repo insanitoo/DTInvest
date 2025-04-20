@@ -249,12 +249,10 @@ export function setupAdminRoutes(app: Express) {
           }
         };
         
-        // Converter para JSON e enviar resposta
-        const jsonResponse = JSON.stringify(responseData);
-        console.log(`ADMIN API >>> Enviando resposta (${jsonResponse.length} bytes)`);
-        
+        // CORRIGIDO: Enviar resposta com res.json() em vez de res.send() para garantir Content-Type correto
+        console.log(`ADMIN API >>> Enviando resposta JSON...`);
         console.log(`\n=== ADMIN API >>> FIM ATUALIZAÇÃO DE TRANSAÇÃO ===\n`);
-        return res.status(200).send(jsonResponse);
+        return res.status(200).json(responseData);
         
       } catch (error) {
         console.error('ADMIN API >>> Erro durante atualização:', error);
