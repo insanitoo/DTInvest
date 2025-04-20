@@ -799,6 +799,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       supportPhone: "+244 000 000 000"
     });
   });
+  
+  // Rota de diagnóstico para testar validação de status de transação
+  app.post("/api/test/validate-status", (req, res) => {
+    const { status } = req.body;
+    
+    console.log('Testando validação de status:', { 
+      status, 
+      type: typeof status, 
+      body: req.body 
+    });
+    
+    const validation = validateTransactionStatus(status);
+    
+    if (validation.valid) {
+      return res.status(200).json({
+        success: true,
+        message: `Status '${status}' é válido`,
+        status
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: validation.error,
+        receivedStatus: status,
+        receivedType: typeof status
+      });
+    }
+  });
 
   const httpServer = createServer(app);
 

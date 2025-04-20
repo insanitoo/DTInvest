@@ -10,7 +10,8 @@ import {
   Receipt, 
   Menu, 
   X,
-  LogOut
+  LogOut,
+  Bug
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -45,6 +46,11 @@ export function AdminNavigation() {
       title: 'Configurações',
       href: '/admin/configuracoes',
       icon: <Settings className="h-5 w-5" />,
+    },
+    {
+      title: 'Depuração',
+      href: '/admin/debug',
+      icon: <Bug className="h-5 w-5" />,
     },
   ];
 

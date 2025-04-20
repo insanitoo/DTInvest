@@ -21,6 +21,7 @@ import AdminUsers from '@/pages/admin/admin-users';
 import AdminProducts from '@/pages/admin/admin-products';
 import AdminTransactions from '@/pages/admin/admin-transactions';
 import AdminSettings from '@/pages/admin/admin-settings';
+import DebugTransactions from '@/pages/admin/debug-transactions';
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <ProtectedRoute path="/admin/produtos" component={AdminProducts} />
           <ProtectedRoute path="/admin/transacoes" component={AdminTransactions} />
           <ProtectedRoute path="/admin/configuracoes" component={AdminSettings} />
+          <ProtectedRoute path="/admin/debug" component={DebugTransactions} />
           
           <Route component={NotFound} />
         </Switch>
