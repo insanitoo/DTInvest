@@ -113,12 +113,10 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/transactions/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const transactionId = parseInt(req.params.id);
+      const validatedData = updateTransactionSchema.parse(req.body);
+      const { status } = validatedData;
       
-      try {
-        const validatedData = updateTransactionSchema.parse(req.body);
-        const { status } = validatedData;
-        
-        console.log(`Atualizando transação ${transactionId} para status: ${status}`);
+      console.log(`Atualizando transação ${transactionId} para status: ${status}`);
       
       // Obter a transação atual para verificar se existe
       const existingTransaction = await storage.getTransaction(transactionId);
