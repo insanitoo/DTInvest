@@ -174,7 +174,28 @@ export function setupAdminRoutes(app: Express) {
       // Validação via schema
       let validatedData;
       try {
+        // Validação manual primeiro para garantir que status está correto
+        if (!req.body.status || typeof req.body.status !== 'string') {
+          console.error('Status inválido ou ausente:', req.body.status);
+          return res.status(400).json({
+            error: 'Erro de validação',
+            details: `Status inválido ou ausente: ${req.body.status}`
+          });
+        }
+        
+        // Validar valores de status permitidos manualmente
+        const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
+        if (!validStatuses.includes(req.body.status)) {
+          console.error(`Status '${req.body.status}' não é permitido. Valores permitidos: ${validStatuses.join(', ')}`);
+          return res.status(400).json({
+            error: 'Erro de validação',
+            details: `Status '${req.body.status}' não é permitido. Valores permitidos: ${validStatuses.join(', ')}`
+          });
+        }
+        
+        // Validação pelo schema
         validatedData = updateTransactionSchema.parse(req.body);
+        console.log('Dados validados com sucesso:', validatedData);
       } catch (validationError) {
         console.error('Erro detalhado de validação:', validationError);
         if (validationError instanceof ZodError) {
@@ -182,8 +203,7 @@ export function setupAdminRoutes(app: Express) {
             error: 'Erro de validação',
             details: validationError.errors.map(err => ({
               path: err.path.join('.'),
-              message: err.message,
-              received: err.received
+              message: err.message
             }))
           });
         }

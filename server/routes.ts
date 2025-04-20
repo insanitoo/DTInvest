@@ -26,6 +26,27 @@ function isAdmin(req: any, res: any, next: any) {
   next();
 }
 
+// Função para testar a validação do status - usada para diagnóstico
+function validateTransactionStatus(status: any): { valid: boolean; error?: string } {
+  // Verificar se o status existe
+  if (status === undefined || status === null) {
+    return { valid: false, error: 'Status ausente' };
+  }
+  
+  // Verificar se o status é uma string
+  if (typeof status !== 'string') {
+    return { valid: false, error: `Status deve ser uma string, recebido: ${typeof status}` };
+  }
+  
+  // Verificar se o status é um dos valores válidos
+  const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
+  if (!validStatuses.includes(status)) {
+    return { valid: false, error: `Status inválido: ${status}. Valores permitidos: ${validStatuses.join(', ')}` };
+  }
+  
+  return { valid: true };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
