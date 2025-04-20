@@ -113,10 +113,21 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/transactions/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const transactionId = parseInt(req.params.id);
-      const validatedData = updateTransactionSchema.parse(req.body);
-      const { status } = validatedData;
       
-      console.log(`Atualizando transação ${transactionId} para status: ${status}`);
+      console.log('Dados recebidos:', req.body);
+      
+      try {
+        const validatedData = updateTransactionSchema.parse(req.body);
+        const { status } = validatedData;
+        
+        console.log(`Atualizando transação ${transactionId} para status: ${status}`);
+      } catch (validationError) {
+        console.error('Erro de validação:', validationError);
+        return res.status(400).json({ 
+          error: 'Erro de validação',
+          details: validationError instanceof Error ? validationError.message : 'Erro desconhecido'
+        });
+      }
       
       // Obter a transação atual para verificar se existe
       const existingTransaction = await storage.getTransaction(transactionId);
