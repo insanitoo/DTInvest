@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { User } from "../shared/schema";
 
 // Middleware para verificar se o usuário é administrador
 function isAdmin(req: any, res: any, next: any) {
@@ -50,6 +51,66 @@ function validateTransactionStatus(status: any): { valid: boolean; error?: strin
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
+  
+  // Endpoint de teste para transações
+  app.post("/api/test-transaction", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+      
+      const user = req.user as User;
+      console.log(`\n=== TEST >>> ENDPOINT DE TESTE DE TRANSAÇÃO ===`);
+      console.log(`TEST >>> Usuário: ${user.phoneNumber}, Saldo inicial: ${user.balance}`);
+      
+      // Criar uma transação de depósito
+      const transaction = await storage.createTransaction({
+        userId: user.id,
+        type: 'deposit',
+        amount: 5000,
+        status: 'pending',
+        bankAccount: '123456789',
+        bankName: 'Banco Angolano de Investimentos (BAI)'
+      });
+      
+      console.log(`TEST >>> Transação criada: ID=${transaction.id}, Valor=${transaction.amount}`);
+      
+      // Atualizar o status da transação para 'completed'
+      console.log(`TEST >>> Atualizando status para 'completed'...`);
+      const updatedTransaction = await storage.updateTransactionStatus(transaction.id, 'completed');
+      
+      // Verificar o saldo atualizado
+      const updatedUser = await storage.getUser(user.id);
+      
+      if (!updatedUser) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Erro: Usuário não encontrado após atualização"
+        });
+      }
+      
+      console.log(`TEST >>> Transação atualizada: status=${updatedTransaction.status}`);
+      console.log(`TEST >>> Saldo final: ${updatedUser.balance}`);
+      console.log(`=== TEST >>> FIM DO TESTE ===\n`);
+      
+      res.json({
+        success: true,
+        message: "Teste concluído com sucesso",
+        transaction: updatedTransaction,
+        balanceChange: {
+          before: user.balance,
+          after: updatedUser.balance,
+          difference: updatedUser.balance - user.balance
+        }
+      });
+    } catch (error) {
+      console.error(`TEST >>> Erro no teste:`, error);
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
 
   // API routes
   // Transactions
