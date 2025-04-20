@@ -183,7 +183,7 @@ export function setupAdminRoutes(app: Express) {
         const endTime = Date.now();
         
         console.log(`ADMIN API >>> Atualização concluída em ${endTime - startTime}ms`);
-        console.log(`ADMIN API >>> Status atualizado: ${transaction.status} -> ${updatedTransaction.status}`);
+        console.log(`ADMIN API >>> Transação ${transactionId} processada`);
         
         // ETAPA 6: Verificar resultado da operação - usuário após a atualização
         const userAfter = await storage.getUser(transaction.userId);
@@ -221,12 +221,11 @@ export function setupAdminRoutes(app: Express) {
             userId: updatedTransaction.userId,
             type: updatedTransaction.type,
             amount: updatedTransaction.amount,
-            status: updatedTransaction.status,
             createdAt: updatedTransaction.createdAt,
-            updatedAt: updatedTransaction.updatedAt,
             bankAccount: updatedTransaction.bankAccount || null,
             bankName: updatedTransaction.bankName || null,
-            receipt: updatedTransaction.receipt || null
+            receipt: updatedTransaction.receipt || null,
+            transactionId: updatedTransaction.transactionId || null
           },
           user: {
             id: userAfter.id,
@@ -244,8 +243,7 @@ export function setupAdminRoutes(app: Express) {
             balanceUpdated: balanceUpdated,
             processingTime: `${endTime - startTime}ms`,
             transactionType: transaction.type,
-            previousStatus: transaction.status,
-            newStatus: status
+            requestedStatus: status
           }
         };
         
