@@ -99,84 +99,37 @@ export class MemStorage implements IStorage {
 
   // Método auxiliar para verificar e atualizar o saldo para depósitos concluídos
   async _verificarEAtualizarSaldoDeposito(transaction: Transaction): Promise<void> {
-    console.log(`\n===== PROCESSANDO ATUALIZAÇÃO DE SALDO PARA DEPÓSITO ${transaction.status} =====`);
-    console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}, Status: ${transaction.status}`);
-
+    /**************************************************************************
+     * MÉTODO LEGADO - MANTIDO APENAS PARA COMPATIBILIDADE
+     * Este método foi substituído pela lógica interna de updateTransactionStatus
+     * Versão 1.0 - Abril 2025
+     **************************************************************************/
+     
+    console.log(`\n=== DEPOSIT >>> INICIANDO PROCESSAMENTO LEGADO DE DEPÓSITO ===`);
+    console.log(`DEPOSIT >>> AVISO: Esta função está obsoleta. Usando fluxo direto do updateTransactionStatus`);
+    
     try {
-      // Verificar se o tipo de transação é realmente depósito
+      // Verificações básicas de segurança
       if (transaction.type !== 'deposit') {
-        console.error(`ERRO: Tentativa de atualizar saldo para uma transação que não é depósito: ${transaction.type}`);
+        console.log(`DEPOSIT >>> Não é um depósito (${transaction.type}). Ignorando.`);
         return;
       }
-
-      // Verificar se o status permite atualização de saldo
+      
       if (transaction.status !== 'completed') {
-        console.error(`ERRO: Tentativa de atualizar saldo para um depósito com status inválido: ${transaction.status}`);
+        console.log(`DEPOSIT >>> Status não é 'completed' (${transaction.status}). Ignorando.`);
         return;
       }
-
-      // Buscar o usuário
-      const user = await this.getUser(transaction.userId);
-      if (!user) {
-        console.error(`ERRO: Usuário ${transaction.userId} não encontrado`);
-        throw new Error(`Usuário ${transaction.userId} não encontrado`);
-      }
-
-      console.log(`Usuário encontrado: ID ${user.id}, Telefone: ${user.phoneNumber}`);
-      console.log(`Saldo atual: ${user.balance}, Valor do depósito: ${transaction.amount}`);
-
-      // Verificar se já existem registros de transações anteriores que indicam que este depósito já foi processado
-      // Isso evita processamento duplo de um mesmo depósito
-      const transacoes = await this.getTransactions(user.id);
-      const depositos = transacoes.filter(tx => 
-        tx.type === 'deposit' && 
-        tx.status === 'completed' &&
-        tx.id === transaction.id
-      );
-
-      // Se houver mais de um registro, isso pode indicar que já atualizamos antes
-      if (depositos.length > 1) {
-        console.log(`ALERTA: Este depósito já possui ${depositos.length} registros processados`);
-        console.log(`Verificando se o saldo atual já reflete o valor do depósito...`);
-
-        // Verificar se o saldo já foi atualizado com base nas transações posteriores
-        const dataDeposito = new Date(transaction.createdAt);
-        const transacoesPosteriores = transacoes.filter(tx => 
-          new Date(tx.createdAt) > dataDeposito && 
-          tx.type === 'purchase'
-        );
-
-        if (transacoesPosteriores.length > 0) {
-          console.log(`Existem ${transacoesPosteriores.length} transações após este depósito. O saldo já deve estar atualizado.`);
-          return;
-        }
-      }
-
-      // Calcular novo saldo
-      const newBalance = user.balance + transaction.amount;
-      console.log(`Novo saldo calculado: ${newBalance}`);
-
-      // Atualizar saldo no banco de dados
-      const updatedUser = await this.updateUserBalance(transaction.userId, newBalance);
-      console.log(`SUCESSO: Saldo atualizado de ${user.balance} para ${updatedUser.balance}`);
-
-      // Verificar se a atualização realmente foi persistida
-      const verifiedUser = await this.getUser(transaction.userId);
-      if (!verifiedUser) {
-        console.error(`ERRO: Não foi possível verificar usuário após atualização`);
-      } else if (verifiedUser.balance !== newBalance) {
-        console.error(`ERRO CRÍTICO: Saldo não foi atualizado corretamente. Esperado=${newBalance}, atual=${verifiedUser.balance}`);
-      } else {
-        console.log(`VERIFICADO: Saldo do usuário ${transaction.userId} está correto: ${verifiedUser.balance}`);
-
-        // Marcar que o usuário fez um depósito
-        await this.updateUser(transaction.userId, { hasDeposited: true });
-      }
-
-      console.log(`===== FIM DO PROCESSAMENTO DE ATUALIZAÇÃO DE SALDO =====\n`);
+      
+      // Redirecionar para o fluxo atualizado 
+      console.log(`DEPOSIT >>> Redirecionando para o novo fluxo de processamento...`);
+      
+      // Forçar uma nova atualização de status para o mesmo valor para acionar o fluxo correto
+      await this.updateTransactionStatus(transaction.id, 'completed');
+      
+      console.log(`DEPOSIT >>> Processamento redirecionado com sucesso`);
+      console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO LEGADO DE DEPÓSITO ===\n`);
     } catch (error) {
-      console.error(`ERRO GRAVE ao processar atualização de saldo:`, error);
-      // Não lançamos o erro para permitir que a transação continue atualizada
+      console.error(`DEPOSIT >>> ERRO ao redirecionar processamento:`, error);
     }
   }
 
@@ -810,7 +763,7 @@ export class MemStorage implements IStorage {
     return updatedLink;
   }
 
-  asyncdeleteSocialLink(id: number): Promise<void> {
+  async deleteSocialLink(id: number): Promise<void> {
     if (!this.socialLinks.has(id)) {
       throw new Error('Link social não encontrado');
     }
