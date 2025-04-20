@@ -207,6 +207,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Usuário encontrado: ${user.phoneNumber}, saldo atual: ${user.balance}`);
       
+      // NOVA VERIFICAÇÃO: Checar se o usuário já tem este produto
+      const userPurchases = await storage.getUserPurchases(userId);
+      const alreadyPurchased = userPurchases.some(purchase => 
+        purchase.productId === productId
+      );
+      
+      if (alreadyPurchased) {
+        console.log(`Usuário já comprou este produto anteriormente: ${product.name}`);
+        return res.status(400).json({ 
+          message: `Você já possui o produto ${product.name}. Cada usuário pode comprar apenas 1 de cada produto.`
+        });
+      }
+      
       if (user.balance < product.price) {
         console.log(`Saldo insuficiente: ${user.balance} < ${product.price}`);
         return res.status(400).json({ 

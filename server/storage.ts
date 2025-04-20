@@ -394,13 +394,42 @@ export class MemStorage implements IStorage {
       throw new Error(`Status inválido: ${status}`);
     }
     
+    // Verificar o usuário antes da atualização para comparação posterior
+    const userBefore = await this.getUser(transaction.userId);
+    console.log(`ANTES DA ATUALIZAÇÃO: Usuário ${transaction.userId}, Saldo: ${userBefore?.balance || 0}`);
+    
     // Não fazer nada se o status já for o mesmo (idempotência)
     if (transaction.status === status) {
-      console.log(`INFO: Transação ${id} já está com status ${status}, nenhuma ação necessária`);
+      console.log(`INFO: Transação ${id} já está com status ${status}, verificando saldo...`);
+      
       // Mesmo assim, garantir que o saldo foi atualizado para depósitos
       if ((status === 'completed' || status === 'approved') && transaction.type === 'deposit') {
         console.log(`Verificando se o saldo foi atualizado para depósito já ${status}...`);
-        this._verificarEAtualizarSaldoDeposito(transaction);
+        
+        // Verificar se o usuário recebeu o valor do depósito
+        if (userBefore) {
+          let shouldUpdateBalance = true;
+          
+          // Buscar todas as transações do usuário para verificar se este depósito já foi contabilizado
+          const userTransactions = await this.getTransactions(transaction.userId);
+          
+          // Verificar se há outras transações que podem indicar que o depósito já foi processado
+          // Por exemplo, uma transação de compra após esta data sugere que o depósito foi processado
+          const laterTransactions = userTransactions.filter(tx => 
+            new Date(tx.createdAt) > new Date(transaction.createdAt) && 
+            tx.type === 'purchase'
+          );
+          
+          if (laterTransactions.length > 0) {
+            console.log(`Existem ${laterTransactions.length} transações POSTERIORES a este depósito: provavelmente já foi processado`);
+            shouldUpdateBalance = false;
+          }
+          
+          if (shouldUpdateBalance) {
+            console.log(`Forçando atualização de saldo para depósito já aprovado...`);
+            await this._verificarEAtualizarSaldoDeposito(transaction);
+          }
+        }
       }
       return transaction;
     }
@@ -427,11 +456,30 @@ export class MemStorage implements IStorage {
     console.log(`INFO: Status da transação atualizado com sucesso para ${status}`);
     
     // PROCESSAMENTO DE DEPÓSITO APROVADO/COMPLETO
-    if ((status === 'completed' || status === 'approved') && 
-        transaction.type === 'deposit' &&
-        (transaction.status !== 'completed' && transaction.status !== 'approved')) {
+    if ((status === 'completed' || status === 'approved') && transaction.type === 'deposit') {
+      console.log(`DEPÓSITO APROVADO/CONCLUÍDO: Atualizando saldo do usuário...`);
       
-      await this._verificarEAtualizarSaldoDeposito(updatedTransaction);
+      try {
+        // Chamar diretamente a função para processar o depósito
+        await this._verificarEAtualizarSaldoDeposito(updatedTransaction);
+        
+        // Verificar se o saldo mudou
+        const userAfter = await this.getUser(transaction.userId);
+        console.log(`APÓS ATUALIZAÇÃO: Usuário ${transaction.userId}, Saldo: ${userAfter?.balance || 0}`);
+        
+        // Verificar se o saldo realmente mudou
+        if (userBefore && userAfter && userBefore.balance === userAfter.balance) {
+          console.log(`ALERTA: Saldo não foi alterado! Forçando atualização direta...`);
+          
+          const novoSaldo = userBefore.balance + transaction.amount;
+          await this.updateUserBalance(transaction.userId, novoSaldo);
+          
+          const userFinal = await this.getUser(transaction.userId);
+          console.log(`APÓS CORREÇÃO FORÇADA: Usuário ${transaction.userId}, Saldo: ${userFinal?.balance || 0}`);
+        }
+      } catch (error) {
+        console.error(`ERRO ao processar atualização de saldo para depósito: ${error}`);
+      }
     } 
     
     // PROCESSAMENTO DE SAQUE FALHO
