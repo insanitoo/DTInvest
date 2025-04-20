@@ -169,10 +169,16 @@ export class MemStorage implements IStorage {
   }
 
   async updateUserBalance(userId: number, newBalance: number): Promise<User> {
+    console.log(`### INICIANDO ATUALIZAÇÃO DE SALDO: userId=${userId}, newBalance=${newBalance} ###`);
+    
     const user = await this.getUser(userId);
     if (!user) {
+      console.error(`Usuário ${userId} não encontrado para atualização de saldo`);
       throw new Error('Usuário não encontrado');
     }
+
+    console.log(`Usuário atual:`, user);
+    console.log(`Saldo atual: ${user.balance}, Novo saldo: ${newBalance}`);
 
     const updatedUser = {
       ...user,
@@ -180,7 +186,20 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
 
+    console.log(`Usuário atualizado:`, updatedUser);
+    
     this.users.set(userId, updatedUser);
+    
+    // Verificar se o saldo foi atualizado corretamente
+    const persistedUser = this.users.get(userId);
+    console.log(`Usuário persistido após atualização:`, persistedUser);
+    
+    if (persistedUser?.balance !== newBalance) {
+      console.error(`FALHA NA ATUALIZAÇÃO DO SALDO: esperado=${newBalance}, atual=${persistedUser?.balance}`);
+    } else {
+      console.log(`SUCESSO NA ATUALIZAÇÃO DO SALDO: ${newBalance}`);
+    }
+    
     return updatedUser;
   }
 

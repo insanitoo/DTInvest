@@ -55,21 +55,24 @@ function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    refetch: refetchUser
   } = useQuery<User | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     initialData: localUser,
-    staleTime: 30 * 1000, // 30 segundos
-    refetchInterval: 60 * 1000, // 1 minuto
+    staleTime: 5 * 1000, // 5 segundos para atualizações muito frequentes
+    refetchInterval: 15 * 1000, // 15 segundos
     refetchOnWindowFocus: true,
-    onError: (error) => {
-      // If we get a 401, clear the user from local storage
-      if (error.message.includes('401')) {
-        localStorage.removeItem(AUTH_USER_KEY);
-        setLocalUser(null);
-      }
-    },
   });
+  
+  // Separamos o handling de erro para evitar problemas com o LSP
+  useEffect(() => {
+    if (error && error.message && error.message.includes('401')) {
+      console.log('Erro de autenticação 401 detectado, removendo usuário do localStorage');
+      localStorage.removeItem(AUTH_USER_KEY);
+      setLocalUser(null);
+    }
+  }, [error]);
 
   // Update local user when query data changes
   useEffect(() => {
