@@ -97,7 +97,7 @@ export class MemStorage implements IStorage {
   private currentCarouselImageId: number;
   sessionStore: session.Store;
 
-  // Método auxiliar para verificar e atualizar o saldo para depósitos aprovados
+  // Método auxiliar para verificar e atualizar o saldo para depósitos concluídos
   async _verificarEAtualizarSaldoDeposito(transaction: Transaction): Promise<void> {
     console.log(`\n===== PROCESSANDO ATUALIZAÇÃO DE SALDO PARA DEPÓSITO ${transaction.status} =====`);
     console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}, Status: ${transaction.status}`);
@@ -110,7 +110,7 @@ export class MemStorage implements IStorage {
       }
 
       // Verificar se o status permite atualização de saldo
-      if (transaction.status !== 'completed' && transaction.status !== 'approved') {
+      if (transaction.status !== 'completed') {
         console.error(`ERRO: Tentativa de atualizar saldo para um depósito com status inválido: ${transaction.status}`);
         return;
       }
@@ -130,7 +130,7 @@ export class MemStorage implements IStorage {
       const transacoes = await this.getTransactions(user.id);
       const depositos = transacoes.filter(tx => 
         tx.type === 'deposit' && 
-        (tx.status === 'completed' || tx.status === 'approved') &&
+        tx.status === 'completed' &&
         tx.id === transaction.id
       );
 
@@ -469,7 +469,7 @@ export class MemStorage implements IStorage {
     console.log(`Estado anterior da transação:`, JSON.stringify(transaction, null, 2));
 
     // Validar se o status é válido para evitar estados inconsistentes
-    const validStatus = ['pending', 'processing', 'completed', 'failed', 'approved'];
+    const validStatus = ['pending', 'processing', 'completed', 'failed'];
     if (!validStatus.includes(status)) {
       console.error(`ERRO: Status inválido: ${status}. Valores permitidos: ${validStatus.join(', ')}`);
       throw new Error(`Status inválido: ${status}`);
@@ -483,8 +483,8 @@ export class MemStorage implements IStorage {
     if (transaction.status === status) {
       console.log(`INFO: Transação ${id} já está com status ${status}`);
 
-      // Mesmo assim, garantir que o saldo foi atualizado para depósitos aprovados
-      if ((status === 'completed' || status === 'approved') && transaction.type === 'deposit') {
+      // Mesmo assim, garantir que o saldo foi atualizado para depósitos concluídos
+      if (status === 'completed' && transaction.type === 'deposit') {
         console.log(`VERIFICAÇÃO DE SEGURANÇA: Transação já está como ${status}, verificando saldo...`);
 
         // Verificar se o usuário recebeu o valor do depósito
@@ -525,9 +525,9 @@ export class MemStorage implements IStorage {
 
     console.log(`INFO: Status da transação atualizado com sucesso para ${status}`);
 
-    // PROCESSAMENTO DE DEPÓSITO APROVADO/COMPLETO
-    if ((status === 'completed' || status === 'approved') && transaction.type === 'deposit') {
-      console.log(`\n\n##### DEPÓSITO APROVADO/CONCLUÍDO: INICIANDO PROCESSAMENTO DE ATUALIZAÇÃO DE SALDO #####`);
+    // PROCESSAMENTO DE DEPÓSITO CONCLUÍDO
+    if (status === 'completed' && transaction.type === 'deposit') {
+      console.log(`\n\n##### DEPÓSITO CONCLUÍDO: INICIANDO PROCESSAMENTO DE ATUALIZAÇÃO DE SALDO #####`);
 
       try {
         // OBTER TODAS AS INFORMAÇÕES NECESSÁRIAS
@@ -542,15 +542,15 @@ export class MemStorage implements IStorage {
         console.log(`2. VERIFICANDO SE DEPÓSITO JÁ FOI PROCESSADO ANTERIORMENTE...`);
         // Verificar o saldo atual e outras transações para garantir idempotência
         const transacoes = await this.getTransactions(transaction.userId);
-        const transacoesAprovadas = transacoes.filter(tx => 
+        const transacoesConcluidas = transacoes.filter(tx => 
           tx.id !== transaction.id && 
           tx.type === 'deposit' && 
-          (tx.status === 'completed' || tx.status === 'approved')
+          tx.status === 'completed'
         );
 
         console.log(`DADOS ATUAIS DO USUÁRIO:`, JSON.stringify(userBeforeDeposit, null, 2));
         console.log(`SALDO ATUAL: ${userBeforeDeposit.balance}, VALOR DO DEPÓSITO: ${transaction.amount}`);
-        console.log(`OUTRAS TRANSAÇÕES APROVADAS: ${transacoesAprovadas.length}`);
+        console.log(`OUTRAS TRANSAÇÕES CONCLUÍDAS: ${transacoesConcluidas.length}`);
 
         // IMPORTANTE: Calcular o novo saldo DIRETAMENTE
         const novoSaldo = userBeforeDeposit.balance + transaction.amount;
