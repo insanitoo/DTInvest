@@ -314,9 +314,10 @@ export function setupAdminRoutes(app: Express) {
         // Buscar o usuário atualizado também para incluir na resposta
         const updatedUser = await storage.getUser(existingTransaction.userId);
         
-        // Formatamos manualmente para garantir um JSON válido
+        // Formatamos manualmente para garantir um JSON válido e completo
         const responseData = { 
           success: true, 
+          message: "Transação atualizada com sucesso",
           transaction: {
             id: confirmedTransaction.id,
             userId: confirmedTransaction.userId,
@@ -331,8 +332,22 @@ export function setupAdminRoutes(app: Express) {
           },
           user: updatedUser ? {
             id: updatedUser.id,
-            balance: updatedUser.balance
-          } : null
+            balance: updatedUser.balance,
+            // Incluir estas informações adicionais para que o cliente saiba se precisa atualizar outras telas
+            hasDeposited: updatedUser.hasDeposited,
+            hasProduct: updatedUser.hasProduct
+          } : null,
+          // Adicionar meta-informações para ajudar na depuração do cliente
+          meta: {
+            processedAt: new Date().toISOString(),
+            balanceUpdated: (status === 'completed' || status === 'approved') && 
+                           existingTransaction.type === 'deposit' && 
+                           userBefore && userAfter && 
+                           Math.abs(userAfter.balance - userBefore.balance - existingTransaction.amount) < 0.01,
+            transactionType: existingTransaction.type,
+            previousStatus: existingTransaction.status,
+            newStatus: status
+          }
         };
         
         console.log(`Enviando resposta JSON: ${JSON.stringify(responseData)}`);

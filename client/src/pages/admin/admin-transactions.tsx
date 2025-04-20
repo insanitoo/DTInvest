@@ -114,24 +114,76 @@ export default function AdminTransactions() {
     },
     onSuccess: async (data) => {
       console.log('Mutation concluída com sucesso:', data);
-
-      // Forçar revalidação dos dados
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/user'] }), // Invalidar dados do usuário para atualizar o saldo
-        // Forçar refetch imediato
-        queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/transactions'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/user'] })
-      ]);
-
-      // Atualizar o cache manualmente também
-      const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
-      const updatedTransactions = currentTransactions.map(tx => 
-        tx.id === selectedTransaction?.id ? { ...tx, status: newStatus } : tx
-      );
-      queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
+      
+      // Verificar se temos uma resposta completa com transaction e user
+      if (data && data.transaction && data.user) {
+        console.log('Resposta contém dados atualizados da transação e do usuário');
+        
+        // Atualizar dados do usuário no cache, SE necessário
+        if (data.user) {
+          const currentUser = queryClient.getQueryData(['/api/user']);
+          if (currentUser) {
+            console.log('Atualizando dados do usuário no cache');
+            queryClient.setQueryData(['/api/user'], {
+              ...currentUser,
+              balance: data.user.balance,
+              hasDeposited: data.user.hasDeposited,
+              hasProduct: data.user.hasProduct
+            });
+          }
+        }
+        
+        // Atualizar a transação no cache de transações
+        const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
+        const updatedTransactions = currentTransactions.map(tx => 
+          tx.id === data.transaction.id ? { ...tx, ...data.transaction } : tx
+        );
+        queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
+        
+        // Similar para cache de transações do usuário específico
+        const userTransactions = queryClient.getQueryData<Transaction[]>(['/api/transactions']);
+        if (userTransactions) {
+          const updatedUserTransactions = userTransactions.map(tx => 
+            tx.id === data.transaction.id ? { ...tx, ...data.transaction } : tx
+          );
+          queryClient.setQueryData(['/api/transactions'], updatedUserTransactions);
+        }
+        
+        // Log de diagnóstico das meta-informações
+        if (data.meta) {
+          console.log('Meta-informações da resposta:', data.meta);
+          
+          // Se o saldo foi atualizado, mostrar notificação específica
+          if (data.meta.balanceUpdated && data.meta.transactionType === 'deposit') {
+            toast({
+              title: 'Depósito aprovado',
+              description: `Saldo do usuário atualizado com sucesso.`,
+              variant: 'default',
+            });
+          }
+        }
+      } else {
+        // Fallback para método antigo se a resposta não contiver os dados completos
+        console.log('Resposta não contém dados completos, invalidando caches...');
+        
+        // Forçar revalidação dos dados
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+          // Forçar refetch imediato
+          queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
+          queryClient.refetchQueries({ queryKey: ['/api/transactions'] }),
+          queryClient.refetchQueries({ queryKey: ['/api/user'] })
+        ]);
+        
+        // Atualizar o cache manualmente também
+        const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
+        const updatedTransactions = currentTransactions.map(tx => 
+          tx.id === selectedTransaction?.id ? { ...tx, status: newStatus } : tx
+        );
+        queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
+      }
 
       toast({
         title: 'Status atualizado',

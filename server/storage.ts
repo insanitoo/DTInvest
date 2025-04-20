@@ -252,38 +252,75 @@ export class MemStorage implements IStorage {
   }
 
   async updateUserBalance(userId: number, newBalance: number): Promise<User> {
-    console.log(`### INICIANDO ATUALIZAÇÃO DE SALDO: userId=${userId}, newBalance=${newBalance} ###`);
+    console.log(`\n### INICIANDO ATUALIZAÇÃO DE SALDO: userId=${userId}, newBalance=${newBalance} ###`);
     
+    // Obter o usuário atual (1a tentativa)
     const user = await this.getUser(userId);
     if (!user) {
-      console.error(`Usuário ${userId} não encontrado para atualização de saldo`);
+      console.error(`ERRO FATAL: Usuário ${userId} não encontrado para atualização de saldo`);
       throw new Error('Usuário não encontrado');
     }
 
-    console.log(`Usuário atual:`, user);
+    console.log(`Usuário atual:`, JSON.stringify(user));
     console.log(`Saldo atual: ${user.balance}, Novo saldo: ${newBalance}`);
+    
+    // Se o saldo já estiver correto, não faz nada
+    if (Math.abs(user.balance - newBalance) < 0.01) {
+      console.log(`O saldo já está correto (${user.balance}). Nenhuma atualização necessária.`);
+      return user;
+    }
 
+    // Criar o usuário atualizado
     const updatedUser = {
       ...user,
       balance: newBalance,
       updatedAt: new Date(),
+      // Se for um depósito e o usuário nunca depositou antes, atualizar esse campo
+      hasDeposited: user.hasDeposited || newBalance > user.balance
     };
 
-    console.log(`Usuário atualizado:`, updatedUser);
+    // Log para diagnóstico
+    console.log(`Usuário atualizado:`, JSON.stringify(updatedUser));
     
+    // Primeira tentativa de persistência
     this.users.set(userId, updatedUser);
     
-    // Verificar se o saldo foi atualizado corretamente
-    const persistedUser = this.users.get(userId);
-    console.log(`Usuário persistido após atualização:`, persistedUser);
+    // Verificar imediatamente se a persistência ocorreu
+    let persistedUser = this.users.get(userId);
+    console.log(`Usuário persistido após atualização:`, JSON.stringify(persistedUser));
     
-    if (persistedUser?.balance !== newBalance) {
-      console.error(`FALHA NA ATUALIZAÇÃO DO SALDO: esperado=${newBalance}, atual=${persistedUser?.balance}`);
+    // Se a persistência falhou na primeira tentativa, tentar novamente
+    if (!persistedUser || Math.abs(persistedUser.balance - newBalance) > 0.01) {
+      console.error(`TENTATIVA 1 FALHOU: esperado=${newBalance}, atual=${persistedUser?.balance || 'N/A'}`);
+      console.log(`Tentando novamente a persistência...`);
+      
+      // Segunda tentativa com recriação completa do objeto
+      const retryUser = {
+        ...user,
+        balance: newBalance,
+        updatedAt: new Date(),
+        hasDeposited: user.hasDeposited || newBalance > user.balance
+      };
+      
+      // Remover e reinserir (em vez de atualizar)
+      this.users.delete(userId);
+      this.users.set(userId, retryUser);
+      
+      // Verificar novamente
+      persistedUser = this.users.get(userId);
+      console.log(`TENTATIVA 2: Usuário após segunda tentativa:`, JSON.stringify(persistedUser));
+      
+      if (!persistedUser || Math.abs(persistedUser.balance - newBalance) > 0.01) {
+        console.error(`ERRO CRÍTICO: Tentativa 2 também falhou. O saldo não foi atualizado!`);
+        throw new Error(`Falha crítica na atualização do saldo. Esperado=${newBalance}, Atual=${persistedUser?.balance || 'N/A'}`);
+      } else {
+        console.log(`SUCESSO NA TENTATIVA 2: Saldo atualizado para ${persistedUser.balance}`);
+        return persistedUser;
+      }
     } else {
-      console.log(`SUCESSO NA ATUALIZAÇÃO DO SALDO: ${newBalance}`);
+      console.log(`SUCESSO NA ATUALIZAÇÃO DO SALDO: ${persistedUser.balance}`);
+      return persistedUser;
     }
-    
-    return updatedUser;
   }
 
   // Bank info methods
@@ -493,25 +530,44 @@ export class MemStorage implements IStorage {
       console.log(`DEPÓSITO APROVADO/CONCLUÍDO: Atualizando saldo do usuário...`);
       
       try {
-        // Chamar diretamente a função para processar o depósito
-        await this._verificarEAtualizarSaldoDeposito(updatedTransaction);
+        // Obter o valor atual do saldo antes de qualquer atualização
+        const userBeforeDeposit = await this.getUser(transaction.userId);
+        if (!userBeforeDeposit) {
+          console.error(`ERRO FATAL: Usuário ${transaction.userId} não encontrado!`);
+          throw new Error(`Usuário não encontrado`);
+        }
         
-        // Verificar se o saldo mudou
-        const userAfter = await this.getUser(transaction.userId);
-        console.log(`APÓS ATUALIZAÇÃO: Usuário ${transaction.userId}, Saldo: ${userAfter?.balance || 0}`);
+        console.log(`SALDO ATUAL: ${userBeforeDeposit.balance}, VALOR DO DEPÓSITO: ${transaction.amount}`);
         
-        // Verificar se o saldo realmente mudou
-        if (userBefore && userAfter && userBefore.balance === userAfter.balance) {
-          console.log(`ALERTA: Saldo não foi alterado! Forçando atualização direta...`);
-          
-          const novoSaldo = userBefore.balance + transaction.amount;
+        // IMPORTANTE: Calcular o novo saldo DIRETAMENTE (não usar função auxiliar que pode ter falhas)
+        const novoSaldo = userBeforeDeposit.balance + transaction.amount;
+        console.log(`APLICANDO NOVO SALDO DIRETAMENTE: ${novoSaldo}`);
+        
+        // Aplicar o novo saldo, chamando a função de atualização diretamente
+        await this.updateUserBalance(transaction.userId, novoSaldo);
+        
+        // Verificar se a atualização foi aplicada
+        const userAfterUpdate = await this.getUser(transaction.userId);
+        if (!userAfterUpdate) {
+          console.error(`ERRO FATAL: Usuário ${transaction.userId} não encontrado após atualização!`);
+          throw new Error(`Usuário não encontrado após atualização`);
+        }
+        
+        console.log(`VERIFICAÇÃO: Saldo anterior=${userBeforeDeposit.balance}, Novo saldo=${userAfterUpdate.balance}, Esperado=${novoSaldo}`);
+        
+        // Verificação final - se ainda não foi atualizado, tentar uma última vez
+        if (Math.abs(userAfterUpdate.balance - novoSaldo) > 0.01) {
+          console.error(`ERRO CRÍTICO: Saldo ainda não foi atualizado! Tentando uma última vez...`);
           await this.updateUserBalance(transaction.userId, novoSaldo);
           
           const userFinal = await this.getUser(transaction.userId);
-          console.log(`APÓS CORREÇÃO FORÇADA: Usuário ${transaction.userId}, Saldo: ${userFinal?.balance || 0}`);
+          console.log(`VERIFICAÇÃO FINAL: Saldo=${userFinal?.balance || 0}, Esperado=${novoSaldo}`);
+        } else {
+          console.log(`SUCESSO: Saldo atualizado corretamente para ${userAfterUpdate.balance}`);
         }
       } catch (error) {
-        console.error(`ERRO ao processar atualização de saldo para depósito: ${error}`);
+        console.error(`ERRO CRÍTICO ao processar atualização de saldo para depósito:`, error);
+        // Mesmo com erro, continuamos para retornar a transação atualizada
       }
     } 
     
