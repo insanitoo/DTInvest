@@ -1,4 +1,5 @@
 import { Express, Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 import { storage } from "./storage";
 import { insertProductSchema, insertBankSchema, insertSettingSchema, insertCarouselImageSchema, updateTransactionSchema } from "@shared/schema";
 import { ZodError } from "zod";
@@ -116,18 +117,29 @@ export function setupAdminRoutes(app: Express) {
       
       console.log('Dados recebidos:', req.body);
       
+      let validatedData;
       try {
-        const validatedData = updateTransactionSchema.parse(req.body);
-        const { status } = validatedData;
-        
-        console.log(`Atualizando transação ${transactionId} para status: ${status}`);
+        validatedData = updateTransactionSchema.parse(req.body);
       } catch (validationError) {
-        console.error('Erro de validação:', validationError);
+        console.error('Erro detalhado de validação:', validationError);
+        if (validationError instanceof ZodError) {
+          return res.status(400).json({
+            error: 'Erro de validação',
+            details: validationError.errors.map(err => ({
+              path: err.path.join('.'),
+              message: err.message,
+              received: err.received
+            }))
+          });
+        }
         return res.status(400).json({ 
           error: 'Erro de validação',
           details: validationError instanceof Error ? validationError.message : 'Erro desconhecido'
         });
       }
+
+      const { status } = validatedData;
+      console.log(`Atualizando transação ${transactionId} para status: ${status}`);
       
       // Obter a transação atual para verificar se existe
       const existingTransaction = await storage.getTransaction(transactionId);
