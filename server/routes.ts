@@ -447,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Não autenticado" });
     }
 
-    const { amount, bankId } = req.body;
+    const { amount, bankId, receipt } = req.body;
 
     try {
       // Obter o valor mínimo de depósito das configurações
@@ -459,27 +459,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Se foi fornecido um ID de banco, pegar informações dele
-      let bankInfo = null;
+      let bankName = null;
+      let bankAccount = null;
       if (bankId) {
         const bank = await storage.getBank(parseInt(bankId));
         if (bank) {
-          bankInfo = bank.name;
+          bankName = bank.name;
+          // Aqui podemos adicionar a conta padrão para esse banco, se houver
+          const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
+          if (bankSetting) {
+            bankAccount = bankSetting.value;
+          }
         }
       }
 
+      console.log(`Criando nova transação de depósito: valor=${amount}, banco=${bankName || 'Não informado'}`);
+      
       const transaction = await storage.createTransaction({
         userId: req.user.id,
         type: "deposit",
         amount,
         status: "pending",
-        bankAccount: bankInfo
+        bankName: bankName,
+        bankAccount: bankAccount,
+        receipt: receipt || null
       });
+
+      console.log(`Transação de depósito criada com sucesso: ${JSON.stringify(transaction)}`);
 
       // Atualizar o usuário para indicar que ele já fez um depósito
       await storage.updateUser(req.user.id, { hasDeposited: true });
 
       res.status(201).json(transaction);
     } catch (error) {
+      console.error("Erro ao criar depósito:", error);
       next(error);
     }
   });
@@ -530,7 +543,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "withdrawal",
         amount,
         status: "pending",
-        bankAccount: `${bankInfo.bank} - ${bankInfo.accountNumber}`
+        bankName: bankInfo.bank,
+        bankAccount: bankInfo.accountNumber,
+        receipt: null
       });
 
       // Update user balance
@@ -646,7 +661,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "purchase",
         amount: product.price,
         status: "completed",
-        bankAccount: null
+        bankAccount: null,
+        bankName: null,
+        receipt: null
       });
       
       res.status(201).json(purchase);

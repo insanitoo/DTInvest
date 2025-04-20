@@ -318,7 +318,9 @@ export function setupAdminRoutes(app: Express) {
             status: status, // Garantir que o status está atualizado
             createdAt: confirmedTransaction.createdAt.toISOString(),
             updatedAt: new Date().toISOString(),
-            bankAccount: confirmedTransaction.bankAccount
+            bankAccount: confirmedTransaction.bankAccount,
+            bankName: confirmedTransaction.bankName || null,
+            receipt: confirmedTransaction.receipt || null
           },
           user: updatedUser ? {
             id: updatedUser.id,
