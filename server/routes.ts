@@ -68,9 +68,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         type: 'deposit',
         amount: 5000,
-        status: 'pending',
         bankAccount: '123456789',
-        bankName: 'Banco Angolano de Investimentos (BAI)'
+        bankName: 'Banco Angolano de Investimentos (BAI)',
+        receipt: null,
+        transactionId: null
       });
       
       console.log(`TEST >>> Transação criada: ID=${transaction.id}, Valor=${transaction.amount}`);
@@ -89,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`TEST >>> Transação atualizada: status=${updatedTransaction.status}`);
+      console.log(`TEST >>> Transação atualizada: ID=${updatedTransaction.id}`);
       console.log(`TEST >>> Saldo final: ${updatedUser.balance}`);
       console.log(`=== TEST >>> FIM DO TESTE ===\n`);
       
@@ -113,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // API routes
-  // Transactions
+  // Transações usuário (histórico)
   app.get("/api/transactions", (req, res, next) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
@@ -124,6 +125,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(transactions);
       })
       .catch(next);
+  });
+  
+  // NOVO FLUXO: Solicitar depósito
+  app.post("/api/deposits", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      // Gerar ID de referência único para o depósito
+      const transactionId = `DEP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      
+      // Criar solicitação de depósito
+      const depositRequest = await storage.createDepositRequest({
+        userId: req.user.id,
+        amount: req.body.amount,
+        bankName: req.body.bankName || null,
+        receipt: req.body.receipt || null,
+        transactionId: transactionId
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Solicitação de depósito criada com sucesso",
+        depositRequest,
+        transactionId
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao criar solicitação de depósito", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Solicitações de depósito do usuário
+  app.get("/api/deposits", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      // Esta é uma implementação provisória, pois precisamos adicionar 
+      // um método para obter depósitos por usuário
+      const allDepositRequests = await storage.getDepositRequests();
+      const userDepositRequests = allDepositRequests.filter(
+        req => req.userId === req.user.id
+      );
+      
+      res.json(userDepositRequests);
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao buscar solicitações de depósito", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Verificar status de depósito por transactionId
+  app.get("/api/deposits/check/:transactionId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const transactionId = req.params.transactionId;
+      
+      // Verificar primeiro se já existe uma transação com este ID (aprovada)
+      const transactions = await storage.getTransactions(req.user.id);
+      const existingTransaction = transactions.find(tx => tx.transactionId === transactionId);
+      
+      if (existingTransaction) {
+        return res.json({
+          status: "approved",
+          message: "Depósito aprovado e processado com sucesso",
+          transaction: existingTransaction
+        });
+      }
+      
+      // Verificar se existe uma solicitação pendente
+      const depositRequest = await storage.getDepositRequestByTransactionId(transactionId);
+      
+      if (depositRequest) {
+        return res.json({
+          status: "pending",
+          message: "Depósito pendente de aprovação pelo administrador",
+          depositRequest
+        });
+      }
+      
+      res.status(404).json({
+        status: "not_found",
+        message: "Nenhum depósito encontrado com este ID"
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao verificar status do depósito", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Solicitar saque
+  app.post("/api/withdrawals", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      // Criar solicitação de saque
+      const withdrawalRequest = await storage.createWithdrawalRequest({
+        userId: req.user.id,
+        amount: req.body.amount,
+        bankAccount: req.body.bankAccount,
+        bankName: req.body.bankName,
+        ownerName: req.body.ownerName,
+        status: 'requested'
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Solicitação de saque criada com sucesso",
+        withdrawalRequest
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao criar solicitação de saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Obter solicitações de saque do usuário
+  app.get("/api/withdrawals", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const withdrawalRequests = await storage.getUserWithdrawalRequests(req.user.id);
+      res.json(withdrawalRequests);
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao buscar solicitações de saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
   });
   
   // Admin routes
@@ -184,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Lista de todas as transações
+  // Lista de todas as transações (histórico)
   app.get("/api/admin/transactions", isAdmin, async (req, res) => {
     try {
       // Buscar todas as transações reais do banco de dados
@@ -192,6 +340,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(realTransactions);
     } catch (error) {
       res.status(500).json({ error: "Erro ao buscar transações" });
+    }
+  });
+  
+  // NOVO FLUXO: Lista de solicitações de depósito pendentes
+  app.get("/api/admin/deposit-requests", isAdmin, async (req, res) => {
+    try {
+      const depositRequests = await storage.getDepositRequests();
+      res.json(depositRequests);
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao buscar solicitações de depósito",
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Aprovar uma solicitação de depósito
+  app.post("/api/admin/deposit-requests/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const transaction = await storage.approveDepositRequest(id);
+      res.json({
+        success: true,
+        message: "Depósito aprovado com sucesso",
+        transaction
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao aprovar depósito", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Lista de solicitações de saque pendentes
+  app.get("/api/admin/withdrawal-requests", isAdmin, async (req, res) => {
+    try {
+      const withdrawalRequests = await storage.getWithdrawalRequests();
+      res.json(withdrawalRequests);
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao buscar solicitações de saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Aprovar uma solicitação de saque
+  app.post("/api/admin/withdrawal-requests/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const transaction = await storage.approveWithdrawalRequest(id, req.user.id);
+      res.json({
+        success: true,
+        message: "Saque aprovado com sucesso",
+        transaction
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao aprovar saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+  
+  // NOVO FLUXO: Rejeitar uma solicitação de saque
+  app.post("/api/admin/withdrawal-requests/:id/reject", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const transaction = await storage.rejectWithdrawalRequest(id, req.user.id);
+      res.json({
+        success: true,
+        message: "Saque rejeitado com sucesso",
+        transaction
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao rejeitar saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
     }
   });
   
