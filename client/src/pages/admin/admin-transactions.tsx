@@ -119,9 +119,11 @@ export default function AdminTransactions() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] }), // Invalidar dados do usuário para atualizar o saldo
         // Forçar refetch imediato
         queryClient.refetchQueries({ queryKey: ['/api/admin/transactions'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/transactions'] })
+        queryClient.refetchQueries({ queryKey: ['/api/transactions'] }),
+        queryClient.refetchQueries({ queryKey: ['/api/user'] })
       ]);
 
       // Atualizar o cache manualmente também
