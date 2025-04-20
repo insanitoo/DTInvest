@@ -334,91 +334,133 @@ export class MemStorage implements IStorage {
   }
 
   async updateTransactionStatus(id: number, status: string): Promise<Transaction> {
-    console.log(`Iniciando atualização da transação ${id} para status ${status}`);
+    console.log(`===== INICIANDO ATUALIZAÇÃO DE TRANSAÇÃO =====`);
+    console.log(`ID: ${id}, Novo Status: ${status}`);
     
     const transaction = this.transactions.get(id);
     if (!transaction) {
-      console.error(`Transação ${id} não encontrada`);
+      console.error(`ERRO: Transação ${id} não encontrada`);
       throw new Error('Transação não encontrada');
     }
     
-    console.log(`Estado anterior da transação ${id}:`, transaction);
+    console.log(`Estado anterior da transação:`, JSON.stringify(transaction, null, 2));
     
     // Validar se o status é válido para evitar estados inconsistentes
     const validStatus = ['pending', 'processing', 'completed', 'failed', 'approved'];
     if (!validStatus.includes(status)) {
-      console.error(`Status inválido: ${status}. Valores permitidos: ${validStatus.join(', ')}`);
+      console.error(`ERRO: Status inválido: ${status}. Valores permitidos: ${validStatus.join(', ')}`);
       throw new Error(`Status inválido: ${status}`);
     }
     
     // Não fazer nada se o status já for o mesmo (idempotência)
     if (transaction.status === status) {
-      console.log(`Transação ${id} já está com status ${status}, nenhuma ação necessária`);
+      console.log(`INFO: Transação ${id} já está com status ${status}, nenhuma ação necessária`);
       return transaction;
     }
 
+    // Criar a transação atualizada
     const updatedTransaction = {
       ...transaction,
       status,
       updatedAt: new Date(),
     };
 
-    console.log(`Novo estado da transação ${id}:`, updatedTransaction);
+    console.log(`Novo estado da transação:`, JSON.stringify(updatedTransaction, null, 2));
     
-    // Atualizar o saldo do usuário quando o status for alterado para 'completed' ou 'approved'
+    // Persistir PRIMEIRO a transação com o novo status
+    this.transactions.set(id, updatedTransaction);
+    
+    // Verificar se a persistência funcionou
+    const checkTransaction = this.transactions.get(id);
+    if (checkTransaction?.status !== status) {
+      console.error(`ERRO CRÍTICO: Falha ao persistir status na transação. Esperado=${status}, atual=${checkTransaction?.status}`);
+      throw new Error('Falha ao persistir atualização de transação');
+    }
+    
+    console.log(`INFO: Status da transação atualizado com sucesso para ${status}`);
+    
+    // PROCESSAMENTO DE DEPÓSITO APROVADO/COMPLETO
     if ((status === 'completed' || status === 'approved') && 
+        transaction.type === 'deposit' &&
         (transaction.status !== 'completed' && transaction.status !== 'approved')) {
       
-      // Verificar o tipo de transação
-      if (transaction.type === 'deposit') {
-        // Para depósitos, adicionamos o valor ao saldo do usuário
-        console.log(`Atualizando saldo do usuário ${transaction.userId} para depósito concluído`);
-        try {
-          const user = await this.getUser(transaction.userId);
-          if (user) {
-            const newBalance = user.balance + transaction.amount;
-            console.log(`Usuário ${transaction.userId}: saldo anterior = ${user.balance}, novo saldo = ${newBalance}`);
-            await this.updateUserBalance(transaction.userId, newBalance);
-            console.log(`Saldo do usuário ${transaction.userId} atualizado com sucesso para ${newBalance}`);
-          } else {
-            console.error(`Usuário ${transaction.userId} não encontrado, não foi possível atualizar o saldo`);
-          }
-        } catch (error) {
-          console.error(`Erro ao atualizar saldo do usuário ${transaction.userId}:`, error);
-          // Continuamos com a atualização do status mesmo se falhar a atualização do saldo
-        }
-      } 
+      console.log(`===== PROCESSANDO ATUALIZAÇÃO DE SALDO PARA DEPÓSITO APROVADO =====`);
+      console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}`);
       
-      // Lógica separada para saques que falharam - corrigindo o erro de comparação
-      if (transaction.type === 'withdrawal' && status === 'failed') {
-        // Para saques que falharam, devolvemos o valor ao saldo do usuário
-        console.log(`Devolvendo valor ao usuário ${transaction.userId} para saque que falhou`);
-        try {
-          const user = await this.getUser(transaction.userId);
-          if (user) {
-            const newBalance = user.balance + transaction.amount; // Devolve o valor
-            console.log(`Usuário ${transaction.userId}: saldo anterior = ${user.balance}, novo saldo = ${newBalance}`);
-            await this.updateUserBalance(transaction.userId, newBalance);
-            console.log(`Saldo do usuário ${transaction.userId} atualizado com sucesso para ${newBalance}`);
-          }
-        } catch (error) {
-          console.error(`Erro ao devolver saldo do usuário ${transaction.userId}:`, error);
+      try {
+        // Buscar o usuário
+        const user = await this.getUser(transaction.userId);
+        if (!user) {
+          console.error(`ERRO: Usuário ${transaction.userId} não encontrado`);
+          throw new Error(`Usuário ${transaction.userId} não encontrado`);
         }
+        
+        console.log(`Usuário encontrado:`, JSON.stringify(user, null, 2));
+        console.log(`Saldo atual: ${user.balance}, Valor do depósito: ${transaction.amount}`);
+        
+        // Calcular novo saldo
+        const newBalance = user.balance + transaction.amount;
+        console.log(`Novo saldo calculado: ${newBalance}`);
+        
+        // Atualizar saldo no banco de dados
+        const updatedUser = await this.updateUserBalance(transaction.userId, newBalance);
+        console.log(`SUCESSO: Saldo atualizado de ${user.balance} para ${updatedUser.balance}`);
+        
+        // Verificar se a atualização realmente foi persistida
+        const verifiedUser = await this.getUser(transaction.userId);
+        if (!verifiedUser) {
+          console.error(`ERRO: Não foi possível verificar usuário após atualização`);
+        } else if (verifiedUser.balance !== newBalance) {
+          console.error(`ERRO CRÍTICO: Saldo não foi atualizado corretamente. Esperado=${newBalance}, atual=${verifiedUser.balance}`);
+        } else {
+          console.log(`VERIFICADO: Saldo do usuário ${transaction.userId} está correto: ${verifiedUser.balance}`);
+        }
+      } catch (error) {
+        console.error(`ERRO GRAVE ao processar atualização de saldo:`, error);
+        // Não lançamos o erro para permitir que a transação continue atualizada
+      }
+    } 
+    
+    // PROCESSAMENTO DE SAQUE FALHO
+    else if (status === 'failed' && transaction.type === 'withdrawal') {
+      console.log(`===== PROCESSANDO DEVOLUÇÃO DE SALDO PARA SAQUE FALHO =====`);
+      console.log(`Tipo: ${transaction.type}, Valor: ${transaction.amount}, Usuário: ${transaction.userId}`);
+      
+      try {
+        // Buscar o usuário
+        const user = await this.getUser(transaction.userId);
+        if (!user) {
+          console.error(`ERRO: Usuário ${transaction.userId} não encontrado`);
+          throw new Error(`Usuário ${transaction.userId} não encontrado`);
+        }
+        
+        console.log(`Usuário encontrado:`, JSON.stringify(user, null, 2));
+        console.log(`Saldo atual: ${user.balance}, Valor a ser devolvido: ${transaction.amount}`);
+        
+        // Calcular novo saldo
+        const newBalance = user.balance + transaction.amount;
+        console.log(`Novo saldo calculado: ${newBalance}`);
+        
+        // Atualizar saldo no banco de dados
+        const updatedUser = await this.updateUserBalance(transaction.userId, newBalance);
+        console.log(`SUCESSO: Saldo atualizado de ${user.balance} para ${updatedUser.balance}`);
+        
+        // Verificar se a atualização realmente foi persistida
+        const verifiedUser = await this.getUser(transaction.userId);
+        if (!verifiedUser) {
+          console.error(`ERRO: Não foi possível verificar usuário após atualização`);
+        } else if (verifiedUser.balance !== newBalance) {
+          console.error(`ERRO CRÍTICO: Saldo não foi atualizado corretamente. Esperado=${newBalance}, atual=${verifiedUser.balance}`);
+        } else {
+          console.log(`VERIFICADO: Saldo do usuário ${transaction.userId} está correto: ${verifiedUser.balance}`);
+        }
+      } catch (error) {
+        console.error(`ERRO GRAVE ao processar devolução de saldo:`, error);
+        // Não lançamos o erro para permitir que a transação continue atualizada
       }
     }
     
-    this.transactions.set(id, updatedTransaction);
-    
-    // Verificar se a atualização foi persistida corretamente
-    const persistedTransaction = this.transactions.get(id);
-    console.log(`Estado persistido da transação ${id}:`, persistedTransaction);
-    
-    if (persistedTransaction?.status !== status) {
-      console.error(`Falha ao persistir o status: esperado=${status}, atual=${persistedTransaction ? persistedTransaction.status : 'nulo'}`);
-    } else {
-      console.log(`Status da transação ${id} atualizado com sucesso para ${status}`);
-    }
-    
+    console.log(`===== ATUALIZAÇÃO DE TRANSAÇÃO FINALIZADA =====`);
     return updatedTransaction;
   }
 
