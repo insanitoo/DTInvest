@@ -29,13 +29,13 @@ export default function AdminTransactions() {
   const [showDialog, setShowDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
 
-  // Usar o hook de transações
+  // Usar o hook de transações (versão nova baseada em contexto)
   const { 
-    transactions, 
-    isLoading, 
+    adminTransactions: transactions, 
+    isAdminLoading: isLoading, 
     updateTransactionStatus, 
     refetchTransactions 
-  } = useTransactions(true); // true = modo admin
+  } = useTransactions();
 
   // Manipular clique na transação para abrir diálogo
   const handleTransactionClick = (transaction: Transaction) => {

@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { ProtectedRoute } from '@/lib/protected-route';
 import { AuthProvider } from '@/hooks/use-auth-new';
+import { TransactionsProvider } from '@/hooks/use-transactions';
 
 // Pages
 import HomePage from '@/pages/home-page';
@@ -28,27 +29,29 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Switch>
-          <Route path="/auth" component={AuthPage} />
-          
-          <Route path="/" component={HomePage} />
-          <Route path="/products" component={ProductsPage} />
-          <Route path="/team" component={TeamPage} />
-          <Route path="/service" component={ServicePage} />
-          
-          <ProtectedRoute path="/user" component={UserPage} />
-          
-          {/* Rotas Admin */}
-          <ProtectedRoute path="/admin" component={AdminDashboard} />
-          <ProtectedRoute path="/admin/usuarios" component={AdminUsers} />
-          <ProtectedRoute path="/admin/produtos" component={AdminProducts} />
-          <ProtectedRoute path="/admin/transacoes" component={AdminTransactions} />
-          <ProtectedRoute path="/admin/configuracoes" component={AdminSettings} />
-          <ProtectedRoute path="/admin/debug" component={DebugTransactions} />
-          
-          <Route component={NotFound} />
-        </Switch>
-        <Toaster />
+        <TransactionsProvider>
+          <Switch>
+            <Route path="/auth" component={AuthPage} />
+            
+            <Route path="/" component={HomePage} />
+            <Route path="/products" component={ProductsPage} />
+            <Route path="/team" component={TeamPage} />
+            <Route path="/service" component={ServicePage} />
+            
+            <ProtectedRoute path="/user" component={UserPage} />
+            
+            {/* Rotas Admin */}
+            <ProtectedRoute path="/admin" component={AdminDashboard} />
+            <ProtectedRoute path="/admin/usuarios" component={AdminUsers} />
+            <ProtectedRoute path="/admin/produtos" component={AdminProducts} />
+            <ProtectedRoute path="/admin/transacoes" component={AdminTransactions} />
+            <ProtectedRoute path="/admin/configuracoes" component={AdminSettings} />
+            <ProtectedRoute path="/admin/debug" component={DebugTransactions} />
+            
+            <Route component={NotFound} />
+          </Switch>
+          <Toaster />
+        </TransactionsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
