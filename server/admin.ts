@@ -226,47 +226,74 @@ export function setupAdminRoutes(app: Express) {
       
       // Atualizar o status
       try {
-        console.log(`EXECUTANDO ATUALIZAÇÃO DE TRANSAÇÃO ${transactionId} PARA STATUS ${status}...`);
+        console.log(`===== EXECUTANDO ATUALIZAÇÃO DE TRANSAÇÃO ${transactionId} PARA STATUS ${status} =====`);
         
         // Verificar usuário antes da atualização
         const userBefore = await storage.getUser(existingTransaction.userId);
-        console.log(`ANTES - Usuário ${existingTransaction.userId} - Saldo: ${userBefore?.balance}`);
+        console.log(`ANTES - Usuário ${existingTransaction.userId} - Saldo: ${userBefore?.balance || 0}`);
+        
+        // Se esta for uma atualização de depósito para aprovado/concluído, 
+        // guardar o saldo esperado para verificação
+        let expectedNewBalance = userBefore ? userBefore.balance : 0;
+        if ((status === 'completed' || status === 'approved') && existingTransaction.type === 'deposit') {
+          expectedNewBalance += existingTransaction.amount;
+          console.log(`Se for um depósito aprovado, o saldo esperado será: ${expectedNewBalance}`);
+        }
         
         // Atualizar a transação
+        console.log(`Chamando updateTransactionStatus para transação ${transactionId}...`);
         const updatedTransaction = await storage.updateTransactionStatus(transactionId, status);
-        console.log('Transação atualizada com sucesso:', updatedTransaction);
+        console.log(`Transação atualizada com sucesso, novo status: ${updatedTransaction.status}`);
+        
+        // Aguardar um momento para garantir que a atualização de saldo foi processada
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Verificar usuário após atualização
         const userAfter = await storage.getUser(existingTransaction.userId);
-        console.log(`DEPOIS - Usuário ${existingTransaction.userId} - Saldo: ${userAfter?.balance}`);
+        console.log(`DEPOIS - Usuário ${existingTransaction.userId} - Saldo: ${userAfter?.balance || 0}`);
         
         // Verificar se o saldo foi atualizado para depósito concluído/aprovado
         if ((status === 'completed' || status === 'approved') && 
             existingTransaction.type === 'deposit' &&
-            userBefore && userAfter && 
-            userBefore.balance === userAfter.balance) {
-          console.error(`ALERTA: O saldo NÃO foi atualizado após aprovar depósito!`);
-          console.log(`Forçando atualização manual do saldo para transação ${transactionId}...`);
+            userBefore && userAfter) {
+            
+          console.log(`Verificando atualização de saldo para depósito...`);
+          console.log(`Saldo anterior: ${userBefore.balance}, Saldo atual: ${userAfter.balance}, Valor do depósito: ${existingTransaction.amount}`);
           
-          // Atualização manual de emergência
-          const newBalance = userAfter.balance + existingTransaction.amount;
-          const manuallyUpdatedUser = await storage.updateUserBalance(existingTransaction.userId, newBalance);
-          console.log(`EMERGÊNCIA - Saldo atualizado manualmente: ${manuallyUpdatedUser.balance}`);
+          // Se o saldo não mudou ou não está com o valor esperado
+          if (Math.abs(userAfter.balance - expectedNewBalance) > 0.01) {
+            console.error(`ALERTA: O saldo NÃO foi atualizado conforme esperado após aprovar depósito!`);
+            console.log(`Valor atual: ${userAfter.balance}, Valor esperado: ${expectedNewBalance}`);
+            console.log(`Forçando atualização manual do saldo para transação ${transactionId}...`);
+            
+            try {
+              // Atualização manual de emergência - GARANTIR que o depósito seja adicionado apenas uma vez
+              const manuallyUpdatedUser = await storage.updateUserBalance(existingTransaction.userId, expectedNewBalance);
+              console.log(`EMERGÊNCIA - Saldo atualizado manualmente de ${userAfter.balance} para ${manuallyUpdatedUser.balance}`);
+            } catch (updateError) {
+              console.error(`ERRO na atualização manual do saldo:`, updateError);
+            }
+          } else {
+            console.log(`SUCESSO: Saldo foi atualizado corretamente para ${userAfter.balance}`);
+          }
         }
         
-        // Buscar usuário final após todas as possíveis atualizações
+        // Verificação final após todas as atualizações
         const finalUser = await storage.getUser(existingTransaction.userId);
-        console.log(`FINAL - Usuário ${existingTransaction.userId} - Saldo: ${finalUser?.balance}`);
+        console.log(`VERIFICAÇÃO FINAL - Usuário ${existingTransaction.userId} - Saldo: ${finalUser?.balance || 0}`);
         
-        // Atualiza o cache das transações do usuário também
-        await storage.getTransactions(updatedTransaction.userId);
+        // Atualizar caches para garantir que os dados estejam sincronizados
+        try {
+          console.log(`Atualizando caches...`);
+          await storage.getTransactions(updatedTransaction.userId);
+          await storage.getAllTransactions();
+          console.log(`Caches atualizados com sucesso`);
+        } catch (cacheError) {
+          console.error(`Erro ao atualizar caches:`, cacheError);
+        }
         
-        // Buscar todas as transações também para atualizar o cache de admin
-        const allTransactions = await storage.getAllTransactions();
-        
-        // Garante que o corpo da resposta seja sempre um JSON válido com a transação atualizada
-        // Retornar a transação atualizada com status explícito
-        // Buscar a transação atualizada para garantir que está correta
+        // Buscar a transação final atualizada para retornar na resposta
+        console.log(`Obtendo transação finalizada para resposta...`);
         const confirmedTransaction = await storage.getTransaction(transactionId);
         
         return res.status(200).json({ 
