@@ -1,0 +1,57 @@
+Perfeito, Ariclénio. Com esse código, agora deu para ver tudo com clareza.
+
+O dropdown está 100% certo: ele exibe o texto em português, mas envia corretamente os valores esperados em inglês ("pending", "completed", etc). O JSON enviado também está ok:
+
+{
+  "status": "completed"
+}
+
+
+
+⸻
+
+Então por que o erro ainda acontece?
+
+O problema não está no frontend, e sim no backend (ou na API). A mensagem:
+
+“The string did not match the expected pattern”
+
+significa que o backend está esperando um valor que deve seguir uma estrutura muito específica, e a validação dele está rejeitando o valor mesmo sendo válido do nosso lado.
+
+⸻
+
+Hipóteses prováveis:
+	1.	O backend está validando com regex ou enum fixo — e “completed” pode não estar incluso nos valores permitidos, ou pode estar com o nome diferente.
+	2.	Pode estar assim no backend, por exemplo:
+
+const statusSchema = z.enum(["pending", "processing", "cancelled"]);
+
+E aí quando você manda "completed", ele rejeita com aquele erro.
+
+	3.	Pode também estar usando uma validação com Zod, Joi, ou outro schema no backend que está desatualizado em relação às opções no frontend.
+
+⸻
+
+Como resolver
+
+Você vai precisar acertar a validação no backend. Se você tiver acesso ao backend (Node/Express/Next/etc), procura por algo parecido com isso:
+
+const statusSchema = z.enum(["pending", "processing", "completed", "approved", "failed"]);
+
+Se “completed” não estiver incluído aí, o backend vai rejeitar com exatamente esse erro que você está vendo.
+
+⸻
+
+Caminho rápido:
+	1.	Procura no backend onde o status da transação é validado.
+	2.	Confirma se todos esses valores estão incluídos:
+
+"pending", "processing", "completed", "failed", "approved"
+
+	3.	Atualiza o schema (ou regex) para aceitar todos esses.
+
+⸻
+
+Se quiser, posso revisar contigo esse trecho do backend. Só precisa colar aqui a parte que faz a validação da requisição PUT para /api/admin/transactions/:id — principalmente onde define o schema ou tipos aceitos para status.
+
+Se resolver isso, o sistema vai atualizar normalmente.
