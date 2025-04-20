@@ -118,12 +118,18 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
+export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed', 'approved']);
+
 export const insertTransactionSchema = createInsertSchema(transactions).extend({
   userId: z.number(),
   type: z.enum(['deposit', 'withdrawal', 'commission', 'purchase']),
   amount: z.number().positive(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed', 'approved']),
+  status: transactionStatusEnum,
   bankAccount: z.string().nullable()
+});
+
+export const updateTransactionSchema = z.object({
+  status: transactionStatusEnum
 });
 
 // Forçar bankAccount a ser string | null

@@ -1,6 +1,6 @@
 import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
-import { insertProductSchema, insertBankSchema, insertSettingSchema, insertCarouselImageSchema } from "@shared/schema";
+import { insertProductSchema, insertBankSchema, insertSettingSchema, insertCarouselImageSchema, updateTransactionSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -113,19 +113,12 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/transactions/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const transactionId = parseInt(req.params.id);
-      const { status } = req.body;
       
-      console.log(`Atualizando transação ${transactionId} para status: ${status}`);
-      console.log('Corpo da requisição:', req.body);
-      
-      if (!status) {
-        return res.status(400).json({ message: "Status é obrigatório" });
-      }
-      
-      const validStatuses = ['pending', 'processing', 'completed', 'failed', 'approved'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: "Status inválido. Use: pending, processing, completed, failed ou approved" });
-      }
+      try {
+        const validatedData = updateTransactionSchema.parse(req.body);
+        const { status } = validatedData;
+        
+        console.log(`Atualizando transação ${transactionId} para status: ${status}`);
       
       // Obter a transação atual para verificar se existe
       const existingTransaction = await storage.getTransaction(transactionId);
