@@ -45,6 +45,14 @@ export async function apiRequest(
       // Isso evita que outros campos causem erros de validação
       data = { status };
       console.log('Requisição sanitizada para atualização de transação:', data);
+      
+      // Adicionar headers especiais para essa requisição específica
+      Object.assign(headers, {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache'
+      });
     }
   }
   
