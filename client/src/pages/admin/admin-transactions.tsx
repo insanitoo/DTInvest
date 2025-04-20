@@ -45,15 +45,49 @@ export default function AdminTransactions() {
       console.log(`Enviando status '${newStatus}' para transação ${selectedTransaction.id}`);
 
       try {
+        // Remover espaços extras do status para prevenir erros de validação
+        const trimmedStatus = newStatus.trim();
+        
         const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
-          status: newStatus 
+          status: trimmedStatus 
         });
 
-        // Pegar os dados da resposta em JSON
-        const data = await res.json();
-        console.log('Resposta JSON recebida da API:', data);
-
-        return data || { success: true };
+        // Tratar a resposta com cuidado para evitar erros de JSON
+        try {
+          // Verificar se a resposta está vazia
+          const responseText = await res.text();
+          
+          if (!responseText || responseText.trim() === '') {
+            // Se a resposta estiver vazia mas o status for 200 OK, considerar sucesso
+            if (res.ok) {
+              console.log('Resposta vazia mas status OK, retornando sucesso');
+              return { success: true };
+            }
+          } else {
+            // Tentar converter para JSON apenas se houver conteúdo
+            try {
+              const data = JSON.parse(responseText);
+              console.log('Resposta JSON recebida da API:', data);
+              return data;
+            } catch (jsonError) {
+              console.warn('Resposta não é um JSON válido:', responseText);
+              // Retornar um objeto de sucesso se o status for 200 OK
+              if (res.ok) {
+                return { success: true };
+              }
+              throw new Error('Resposta não é um JSON válido');
+            }
+          }
+        } catch (parseError) {
+          console.error('Erro ao processar resposta:', parseError);
+          if (res.ok) {
+            return { success: true };
+          }
+          throw parseError;
+        }
+        
+        // Fallback se nenhum dos fluxos acima retornar
+        return { success: res.ok };
       } catch (error) {
         console.error('Erro na requisição:', error);
         throw error;

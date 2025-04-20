@@ -26,8 +26,32 @@ export default function DebugTransactions() {
   async function handleValidateStatus() {
     setIsLoading(true);
     try {
-      const res = await apiRequest('POST', '/api/test/validate-status', { status: diagnosticStatus });
-      const data = await res.json();
+      // Remover espaços extras antes de enviar para validação
+      const trimmedStatus = diagnosticStatus.trim();
+      
+      console.log(`Testando status: "${trimmedStatus}" (removidos espaços extras)`);
+      
+      const res = await apiRequest('POST', '/api/test/validate-status', { status: trimmedStatus });
+      
+      // Usar o mesmo tratamento de resposta que usamos na atualização
+      let data;
+      try {
+        const responseText = await res.text();
+        
+        if (!responseText || responseText.trim() === '') {
+          if (res.ok) {
+            data = { success: true, message: "Status válido" };
+          } else {
+            throw new Error(`Resposta vazia com status ${res.status}`);
+          }
+        } else {
+          data = JSON.parse(responseText);
+        }
+      } catch (parseError) {
+        console.error('Erro ao processar resposta:', parseError);
+        throw new Error(`Erro ao processar resposta: ${parseError.message}`);
+      }
+      
       setDiagnosticResponse(JSON.stringify(data, null, 2));
       
       toast({
@@ -79,10 +103,33 @@ export default function DebugTransactions() {
       // Tratamento especial para erros de resposta
       let data;
       try {
-        data = await res.json();
+        // Verificar primeiro se a resposta é vazia para casos de sucesso sem corpo
+        const responseText = await res.text();
+        
+        if (!responseText || responseText.trim() === '') {
+          // Se a resposta estiver vazia mas o status for 200 OK, considerar sucesso
+          if (res.ok) {
+            data = { 
+              success: true, 
+              status: res.status,
+              message: "Operação realizada com sucesso"
+            };
+            console.log('Resposta vazia com status OK, criando resposta padrão de sucesso');
+          } else {
+            throw new Error(`Resposta vazia com status ${res.status}`);
+          }
+        } else {
+          // Tentar converter para JSON apenas se houver conteúdo
+          try {
+            data = JSON.parse(responseText);
+          } catch (jsonError) {
+            console.error('Conteúdo não é um JSON válido:', responseText);
+            throw jsonError;
+          }
+        }
       } catch (parseError) {
-        console.error('Erro ao analisar resposta JSON:', parseError);
-        throw new Error(`Erro de resposta: ${res.status} ${res.statusText}. A resposta não é um JSON válido.`);
+        console.error('Erro ao processar resposta:', parseError);
+        throw new Error(`Erro ao processar resposta: ${res.status} ${res.statusText}`);
       }
       setResponse(JSON.stringify(data, null, 2));
       
