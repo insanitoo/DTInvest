@@ -47,7 +47,7 @@ export default function AdminTransactions() {
       try {
         // Remover espaços extras do status para prevenir erros de validação
         const trimmedStatus = newStatus.trim();
-        
+
         const res = await apiRequest('PUT', `/api/admin/transactions/${selectedTransaction.id}`, { 
           status: trimmedStatus 
         });
@@ -56,7 +56,7 @@ export default function AdminTransactions() {
         try {
           // Verificar se a resposta está vazia
           const responseText = await res.text();
-          
+
           if (!responseText || responseText.trim() === '') {
             // Se a resposta estiver vazia mas o status for 200 OK, considerar sucesso
             if (res.ok) {
@@ -104,7 +104,7 @@ export default function AdminTransactions() {
           }
           throw parseError;
         }
-        
+
         // Fallback se nenhum dos fluxos acima retornar
         return { success: res.ok };
       } catch (error) {
@@ -112,70 +112,12 @@ export default function AdminTransactions() {
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('Mutation concluída com sucesso:', data);
 
-      // Forçar atualização do cache
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
-
-      // Também invalidar as transações do usuário para que apareça atualizado na tela do usuário
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-
-      // Atualizar manualmente o cache para mostrar a mudança imediatamente
-      if (selectedTransaction) {
-        try {
-          // Obter os dados atuais do cache
-          const currentTransactions = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
-          console.log('Cache atual antes da atualização:', currentTransactions);
-          
-          // Verificar se a transação existe no cache
-          const transactionExists = currentTransactions.some(tx => tx.id === selectedTransaction.id);
-          if (!transactionExists) {
-            console.warn(`Transação ${selectedTransaction.id} não encontrada no cache atual.`);
-          }
-          
-          // Atualizar o objeto da transação no cache com o novo status
-          const updatedTransactions = currentTransactions.map(tx => 
-            tx.id === selectedTransaction.id ? { 
-              ...tx, 
-              status: newStatus,
-              updatedAt: new Date() // Atualizar também a data de atualização
-            } : tx
-          );
-          
-          // Atualizar o cache diretamente
-          queryClient.setQueryData(['/api/admin/transactions'], updatedTransactions);
-          
-          // Também atualizar o cache de transações do usuário (se existir)
-          const userTransactions = queryClient.getQueryData<Transaction[]>(['/api/transactions']);
-          if (userTransactions) {
-            const updatedUserTransactions = userTransactions.map(tx =>
-              tx.id === selectedTransaction.id ? { 
-                ...tx, 
-                status: newStatus,
-                updatedAt: new Date()
-              } : tx
-            );
-            
-            queryClient.setQueryData(['/api/transactions'], updatedUserTransactions);
-            console.log('Cache de transações do usuário atualizado:', updatedUserTransactions);
-          }
-          
-          console.log('Cache de admin atualizado:', updatedTransactions);
-          
-          // Verificar se a atualização foi bem-sucedida
-          const verifyCache = queryClient.getQueryData<Transaction[]>(['/api/admin/transactions']) || [];
-          const updatedTransaction = verifyCache.find(tx => tx.id === selectedTransaction.id);
-          
-          if (updatedTransaction?.status !== newStatus) {
-            console.error(`Falha na atualização do cache: status atual=${updatedTransaction?.status}, esperado=${newStatus}`);
-          } else {
-            console.log(`Cache atualizado com sucesso para a transação ${selectedTransaction.id}`);
-          }
-        } catch (error) {
-          console.error('Erro ao atualizar manualmente o cache:', error);
-        }
-      }
+      // Forçar revalidação dos dados
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
 
       toast({
         title: 'Status atualizado',

@@ -241,10 +241,14 @@ export function setupAdminRoutes(app: Express) {
         console.log('Todas as transações atualizadas no servidor:', allTransactions);
         
         // Garante que o corpo da resposta seja sempre um JSON válido com a transação atualizada
+        // Retornar a transação atualizada com status explícito
         return res.status(200).json({ 
           success: true, 
-          transaction: updatedTransaction,
-          updatedAt: new Date().toISOString()
+          transaction: {
+            ...updatedTransaction,
+            status: status, // Garantir que o status está explícito
+            updatedAt: new Date().toISOString()
+          }
         });
       } catch (error) {
         console.error('Erro ao atualizar transação:', error);
