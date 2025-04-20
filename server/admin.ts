@@ -110,274 +110,167 @@ export function setupAdminRoutes(app: Express) {
     }
   });
 
-  // Update transaction status
+  // Atualizar status de transação - NOVO SISTEMA 
   app.put("/api/admin/transactions/:id", isAdmin, async (req: Request, res: Response) => {
+    /*******************************************************************
+     * IMPLEMENTAÇÃO NOVA E SIMPLIFICADA PARA ATUALIZAÇÃO DE TRANSAÇÕES
+     * Criado do zero para garantir robustez e consistência
+     * Versão 1.0 - Abril 2025 
+     *******************************************************************/
+    
     try {
+      console.log(`\n=== ADMIN API >>> INÍCIO ATUALIZAÇÃO DE TRANSAÇÃO ===\n`);
       const transactionId = parseInt(req.params.id);
       
-      // Log de diagnóstico completo
-      console.log('Dados brutos recebidos (req.body):', req.body);
-      console.log('Content-Type:', req.headers['content-type']);
-      console.log('Request Method:', req.method);
-      
-      // Para casos onde o body parser não entende o content-type
-      let rawData = '';
-      req.on('data', chunk => {
-        rawData += chunk;
-      });
-      
-      // Processar como texto bruto para diagnóstico
-      await new Promise<void>((resolve) => {
-        req.on('end', () => {
-          if (rawData) {
-            try {
-              console.log('Raw data recebido:', rawData);
-              console.log('Raw data como JSON:', JSON.parse(rawData));
-            } catch (e) {
-              console.log('Raw data não é JSON válido:', rawData);
-            }
-          }
-          resolve();
-        });
-      });
-      
-      // Se não tiver status, mas tiver raw data, tenta extrair
-      if (!req.body || !req.body.status) {
-        try {
-          const parsedRawData = JSON.parse(rawData);
-          if (parsedRawData && parsedRawData.status) {
-            req.body = parsedRawData;
-            console.log('Body reconstruído a partir do raw data:', req.body);
-          }
-        } catch (e) {
-          console.log('Não foi possível reconstruir o body a partir do raw data');
-        }
-      }
-      
-      // Validação manual (pré-schema) para detectar problemas estruturais
-      if (!req.body) {
-        console.error('Corpo da requisição está vazio');
-        return res.status(400).json({ 
-          error: 'Erro de validação',
-          details: 'Corpo da requisição está vazio'
+      // ETAPA 1: Validação básica da requisição
+      if (!req.body || typeof req.body !== 'object') {
+        console.error('ADMIN API >>> Corpo da requisição inválido');
+        return res.status(400).json({
+          success: false,
+          message: "Corpo da requisição inválido"
         });
       }
       
-      if (typeof req.body.status !== 'string') {
-        console.error(`Status inválido: '${req.body.status}' (tipo: ${typeof req.body.status})`);
-        return res.status(400).json({ 
-          error: 'Erro de validação',
-          details: `Status inválido: tipo ${typeof req.body.status}, esperado string`
+      console.log('ADMIN API >>> Dados recebidos:', req.body);
+      
+      // ETAPA 2: Validar o status solicitado
+      const status = req.body.status;
+      const validStatuses = ['pending', 'processing', 'completed', 'failed'];
+      
+      if (!status || typeof status !== 'string' || !validStatuses.includes(status)) {
+        console.error(`ADMIN API >>> Status inválido: '${status}'`);
+        return res.status(400).json({
+          success: false,
+          message: `Status inválido. Valores permitidos: ${validStatuses.join(', ')}`
         });
       }
       
-      // Validação via schema
-      let validatedData;
+      console.log(`ADMIN API >>> Atualizando transação ${transactionId} para status: ${status}`);
+      
+      // ETAPA 3: Verificar se a transação existe
+      const transaction = await storage.getTransaction(transactionId);
+      if (!transaction) {
+        console.error(`ADMIN API >>> Transação ${transactionId} não encontrada`);
+        return res.status(404).json({
+          success: false,
+          message: "Transação não encontrada"
+        });
+      }
+      
+      // ETAPA 4: Verificar usuário antes da atualização (para diagnóstico posterior)
+      const userBefore = await storage.getUser(transaction.userId);
+      if (!userBefore) {
+        console.error(`ADMIN API >>> Usuário ${transaction.userId} não encontrado`);
+        return res.status(500).json({
+          success: false,
+          message: "Usuário da transação não encontrado"
+        });
+      }
+      
+      console.log(`ADMIN API >>> Usuário ${userBefore.phoneNumber}, Saldo atual: ${userBefore.balance}`);
+      
+      // Para fins de diagnóstico, calcular o saldo esperado após a operação
+      const expectedBalance = (status === 'completed' && transaction.type === 'deposit') 
+        ? userBefore.balance + transaction.amount
+        : userBefore.balance;
+      
+      // ETAPA 5: Realizar a atualização da transação
+      console.log(`ADMIN API >>> Executando atualização para status ${status}...`);
       try {
-        // Validação manual primeiro para garantir que status está correto
-        if (!req.body.status || typeof req.body.status !== 'string') {
-          console.error('Status inválido ou ausente:', req.body.status);
-          return res.status(400).json({
-            error: 'Erro de validação',
-            details: `Status inválido ou ausente: ${req.body.status}`
-          });
-        }
-        
-        // Validar valores de status permitidos manualmente
-        const validStatuses = ['pending', 'processing', 'completed', 'failed'];
-        if (!validStatuses.includes(req.body.status)) {
-          console.error(`Status '${req.body.status}' não é permitido. Valores permitidos: ${validStatuses.join(', ')}`);
-          return res.status(400).json({
-            error: 'Erro de validação',
-            details: `Status '${req.body.status}' não é permitido. Valores permitidos: ${validStatuses.join(', ')}`
-          });
-        }
-        
-        // Diagnóstico detalhado para depuração
-        console.log('\n\n========= INÍCIO DO DIAGNÓSTICO DA SOLICITAÇÃO =========');
-        console.log('ID da transação:', transactionId);
-        console.log('Status solicitado:', req.body.status);
-        console.log('Corpo completo da requisição:', req.body);
-        console.log('========= FIM DO DIAGNÓSTICO DA SOLICITAÇÃO =========\n\n');
-        
-        // Validação pelo schema
-        validatedData = updateTransactionSchema.parse(req.body);
-        console.log('Dados validados com sucesso:', validatedData);
-      } catch (validationError) {
-        console.error('Erro detalhado de validação:', validationError);
-        if (validationError instanceof ZodError) {
-          return res.status(400).json({
-            error: 'Erro de validação',
-            details: validationError.errors.map(err => ({
-              path: err.path.join('.'),
-              message: err.message
-            }))
-          });
-        }
-        return res.status(400).json({ 
-          error: 'Erro de validação',
-          details: validationError instanceof Error ? validationError.message : 'Erro desconhecido'
-        });
-      }
-
-      const { status } = validatedData;
-      console.log(`Atualizando transação ${transactionId} para status: ${status}`);
-      
-      // Obter a transação atual para verificar se existe
-      const existingTransaction = await storage.getTransaction(transactionId);
-      if (!existingTransaction) {
-        return res.status(404).json({ message: "Transação não encontrada" });
-      }
-      
-      console.log('Transação atual:', existingTransaction);
-      
-      // Atualizar o status
-      try {
-        console.log(`===== EXECUTANDO ATUALIZAÇÃO DE TRANSAÇÃO ${transactionId} PARA STATUS ${status} =====`);
-        
-        // Verificar usuário antes da atualização
-        const userBefore = await storage.getUser(existingTransaction.userId);
-        console.log(`ANTES - Usuário ${existingTransaction.userId} - Saldo: ${userBefore?.balance || 0}`);
-        
-        // Se esta for uma atualização de depósito para aprovado/concluído, 
-        // guardar o saldo esperado para verificação
-        let expectedNewBalance = userBefore ? userBefore.balance : 0;
-        if ((status === 'completed' || status === 'approved') && existingTransaction.type === 'deposit') {
-          expectedNewBalance += existingTransaction.amount;
-          console.log(`Se for um depósito aprovado, o saldo esperado será: ${expectedNewBalance}`);
-        }
-        
-        // Atualizar a transação
-        console.log(`Chamando updateTransactionStatus para transação ${transactionId}...`);
+        // Chamada para o novo sistema de atualização de transações
+        const startTime = Date.now();
         const updatedTransaction = await storage.updateTransactionStatus(transactionId, status);
-        console.log(`Transação atualizada com sucesso, novo status: ${updatedTransaction.status}`);
+        const endTime = Date.now();
         
-        // Aguardar um momento para garantir que a atualização de saldo foi processada
-        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log(`ADMIN API >>> Atualização concluída em ${endTime - startTime}ms`);
+        console.log(`ADMIN API >>> Status atualizado: ${transaction.status} -> ${updatedTransaction.status}`);
         
-        // Verificar usuário após atualização
-        const userAfter = await storage.getUser(existingTransaction.userId);
-        console.log(`DEPOIS - Usuário ${existingTransaction.userId} - Saldo: ${userAfter?.balance || 0}`);
+        // ETAPA 6: Verificar resultado da operação - usuário após a atualização
+        const userAfter = await storage.getUser(transaction.userId);
+        if (!userAfter) {
+          throw new Error(`Usuário ${transaction.userId} não encontrado após atualização`);
+        }
         
-        // Verificar se o saldo foi atualizado para depósito concluído/aprovado
-        if ((status === 'completed' || status === 'approved') && 
-            existingTransaction.type === 'deposit' &&
-            userBefore && userAfter) {
-            
-          console.log(`Verificando atualização de saldo para depósito...`);
-          console.log(`Saldo anterior: ${userBefore.balance}, Saldo atual: ${userAfter.balance}, Valor do depósito: ${existingTransaction.amount}`);
+        console.log(`ADMIN API >>> Saldo antes: ${userBefore.balance}, Saldo depois: ${userAfter.balance}`);
+        
+        // Verificar se o saldo foi atualizado corretamente para depósitos concluídos
+        const balanceUpdated = (status === 'completed' && transaction.type === 'deposit') 
+          ? Math.abs(userAfter.balance - expectedBalance) < 0.01 
+          : true;
           
-          // Se o saldo não mudou ou não está com o valor esperado
-          if (Math.abs(userAfter.balance - expectedNewBalance) > 0.01) {
-            console.error(`ALERTA: O saldo NÃO foi atualizado conforme esperado após aprovar depósito!`);
-            console.log(`Valor atual: ${userAfter.balance}, Valor esperado: ${expectedNewBalance}`);
-            console.log(`Forçando atualização manual do saldo para transação ${transactionId}...`);
-            
-            try {
-              // Atualização manual de emergência - GARANTIR que o depósito seja adicionado apenas uma vez
-              const manuallyUpdatedUser = await storage.updateUserBalance(existingTransaction.userId, expectedNewBalance);
-              console.log(`EMERGÊNCIA - Saldo atualizado manualmente de ${userAfter.balance} para ${manuallyUpdatedUser.balance}`);
-            } catch (updateError) {
-              console.error(`ERRO na atualização manual do saldo:`, updateError);
-            }
-          } else {
-            console.log(`SUCESSO: Saldo foi atualizado corretamente para ${userAfter.balance}`);
-          }
+        if (!balanceUpdated) {
+          console.error(`ADMIN API >>> ALERTA: Saldo não foi atualizado corretamente!`);
+          console.error(`ADMIN API >>> Esperado: ${expectedBalance}, Atual: ${userAfter.balance}`);
+        } else {
+          console.log(`ADMIN API >>> Verificação de saldo OK`);
         }
         
-        // Verificação final após todas as atualizações
-        const finalUser = await storage.getUser(existingTransaction.userId);
-        console.log(`VERIFICAÇÃO FINAL - Usuário ${existingTransaction.userId} - Saldo: ${finalUser?.balance || 0}`);
+        // ETAPA 7: Montar resposta detalhada com dados atualizados
+        console.log(`ADMIN API >>> Preparando resposta para o cliente...`);
         
-        // Atualizar caches para garantir que os dados estejam sincronizados
-        try {
-          console.log(`Atualizando caches...`);
-          await storage.getTransactions(updatedTransaction.userId);
-          await storage.getAllTransactions();
-          console.log(`Caches atualizados com sucesso`);
-        } catch (cacheError) {
-          console.error(`Erro ao atualizar caches:`, cacheError);
-        }
-        
-        // Buscar a transação final atualizada para retornar na resposta
-        console.log(`Obtendo transação finalizada para resposta...`);
-        const confirmedTransaction = await storage.getTransaction(transactionId);
-        
-        if (!confirmedTransaction) {
-          console.error(`ERRO: Não foi possível encontrar a transação ${transactionId} após atualização`);
-          return res.status(200).json({ 
-            success: true, 
-            message: "Transação atualizada, mas não foi possível recuperá-la"
-          });
-        }
-        
-        // Buscar o usuário atualizado também para incluir na resposta
-        const updatedUser = await storage.getUser(existingTransaction.userId);
-        
-        // CONFIGURAR CABEÇALHOS PARA FORÇAR RESPOSTA JSON
+        // Garantir cabeçalhos corretos para prevenir problemas no cliente
         res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-
-        // Formatamos manualmente para garantir um JSON válido e completo
-        const responseData = { 
-          success: true, 
+        res.setHeader('Cache-Control', 'no-store');
+        
+        // Construir resposta completa com todas as informações necessárias
+        const responseData = {
+          success: true,
           message: "Transação atualizada com sucesso",
           transaction: {
-            id: confirmedTransaction.id,
-            userId: confirmedTransaction.userId,
-            type: confirmedTransaction.type,
-            amount: confirmedTransaction.amount,
-            status: status, // Garantir que o status está atualizado
-            createdAt: confirmedTransaction.createdAt.toISOString(),
-            updatedAt: new Date().toISOString(),
-            bankAccount: confirmedTransaction.bankAccount,
-            bankName: confirmedTransaction.bankName || null,
-            receipt: confirmedTransaction.receipt || null
+            id: updatedTransaction.id,
+            userId: updatedTransaction.userId,
+            type: updatedTransaction.type,
+            amount: updatedTransaction.amount,
+            status: updatedTransaction.status,
+            createdAt: updatedTransaction.createdAt,
+            updatedAt: updatedTransaction.updatedAt,
+            bankAccount: updatedTransaction.bankAccount || null,
+            bankName: updatedTransaction.bankName || null,
+            receipt: updatedTransaction.receipt || null
           },
-          user: updatedUser ? {
-            id: updatedUser.id,
-            balance: updatedUser.balance,
-            previousBalance: userBefore ? userBefore.balance : 0,
-            balanceDiff: updatedUser.balance - (userBefore ? userBefore.balance : 0),
-            expectedBalance: expectedNewBalance,
-            // Incluir estas informações adicionais para que o cliente saiba se precisa atualizar outras telas
-            hasDeposited: updatedUser.hasDeposited,
-            hasProduct: updatedUser.hasProduct
-          } : null,
-          // Adicionar meta-informações para ajudar na depuração do cliente
+          user: {
+            id: userAfter.id,
+            phoneNumber: userAfter.phoneNumber,
+            balance: userAfter.balance,
+            hasDeposited: userAfter.hasDeposited,
+            hasProduct: userAfter.hasProduct,
+            // Informações adicionais para auditoria
+            previousBalance: userBefore.balance,
+            balanceChange: userAfter.balance - userBefore.balance
+          },
           meta: {
             processedAt: new Date().toISOString(),
-            balanceUpdated: (status === 'completed' || status === 'approved') && 
-                           existingTransaction.type === 'deposit' && 
-                           userBefore && userAfter && 
-                           Math.abs(userAfter.balance - userBefore.balance - existingTransaction.amount) < 0.01,
-            transactionType: existingTransaction.type,
-            previousStatus: existingTransaction.status,
-            newStatus: status,
-            depositAmount: existingTransaction.type === 'deposit' ? existingTransaction.amount : null
+            expectedBalance: expectedBalance,
+            balanceUpdated: balanceUpdated,
+            processingTime: `${endTime - startTime}ms`,
+            transactionType: transaction.type,
+            previousStatus: transaction.status,
+            newStatus: status
           }
         };
         
-        // TENTAR GARANTIR QUE O CLIENTE RECEBA JSON VÁLIDO E COMPLETO
-        const safeJsonResponse = JSON.stringify(responseData);
-        console.log(`Enviando resposta JSON: ${safeJsonResponse}`);
+        // Converter para JSON e enviar resposta
+        const jsonResponse = JSON.stringify(responseData);
+        console.log(`ADMIN API >>> Enviando resposta (${jsonResponse.length} bytes)`);
         
-        // RESPONDER USANDO RESPOSTA SEGURA
-        return res.status(200).send(safeJsonResponse);
+        console.log(`\n=== ADMIN API >>> FIM ATUALIZAÇÃO DE TRANSAÇÃO ===\n`);
+        return res.status(200).send(jsonResponse);
+        
       } catch (error) {
-        console.error('Erro ao atualizar transação:', error);
-        throw error;
+        console.error('ADMIN API >>> Erro durante atualização:', error);
+        return res.status(500).json({
+          success: false,
+          message: error instanceof Error ? error.message : "Erro desconhecido durante atualização",
+          error: String(error)
+        });
       }
     } catch (error) {
-      console.error('Erro geral ao processar atualização:', error);
-      
-      if (error instanceof Error) {
-        return res.status(500).json({ message: error.message || "Erro ao atualizar transação" });
-      }
-      
-      res.status(500).json({ message: "Erro ao atualizar transação" });
+      console.error('ADMIN API >>> Erro geral:', error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao processar solicitação",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
