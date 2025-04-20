@@ -39,16 +39,16 @@ function generateReferralCode(): string {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const numbers = '0123456789';
   let code = '';
-  
+
   // Generate a code like AB1234
   for (let i = 0; i < 2; i++) {
     code += letters.charAt(Math.floor(Math.random() * letters.length));
   }
-  
+
   for (let i = 0; i < 4; i++) {
     code += numbers.charAt(Math.floor(Math.random() * numbers.length));
   }
-  
+
   return code;
 }
 
@@ -84,17 +84,17 @@ export function setupAuth(app: Express) {
         try {
           // Normalize phone number by removing spaces
           const formattedPhoneNumber = phoneNumber.replace(/\s+/g, '');
-          
+
           // Get user by phone number
           const user = await storage.getUserByPhoneNumber(formattedPhoneNumber);
-          
+
           // Como essa é uma versão de protótipo, aceitamos qualquer senha para o usuário
           // Com password definido como "protótipo"
           if (!user) {
             console.log("Usuário não encontrado:", formattedPhoneNumber);
             return done(null, false, { message: 'Número de telefone ou senha incorretos' });
           }
-          
+
           // Para o protótipo, aceitamos "protótipo" como senha universal
           if (password === "protótipo") {
             // Se a senha é protótipo, aceitamos o login
@@ -104,24 +104,24 @@ export function setupAuth(app: Express) {
                 req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
               }
             }
-            
+
             console.log("Login bem-sucedido com senha protótipo");
             return done(null, user);
           }
-          
+
           // Se não for a senha de protótipo, verificamos normalmente
           if (user.password !== password) {
             console.log("Senha incorreta para usuário:", formattedPhoneNumber);
             return done(null, false, { message: 'Número de telefone ou senha incorretos' });
           }
-          
+
           // If remember me is checked, extend session
           if (req.body.rememberMe) {
             if (req.session.cookie) {
               req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
             }
           }
-          
+
           console.log("Login bem-sucedido para usuário:", formattedPhoneNumber);
           return done(null, user);
         } catch (error) {
@@ -143,7 +143,7 @@ export function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
-      
+
       // Add bank info to user if available
       const bankInfo = await storage.getBankInfoByUserId(id);
       if (bankInfo) {
@@ -157,7 +157,7 @@ export function setupAuth(app: Express) {
         };
         return done(null, userWithBank);
       }
-      
+
       return done(null, user);
     } catch (error) {
       return done(error);
@@ -173,7 +173,7 @@ export function setupAuth(app: Express) {
 
       // Normalize phone number
       const formattedPhoneNumber = req.body.phoneNumber.replace(/\s+/g, '');
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByPhoneNumber(formattedPhoneNumber);
       if (existingUser) {
@@ -185,11 +185,11 @@ export function setupAuth(app: Express) {
       if (!referrer) {
         return res.status(400).json({ message: "Código de convite inválido" });
       }
-      
+
       // Generate referral code
       let referralCode = generateReferralCode();
       let isUniqueCode = false;
-      
+
       // Ensure referral code is unique
       while (!isUniqueCode) {
         const existingCode = await storage.getUserByReferralCode(referralCode);
@@ -199,7 +199,7 @@ export function setupAuth(app: Express) {
           referralCode = generateReferralCode();
         }
       }
-      
+
       // Create user
       const user = await storage.createUser({
         phoneNumber: formattedPhoneNumber,
@@ -227,7 +227,7 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
       }
-      
+
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
         return res.status(200).json(user);
@@ -252,26 +252,26 @@ export function setupAuth(app: Express) {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
-    
+
     try {
       // Buscar os dados mais recentes do usuário diretamente do banco
       const userId = req.user.id;
       const freshUserData = await storage.getUser(userId);
-      
+
       if (!freshUserData) {
         console.error(`ERRO: Usuário ${userId} não encontrado na verificação de /api/user`);
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
+
       // Adicionar informações bancárias, se existirem
       const bankInfo = await storage.getBankInfoByUserId(userId);
       const freshUserWithBank = bankInfo 
         ? { ...freshUserData, bankInfo } 
         : freshUserData;
-      
+
       // Atualizar a sessão com os dados mais recentes
       req.user = freshUserWithBank;
-      
+
       console.log(`Enviando dados atualizados do usuário ${userId}. Saldo atual: ${freshUserData.balance}`);
       return res.json(freshUserWithBank);
     } catch (error) {
@@ -280,20 +280,20 @@ export function setupAuth(app: Express) {
       return res.json(req.user);
     }
   });
-  
+
   // Update bank info
   app.post("/api/user/bank", async (req, res, next) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
     }
-    
+
     try {
       const userId = req.user.id;
       const { bank, ownerName, accountNumber } = req.body;
-      
+
       // Verificar se já existe informação bancária para este usuário
       const existingBankInfo = await storage.getBankInfoByUserId(userId);
-      
+
       let bankInfo;
       if (existingBankInfo) {
         // Se já existe, atualizamos
@@ -312,7 +312,7 @@ export function setupAuth(app: Express) {
           userId 
         });
       }
-      
+
       return res.status(200).json(bankInfo);
     } catch (error) {
       console.error("Erro ao atualizar informações bancárias:", error);
