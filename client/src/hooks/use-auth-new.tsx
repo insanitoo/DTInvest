@@ -1,11 +1,7 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
-import {
-  useQuery,
-  useMutation,
-  UseMutationResult,
-} from "@tanstack/react-query";
+import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from "react";
+import { useMutation, UseMutationResult } from "@tanstack/react-query";
 import { User, LoginData, RegistrationData } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -14,6 +10,7 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
+  checkAuth: () => Promise<User | null>;
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegistrationData>;
@@ -25,13 +22,15 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // Key for storing the authenticated user in localStorage
 const AUTH_USER_KEY = 'sp_global_auth_user';
 
-// Auth provider component
+// Auth provider component - otimizado para menos consultas
 function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   // Local state to store the current user
-  const [localUser, setLocalUser] = useState<User | null>(() => {
+  const [user, setUser] = useState<User | null>(() => {
     // Try to recover user from localStorage when component mounts
     try {
       const saved = localStorage.getItem(AUTH_USER_KEY);
@@ -42,102 +41,71 @@ function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const {
-    data: user,
-    error,
-    isLoading,
-    refetch: refetchUser
-  } = useQuery<User | null, Error>({
-    queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    initialData: localUser,
-    staleTime: 5 * 1000, // 5 segundos para atualizações muito frequentes
-    refetchInterval: 15 * 1000, // 15 segundos
-    refetchOnWindowFocus: true,
-  });
-  
-  // Separamos o handling de erro para evitar problemas com o LSP
-  useEffect(() => {
-    if (error && error.message && error.message.includes('401')) {
-      console.log('Erro de autenticação 401 detectado, removendo usuário do localStorage');
-      localStorage.removeItem(AUTH_USER_KEY);
-      setLocalUser(null);
-    }
-  }, [error]);
-
-  // Update local user when query data changes
-  useEffect(() => {
-    if (user) {
-      try {
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-      } catch (error) {
-        console.error('Error saving user to localStorage:', error);
+  // Função manual para verificar autenticação - otimizada para chamadas sob demanda apenas
+  const checkAuth = useCallback(async (): Promise<User | null> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const res = await fetch('/api/user', { 
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Limpar dados de usuário em caso de sessão inválida
+          localStorage.removeItem(AUTH_USER_KEY);
+          setUser(null);
+          return null;
+        }
+        
+        const errorText = await res.text();
+        throw new Error(`Erro ao verificar autenticação: ${res.status} - ${errorText}`);
       }
-      setLocalUser(user);
+      
+      const userData = await res.json();
+      
+      // Armazenar no localStorage e state
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+      setUser(userData);
+      
+      return userData;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+      return null;
+    } finally {
+      setIsLoading(false);
     }
-  }, [user]);
-  
-  // Simples sistema para observar mudanças em transações
+  }, []);
+
+  // Verificar auth na inicialização (uma única vez)
   useEffect(() => {
-    // Definir uma função para observar evento customizado
-    const handleTransactionUpdate = () => {
-      console.log('Evento de atualização de transação detectado, atualizando dados do usuário...');
-      refetchUser();
-    };
-    
-    // Adicionar listener para evento customizado
-    window.addEventListener('transaction-updated', handleTransactionUpdate);
-    
-    // Limpar listener quando componente desmontar
-    return () => {
-      window.removeEventListener('transaction-updated', handleTransactionUpdate);
-    };
-  }, [refetchUser]);
+    checkAuth();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      // First login call to get the session cookie
-      const res = await apiRequest("POST", "/api/login", credentials);
-      const userData = await res.json();
-
-      // Immediately verify the session with explicit credentials option
-      console.log("Forcing call to /api/user after successful login...");
+    mutationFn: async (credentials: LoginData): Promise<User> => {
       try {
-        const userCheckRes = await fetch("/api/user", { 
-          credentials: "include",
-          headers: {
-            'Cache-Control': 'no-cache, no-store',
-            'Pragma': 'no-cache'
-          }
-        });
+        setIsLoading(true);
+        
+        // First login call to get the session cookie
+        const res = await apiRequest("POST", "/api/login", credentials);
+        const userData = await res.json();
 
-        if (!userCheckRes.ok) {
-          console.error("Session verification failed with status:", userCheckRes.status);
-          throw new Error("A sessão não pôde ser estabelecida. Tente novamente.");
-        }
-      } catch (error) {
-        console.error("Error verifying session after login:", error);
-        throw new Error("Erro ao verificar a sessão após o login.");
+        // Atualiza o estado com o usuário
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+        setUser(userData);
+        
+        return userData;
+      } finally {
+        setIsLoading(false);
       }
-
-      return userData;
     },
     onSuccess: (user: User) => {
-      console.log("Login successful, saving user data to cache...");
-      // Save to localStorage
-      try {
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-        console.log("User saved to localStorage");
-      } catch (error) {
-        console.error("Error saving user to localStorage:", error);
-      }
-
-      // Update local state immediately
-      setLocalUser(user);
-
-      // Update React Query cache
-      queryClient.setQueryData(["/api/user"], user);
-
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
         setLocation("/");
@@ -158,49 +126,24 @@ function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (credentials: RegistrationData) => {
-      // First register call to create the user and get session cookie
-      const res = await apiRequest("POST", "/api/register", credentials);
-      const userData = await res.json();
-
-      // Immediately verify the session with explicit credentials option
-      console.log("Forcing call to /api/user after successful registration...");
+    mutationFn: async (credentials: RegistrationData): Promise<User> => {
       try {
-        const userCheckRes = await fetch("/api/user", { 
-          credentials: "include",
-          headers: {
-            'Cache-Control': 'no-cache, no-store',
-            'Pragma': 'no-cache'
-          }
-        });
+        setIsLoading(true);
+        
+        // Register call to create user and establish session
+        const res = await apiRequest("POST", "/api/register", credentials);
+        const userData = await res.json();
 
-        if (!userCheckRes.ok) {
-          console.error("Session verification failed after registration with status:", userCheckRes.status);
-          throw new Error("A sessão não pôde ser estabelecida após o registro. Tente fazer login.");
-        }
-      } catch (error) {
-        console.error("Error verifying session after registration:", error);
-        throw new Error("Erro ao verificar a sessão após o registro.");
+        // Atualiza o estado com o usuário
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+        setUser(userData);
+        
+        return userData;
+      } finally {
+        setIsLoading(false);
       }
-
-      return userData;
     },
     onSuccess: (user: User) => {
-      console.log("Registration successful, saving user data to cache...");
-      // Save to localStorage
-      try {
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-        console.log("User saved to localStorage after registration");
-      } catch (error) {
-        console.error("Error saving user to localStorage:", error);
-      }
-
-      // Update local state immediately
-      setLocalUser(user);
-
-      // Update React Query cache
-      queryClient.setQueryData(["/api/user"], user);
-
       // Redirect to home page with a slight delay to ensure state is updated
       setTimeout(() => {
         setLocation("/");
@@ -222,23 +165,19 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      try {
+        setIsLoading(true);
+        await apiRequest("POST", "/api/logout");
+      } finally {
+        setIsLoading(false);
+      }
     },
     onSuccess: () => {
       // Remove from localStorage
-      try {
-        localStorage.removeItem(AUTH_USER_KEY);
-        console.log("User removed from localStorage");
-      } catch (error) {
-        console.error("Error removing user from localStorage:", error);
-      }
-
+      localStorage.removeItem(AUTH_USER_KEY);
+      
       // Update local state
-      setLocalUser(null);
-
-      // Update React Query cache
-      queryClient.setQueryData(["/api/user"], null);
-      queryClient.invalidateQueries({queryKey: ["/api/user"]});
+      setUser(null);
 
       // Redirect to auth page after logout
       setLocation("/auth");
@@ -260,9 +199,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: user ?? null,
+        user,
         isLoading,
         error,
+        checkAuth,
         loginMutation,
         logoutMutation,
         registerMutation,

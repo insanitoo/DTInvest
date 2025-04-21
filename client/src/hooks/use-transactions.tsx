@@ -1,5 +1,5 @@
-import { createContext, ReactNode, useContext } from "react";
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { createContext, ReactNode, useContext, useState, useCallback } from "react";
+import { useMutation } from '@tanstack/react-query';
 import { 
   Transaction, 
   DepositRequest, 
@@ -7,132 +7,173 @@ import {
   InsertDepositRequest,
   InsertWithdrawalRequest
 } from '@shared/schema';
-import { apiRequest, queryClient, refreshAllData } from '@/lib/queryClient';
+import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
-// Interface atualizada para o novo fluxo
+// Interface simplificada com funções de carregamento manual
 type TransactionsContextType = {
-  // Histórico de transações
-  transactions: Transaction[] | undefined;
-  isLoadingTransactions: boolean;
+  // Dados estado local (sem queries automáticas)
+  transactions: Transaction[];
+  depositRequests: DepositRequest[];
+  withdrawalRequests: WithdrawalRequest[];
+  adminTransactions: Transaction[];
+  adminDepositRequests: DepositRequest[];
+  adminWithdrawalRequests: WithdrawalRequest[];
   
-  // Depósitos
-  depositRequests: DepositRequest[] | undefined;
-  isLoadingDeposits: boolean;
+  // Estado de carregamento
+  isLoading: boolean;
+  
+  // Funções de carregamento manual (chamar apenas quando necessário)
+  loadTransactions: () => Promise<Transaction[]>;
+  loadDeposits: () => Promise<DepositRequest[]>;
+  loadWithdrawals: () => Promise<WithdrawalRequest[]>;
+  loadAdminTransactions: () => Promise<Transaction[]>;
+  loadAdminDepositRequests: () => Promise<DepositRequest[]>;
+  loadAdminWithdrawalRequests: () => Promise<WithdrawalRequest[]>;
+  
+  // Ações do usuário
   createDeposit: (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>) => Promise<{ success: boolean; transactionId?: string }>;
   checkDepositStatus: (transactionId: string) => Promise<{ status: string; message: string }>;
-  
-  // Saques
-  withdrawalRequests: WithdrawalRequest[] | undefined;
-  isLoadingWithdrawals: boolean;
   createWithdrawal: (data: Omit<InsertWithdrawalRequest, 'userId' | 'status'>) => Promise<{ success: boolean }>;
   
-  // Admin
-  adminTransactions: Transaction[] | undefined;
-  adminDepositRequests: DepositRequest[] | undefined;
-  adminWithdrawalRequests: WithdrawalRequest[] | undefined;
-  isLoadingAdmin: boolean;
-  
-  // Admin: Ações
+  // Ações do admin
   approveDeposit: (id: number) => Promise<boolean>;
   approveWithdrawal: (id: number) => Promise<boolean>;
   rejectWithdrawal: (id: number) => Promise<boolean>;
-  
-  // Atualização de dados
-  refreshData: () => Promise<void>;
 };
 
 // Create context
 export const TransactionsContext = createContext<TransactionsContextType | null>(null);
 
-// Provider component
+// Provider component - versão otimizada para performance
 export function TransactionsProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Verificar se o usuário está autenticado para evitar requisições desnecessárias
-  const {
-    data: authUser,
-    isLoading: isLoadingAuth
-  } = useQuery({
-    queryKey: ['/api/user'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Não precisa recarregar automaticamente
-  });
+  // Dados locais - inicialmente vazios, carregados sob demanda
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [adminTransactions, setAdminTransactions] = useState<Transaction[]>([]);
+  const [adminDepositRequests, setAdminDepositRequests] = useState<DepositRequest[]>([]);
+  const [adminWithdrawalRequests, setAdminWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+
+  // Funções de carregamento manual - só são executadas quando o usuário interage
+  // com a interface ou quando explicitamente chamadas no código
   
-  const isAuthenticated = !!authUser;
-  const isAdmin = isAuthenticated && (authUser as any)?.isAdmin === true;
-  
-  // === HISTÓRICO DE TRANSAÇÕES DO USUÁRIO ===
-  const {
-    data: transactions,
-    isLoading: isLoadingTransactions,
-    refetch: refetchTransactions
-  } = useQuery<Transaction[], Error>({
-    queryKey: ['/api/transactions'],
-    staleTime: 60000, // 1 minuto 
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
-  });
-  
-  // === DEPÓSITOS DO USUÁRIO ===
-  const {
-    data: depositRequests,
-    isLoading: isLoadingDeposits,
-    refetch: refetchDeposits
-  } = useQuery<DepositRequest[], Error>({
-    queryKey: ['/api/deposits'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
-  });
-  
-  // === SAQUES DO USUÁRIO ===
-  const {
-    data: withdrawalRequests,
-    isLoading: isLoadingWithdrawals,
-    refetch: refetchWithdrawals
-  } = useQuery<WithdrawalRequest[], Error>({
-    queryKey: ['/api/withdrawals'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
-  });
-  
-  // === ADMIN: HISTÓRICO DE TRANSAÇÕES ===
-  const {
-    data: adminTransactions,
-    isLoading: isLoadingAdminTransactions,
-    refetch: refetchAdminTransactions
-  } = useQuery<Transaction[], Error>({
-    queryKey: ['/api/admin/transactions'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAdmin, // Só executa se o usuário for admin
-  });
-  
-  // === ADMIN: SOLICITAÇÕES DE DEPÓSITO ===
-  const {
-    data: adminDepositRequests,
-    isLoading: isLoadingAdminDeposits,
-    refetch: refetchAdminDeposits
-  } = useQuery<DepositRequest[], Error>({
-    queryKey: ['/api/admin/deposit-requests'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAdmin, // Só executa se o usuário for admin
-  });
-  
-  // === ADMIN: SOLICITAÇÕES DE SAQUE ===
-  const {
-    data: adminWithdrawalRequests,
-    isLoading: isLoadingAdminWithdrawals,
-    refetch: refetchAdminWithdrawals
-  } = useQuery<WithdrawalRequest[], Error>({
-    queryKey: ['/api/admin/withdrawal-requests'],
-    staleTime: 60000, // 1 minuto
-    refetchInterval: false, // Desabilitado para economizar recursos
-    enabled: isAdmin, // Só executa se o usuário for admin
-  });
+  const loadTransactions = useCallback(async (): Promise<Transaction[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/transactions', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar transações: ${res.status}`);
+      }
+      const data = await res.json();
+      setTransactions(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar transações:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadDeposits = useCallback(async (): Promise<DepositRequest[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/deposits', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar depósitos: ${res.status}`);
+      }
+      const data = await res.json();
+      setDepositRequests(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar depósitos:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadWithdrawals = useCallback(async (): Promise<WithdrawalRequest[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/withdrawals', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar saques: ${res.status}`);
+      }
+      const data = await res.json();
+      setWithdrawalRequests(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar saques:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadAdminTransactions = useCallback(async (): Promise<Transaction[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/admin/transactions', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar transações admin: ${res.status}`);
+      }
+      const data = await res.json();
+      setAdminTransactions(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar transações admin:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadAdminDepositRequests = useCallback(async (): Promise<DepositRequest[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/admin/deposit-requests', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar solicitações de depósito admin: ${res.status}`);
+      }
+      const data = await res.json();
+      setAdminDepositRequests(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar solicitações de depósito admin:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadAdminWithdrawalRequests = useCallback(async (): Promise<WithdrawalRequest[]> => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/admin/withdrawal-requests', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return []; // Não autenticado
+        throw new Error(`Erro ao carregar solicitações de saque admin: ${res.status}`);
+      }
+      const data = await res.json();
+      setAdminWithdrawalRequests(data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao carregar solicitações de saque admin:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // === MUTAÇÕES DO USUÁRIO ===
   
@@ -149,7 +190,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           description: `Seu depósito foi registrado com sucesso! ID: ${data.transactionId}`,
           variant: 'default',
         });
-        await refreshAllData();
+        // Atualizar dados locais após operação
+        await loadDeposits();
+        await loadTransactions();
       }
     },
     onError: (error: Error) => {
@@ -174,7 +217,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           description: 'Sua solicitação de saque foi registrada e está em análise',
           variant: 'default',
         });
-        await refreshAllData();
+        // Atualizar dados locais após operação
+        await loadWithdrawals();
+        await loadTransactions();
       }
     },
     onError: (error: Error) => {
@@ -209,7 +254,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           description: data.message,
           variant: 'default',
         });
-        await refreshAllData();
+        // Atualizar dados admin após operação
+        await loadAdminDepositRequests();
+        await loadAdminTransactions();
       }
     },
     onError: (error: Error) => {
@@ -234,7 +281,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           description: data.message,
           variant: 'default',
         });
-        await refreshAllData();
+        // Atualizar dados admin após operação
+        await loadAdminWithdrawalRequests();
+        await loadAdminTransactions();
       }
     },
     onError: (error: Error) => {
@@ -259,7 +308,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           description: data.message,
           variant: 'default',
         });
-        await refreshAllData();
+        // Atualizar dados admin após operação
+        await loadAdminWithdrawalRequests();
+        await loadAdminTransactions();
       }
     },
     onError: (error: Error) => {
@@ -344,15 +395,10 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  // Atualizar todos os dados
-  const refreshData = async (): Promise<void> => {
-    await refreshAllData();
-  };
-  
   return (
     <TransactionsContext.Provider
       value={{
-        // Dados
+        // Dados locais
         transactions,
         depositRequests,
         withdrawalRequests,
@@ -361,10 +407,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         adminWithdrawalRequests,
         
         // Estado de carregamento
-        isLoadingTransactions,
-        isLoadingDeposits,
-        isLoadingWithdrawals,
-        isLoadingAdmin: isLoadingAdminTransactions || isLoadingAdminDeposits || isLoadingAdminWithdrawals,
+        isLoading,
+        
+        // Funções de carregamento manual
+        loadTransactions,
+        loadDeposits,
+        loadWithdrawals,
+        loadAdminTransactions,
+        loadAdminDepositRequests,
+        loadAdminWithdrawalRequests,
         
         // Funções do usuário
         createDeposit,
@@ -375,9 +426,6 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         approveDeposit,
         approveWithdrawal,
         rejectWithdrawal,
-        
-        // Atualização
-        refreshData
       }}
     >
       {children}
