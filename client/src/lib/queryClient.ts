@@ -146,14 +146,14 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: 10000, // Revalidar a cada 10 segundos
-      refetchOnWindowFocus: true, // Revalidar quando o usuário voltar à janela
-      staleTime: 3000, // Considerar dados obsoletos após 3 segundos
-      retry: 1, // Uma tentativa adicional em caso de falha
+      refetchInterval: false, // Desabilitar refetch automático para economizar recursos
+      refetchOnWindowFocus: false, // Desabilitar refetch ao focar na janela para economizar recursos
+      staleTime: 30000, // Aumentar para 30 segundos para reduzir consultas
+      retry: 0, // Não fazer novas tentativas para economizar recursos
       gcTime: 5 * 60 * 1000 // 5 minutos de cache (era cacheTime no React Query v4)
     },
     mutations: {
-      retry: 1, // Uma tentativa adicional em caso de falha
+      retry: 0, // Não fazer novas tentativas para economizar recursos
     },
   },
 });

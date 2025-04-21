@@ -49,6 +49,19 @@ export const TransactionsContext = createContext<TransactionsContextType | null>
 export function TransactionsProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   
+  // Verificar se o usuário está autenticado para evitar requisições desnecessárias
+  const {
+    data: authUser,
+    isLoading: isLoadingAuth
+  } = useQuery({
+    queryKey: ['/api/user'],
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Não precisa recarregar automaticamente
+  });
+  
+  const isAuthenticated = !!authUser;
+  const isAdmin = isAuthenticated && (authUser as any)?.isAdmin === true;
+  
   // === HISTÓRICO DE TRANSAÇÕES DO USUÁRIO ===
   const {
     data: transactions,
@@ -56,8 +69,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchTransactions
   } = useQuery<Transaction[], Error>({
     queryKey: ['/api/transactions'],
-    staleTime: 3000, 
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto 
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
   });
   
   // === DEPÓSITOS DO USUÁRIO ===
@@ -67,8 +81,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchDeposits
   } = useQuery<DepositRequest[], Error>({
     queryKey: ['/api/deposits'],
-    staleTime: 3000,
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
   });
   
   // === SAQUES DO USUÁRIO ===
@@ -78,8 +93,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchWithdrawals
   } = useQuery<WithdrawalRequest[], Error>({
     queryKey: ['/api/withdrawals'],
-    staleTime: 3000,
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAuthenticated, // Só executa se o usuário estiver autenticado
   });
   
   // === ADMIN: HISTÓRICO DE TRANSAÇÕES ===
@@ -89,8 +105,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchAdminTransactions
   } = useQuery<Transaction[], Error>({
     queryKey: ['/api/admin/transactions'],
-    staleTime: 3000,
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAdmin, // Só executa se o usuário for admin
   });
   
   // === ADMIN: SOLICITAÇÕES DE DEPÓSITO ===
@@ -100,8 +117,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchAdminDeposits
   } = useQuery<DepositRequest[], Error>({
     queryKey: ['/api/admin/deposit-requests'],
-    staleTime: 3000,
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAdmin, // Só executa se o usuário for admin
   });
   
   // === ADMIN: SOLICITAÇÕES DE SAQUE ===
@@ -111,8 +129,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     refetch: refetchAdminWithdrawals
   } = useQuery<WithdrawalRequest[], Error>({
     queryKey: ['/api/admin/withdrawal-requests'],
-    staleTime: 3000,
-    refetchInterval: 15000,
+    staleTime: 60000, // 1 minuto
+    refetchInterval: false, // Desabilitado para economizar recursos
+    enabled: isAdmin, // Só executa se o usuário for admin
   });
 
   // === MUTAÇÕES DO USUÁRIO ===

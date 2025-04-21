@@ -1,4 +1,5 @@
 
+import { lazy, Suspense } from 'react';
 import { Route, Switch } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -6,24 +7,33 @@ import { queryClient } from '@/lib/queryClient';
 import { ProtectedRoute } from '@/lib/protected-route';
 import { AuthProvider } from '@/hooks/use-auth-new';
 import { TransactionsProvider } from '@/hooks/use-transactions';
+import { Loader2 } from 'lucide-react';
 
-// Pages
-import HomePage from '@/pages/home-page';
+// Páginas regulares - carregamento normal
 import AuthPage from '@/pages/auth-page';
-import ProductsPage from '@/pages/products-page';
-import TeamPage from '@/pages/team-page';
-import ServicePage from '@/pages/service-page';
-import UserPage from '@/pages/user-page';
+import HomePage from '@/pages/home-page';
 import NotFound from '@/pages/not-found';
 
-// Admin Pages
-import AdminDashboard from '@/pages/admin/admin-dashboard';
-import AdminUsers from '@/pages/admin/admin-users';
-import AdminProducts from '@/pages/admin/admin-products';
-import AdminSettings from '@/pages/admin/admin-settings';
-import DebugTransactions from '@/pages/admin/debug-transactions';
-// Importando a versão nova do componente de transações
-import AdminTransactions from '@/pages/admin/admin-transactions-new';
+// Páginas menos usadas - lazy loaded
+const ProductsPage = lazy(() => import('@/pages/products-page'));
+const TeamPage = lazy(() => import('@/pages/team-page'));
+const ServicePage = lazy(() => import('@/pages/service-page'));
+const UserPage = lazy(() => import('@/pages/user-page'));
+
+// Páginas Admin - todas lazy loaded para economizar recursos
+const AdminDashboard = lazy(() => import('@/pages/admin/admin-dashboard'));
+const AdminUsers = lazy(() => import('@/pages/admin/admin-users'));
+const AdminProducts = lazy(() => import('@/pages/admin/admin-products'));
+const AdminSettings = lazy(() => import('@/pages/admin/admin-settings'));
+const DebugTransactions = lazy(() => import('@/pages/admin/debug-transactions'));
+const AdminTransactions = lazy(() => import('@/pages/admin/admin-transactions-new'));
+
+// Componente de loading para páginas lazy
+const LazyLoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 export default function App() {
   return (
@@ -32,21 +42,69 @@ export default function App() {
         <TransactionsProvider>
           <Switch>
             <Route path="/auth" component={AuthPage} />
-            
             <Route path="/" component={HomePage} />
-            <Route path="/products" component={ProductsPage} />
-            <Route path="/team" component={TeamPage} />
-            <Route path="/service" component={ServicePage} />
             
-            <ProtectedRoute path="/user" component={UserPage} />
+            {/* Rotas lazy-loaded */}
+            <Route path="/products">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <ProductsPage />
+              </Suspense>
+            </Route>
+            
+            <Route path="/team">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <TeamPage />
+              </Suspense>
+            </Route>
+            
+            <Route path="/service">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <ServicePage />
+              </Suspense>
+            </Route>
+            
+            <ProtectedRoute path="/user">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <UserPage />
+              </Suspense>
+            </ProtectedRoute>
             
             {/* Rotas Admin */}
-            <ProtectedRoute path="/admin" component={AdminDashboard} />
-            <ProtectedRoute path="/admin/usuarios" component={AdminUsers} />
-            <ProtectedRoute path="/admin/produtos" component={AdminProducts} />
-            <ProtectedRoute path="/admin/transacoes" component={AdminTransactions} />
-            <ProtectedRoute path="/admin/configuracoes" component={AdminSettings} />
-            <ProtectedRoute path="/admin/debug" component={DebugTransactions} />
+            <ProtectedRoute path="/admin">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminDashboard />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/admin/usuarios">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminUsers />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/admin/produtos">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminProducts />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/admin/transacoes">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminTransactions />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/admin/configuracoes">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminSettings />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/admin/debug">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <DebugTransactions />
+              </Suspense>
+            </ProtectedRoute>
             
             <Route component={NotFound} />
           </Switch>
