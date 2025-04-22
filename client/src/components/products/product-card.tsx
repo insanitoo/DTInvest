@@ -3,7 +3,7 @@ import { CyberneticBox } from '../ui/cybernetic-box';
 import { Button } from '../ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, refreshAllData } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
