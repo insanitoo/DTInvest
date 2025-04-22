@@ -79,7 +79,7 @@ export function LevelCard({
                   <span className="text-yellow-500">Pendente</span>
                 )}
               </span>
-              <span className="text-gray-400">{formatCurrency(referral.balance || 0)}</span>
+              <span className="text-gray-400">-</span>
             </div>
           ))}
         </div>

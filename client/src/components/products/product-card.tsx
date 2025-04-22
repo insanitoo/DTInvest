@@ -20,9 +20,12 @@ export function ProductCard({ product }: ProductCardProps) {
       return await res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user/investments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      // Invalidate all relevant queries immediately
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/user/investments'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] })
+      ]);
       
       toast({
         title: 'Produto adquirido',
