@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,17 +32,16 @@ export default function DebugTransactions() {
 
       const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, requestData);
 
-      try {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await res.json();
-          console.log('Resposta da API:', data);
-          setResponse(JSON.stringify(data, null, 2));
-        } else {
-          const text = await res.text();
-          console.error('Resposta não-JSON recebida:', text);
-          throw new Error('Resposta inválida do servidor');
-        }
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        console.log('Resposta da API:', data);
+        setResponse(JSON.stringify(data, null, 2));
+      } else {
+        const text = await res.text();
+        console.error('Resposta não-JSON recebida:', text);
+        throw new Error('Resposta inválida do servidor');
+      }
 
       // Forçar atualização do cache
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
