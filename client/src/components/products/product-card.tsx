@@ -77,7 +77,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="text-base">{formatCurrency(product.totalReturn)}</p>
       </div>
       <div className="absolute top-4 right-4">
-        <span className="text-brand-red font-bold">S&P</span>
+        <span className="text-brand-red font-bold">DTI</span>
       </div>
     </CyberneticBox>
   );

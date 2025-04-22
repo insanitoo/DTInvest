@@ -1064,7 +1064,7 @@ export const storage = new MemStorage();
       },
       {
         key: "company_name",
-        value: "S&P Global"
+        value: "DTI"
       },
       {
         key: "company_address",

@@ -71,7 +71,7 @@ export function AboutSection() {
       <h2 className="text-xl font-bold mb-4">Sobre Nós</h2>
       <div className="p-4 rounded-lg bg-dark-secondary">
         <p className="text-sm text-gray-300 leading-relaxed">
-          A S&P Global é uma plataforma líder em soluções de investimento com foco em segurança e inovação. 
+          A DTI é uma plataforma líder em soluções de investimento com foco em segurança e inovação. 
           Nossa missão é proporcionar aos nossos clientes oportunidades de crescimento financeiro com 
           segurança cibernética de ponta.
         </p>

@@ -23,7 +23,7 @@ export default function HomePage() {
       <div className="pb-20">
         {/* Header */}
         <header className="p-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">S&P Global</h1>
+          <h1 className="text-2xl font-bold">DTI</h1>
           <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
             <span className="text-dark-secondary text-sm font-bold">S&P</span>
           </div>

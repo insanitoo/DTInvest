@@ -69,7 +69,7 @@ export function AdminNavigation() {
           <div className="flex items-center">
             <Link href="/admin" className="flex items-center space-x-2 font-bold text-xl">
               <div className="rounded-full bg-white w-8 h-8 flex items-center justify-center">
-                <span className="text-dark-secondary text-sm font-bold">S&P</span>
+                <span className="text-dark-secondary text-sm font-bold">DTI</span>
               </div>
               <span>Admin</span>
             </Link>
@@ -122,7 +122,7 @@ export function AdminNavigation() {
                   <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                     <div className="flex items-center space-x-2 font-bold text-xl">
                       <div className="rounded-full bg-white w-8 h-8 flex items-center justify-center">
-                        <span className="text-dark-secondary text-sm font-bold">S&P</span>
+                        <span className="text-dark-secondary text-sm font-bold">DTI</span>
                       </div>
                       <span>Admin</span>
                     </div>
@@ -142,7 +142,7 @@ export function AdminNavigation() {
                         <span className="ml-2">Voltar ao Site</span>
                       </Link>
                     </div>
-                    
+
                     <nav className="px-4 py-2">
                       {navItems.map((item) => (
                         <Link 
