@@ -363,6 +363,29 @@ export class MemStorage implements IStorage {
       console.log(`TRANSACT >>> Buscando transação por transactionId: ${id}`);
       transaction = Array.from(this.transactions.values())
         .find(t => t.transactionId === id);
+    
+      // BUSCAR TAMBÉM EM DEPOSIT REQUESTS (FIX CRÍTICO)
+      if (!transaction) {
+        console.log(`TRANSACT >>> Transação não encontrada, buscando em solicitações de depósito...`);
+        const depositRequest = await this.getDepositRequestByTransactionId(id);
+        
+        if (depositRequest) {
+          console.log(`TRANSACT >>> Encontrada solicitação de depósito com ID ${depositRequest.id}`);
+          
+          // Criar transação a partir da solicitação de depósito
+          transaction = await this.createTransaction({
+            userId: depositRequest.userId,
+            type: 'deposit',
+            amount: depositRequest.amount,
+            bankName: depositRequest.bankName,
+            receipt: depositRequest.receipt,
+            bankAccount: null,
+            transactionId: depositRequest.transactionId
+          });
+          
+          console.log(`TRANSACT >>> Transação criada a partir da solicitação de depósito: ID=${transaction.id}`);
+        }
+      }
     }
       
     if (!transaction) {
@@ -372,6 +395,13 @@ export class MemStorage implements IStorage {
         Array.from(this.transactions.entries())
           .map(([tId, t]) => ({ id: tId, transactionId: t.transactionId }))
       );
+      
+      // Exibir solicitações de depósito disponíveis
+      console.log('TRANSACT >>> Solicitações de depósito disponíveis:', 
+        Array.from(this.depositRequests.entries())
+          .map(([dId, d]) => ({ id: dId, transactionId: d.transactionId }))
+      );
+      
       throw new Error(`Transação ${id} não encontrada`);
     }
     

@@ -32,6 +32,7 @@ export async function apiRequest(
   // Para APIs especiais, adicionar headers
   if (url.startsWith('/api/admin/deposit-requests/') || 
       url.startsWith('/api/admin/withdrawal-requests/') ||
+      url.startsWith('/api/admin/transactions/') ||  // ADICIONADO: transactions também precisa desse header
       url.startsWith('/api/deposits') ||
       url.startsWith('/api/withdrawals')) {
     
