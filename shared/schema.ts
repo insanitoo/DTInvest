@@ -26,6 +26,7 @@ export const transactions = pgTable("transactions", {
   userId: integer("user_id").notNull().references(() => users.id),
   type: text("type").notNull(), // deposit, withdrawal, purchase, commission
   amount: doublePrecision("amount").notNull(),
+  status: text("status").default('pending'), // pending, processing, completed, failed
   bankAccount: text("bank_account"),
   bankName: text("bank_name"),
   receipt: text("receipt"), // Comprovante para depósitos
@@ -149,11 +150,15 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Status de saque: solicitado, aprovado, rejeitado
 export const withdrawalStatusEnum = z.enum(['requested', 'approved', 'rejected']);
 
+// Status para transações
+export const transactionStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed']);
+
 // Schema para inserir transações (histórico final)
 export const insertTransactionSchema = createInsertSchema(transactions).extend({
   userId: z.number(),
   type: z.enum(['deposit', 'withdrawal', 'commission', 'purchase']),
   amount: z.number().positive(),
+  status: transactionStatusEnum.optional().default('pending'),
   bankAccount: z.string().nullable(),
   bankName: z.string().nullable(),
   receipt: z.string().nullable(),

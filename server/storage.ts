@@ -329,17 +329,31 @@ export class MemStorage implements IStorage {
     const id = this.currentTransactionId++;
     const now = new Date();
 
+    // VERIFICAÇÃO IMPORTANTE: Checar se já existe uma transação com esse transactionId
+    // para evitar duplicações durante processamento paralelo ou repetido
+    if (transaction.transactionId) {
+      const existingTransaction = await this.getTransactionByTransactionId(transaction.transactionId);
+      if (existingTransaction) {
+        console.log(`TRANSACT >>> Transação com ID ${transaction.transactionId} já existe, retornando existente`);
+        return existingTransaction;
+      }
+    }
+
     const newTransaction: Transaction = {
       id,
       userId: transaction.userId,
       type: transaction.type,
       amount: transaction.amount,
+      status: transaction.status || 'pending',  // ADICIONADO: status default
       bankAccount: transaction.bankAccount === undefined ? null : transaction.bankAccount,
       bankName: transaction.bankName === undefined ? null : transaction.bankName,
       receipt: transaction.receipt === undefined ? null : transaction.receipt,
       transactionId: transaction.transactionId === undefined ? null : transaction.transactionId,
       createdAt: now
     };
+
+    // Log detalhado ao criar transações para facilitar depuração
+    console.log(`TRANSACT >>> Nova transação criada: ID=${id}, TransactionID=${transaction.transactionId || 'null'}, Tipo=${transaction.type}, Valor=${transaction.amount}, Status=${newTransaction.status}`);
 
     this.transactions.set(id, newTransaction);
     return newTransaction;
