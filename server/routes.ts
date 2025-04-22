@@ -573,6 +573,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(userId, { hasProduct: true });
       }
       
+      // PROCESSAMENTO DE COMISSÕES DOS REFERRALS
+      console.log(`Processando comissões de referral...`);
+      
+      // Obter informações de configuração das comissões
+      const level1CommissionSetting = await storage.getSetting('level1_commission');
+      const level2CommissionSetting = await storage.getSetting('level2_commission');
+      const level3CommissionSetting = await storage.getSetting('level3_commission');
+      
+      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
+      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
+      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+      
+      console.log(`Taxas de comissão: Nível 1: ${level1CommissionRate * 100}%, Nível 2: ${level2CommissionRate * 100}%, Nível 3: ${level3CommissionRate * 100}%`);
+      
+      // Verificar se o usuário foi indicado por alguém (nível 1)
+      if (user.referredBy) {
+        const level1Referrer = (await storage.getAllUsers()).find(u => u.referralCode === user.referredBy);
+        
+        if (level1Referrer) {
+          const level1Commission = product.price * level1CommissionRate;
+          console.log(`Comissão Nível 1: ${level1Commission} para ${level1Referrer.phoneNumber}`);
+          
+          // Criar transação de comissão
+          await storage.createTransaction({
+            userId: level1Referrer.id,
+            type: "commission",
+            amount: level1Commission,
+            bankAccount: null,
+            bankName: null,
+            receipt: null,
+            transactionId: null,
+            status: 'completed' // Concluído automaticamente
+          });
+          
+          // Atualizar o saldo do referenciador nível 1
+          await storage.updateUserBalance(level1Referrer.id, level1Referrer.balance + level1Commission);
+          
+          // Verificar nível 2 (quem indicou o referenciador nível 1)
+          if (level1Referrer.referredBy) {
+            const level2Referrer = (await storage.getAllUsers()).find(u => u.referralCode === level1Referrer.referredBy);
+            
+            if (level2Referrer) {
+              const level2Commission = product.price * level2CommissionRate;
+              console.log(`Comissão Nível 2: ${level2Commission} para ${level2Referrer.phoneNumber}`);
+              
+              // Criar transação de comissão nível 2
+              await storage.createTransaction({
+                userId: level2Referrer.id,
+                type: "commission",
+                amount: level2Commission,
+                bankAccount: null,
+                bankName: null,
+                receipt: null,
+                transactionId: null,
+                status: 'completed' // Concluído automaticamente
+              });
+              
+              // Atualizar o saldo do referenciador nível 2
+              await storage.updateUserBalance(level2Referrer.id, level2Referrer.balance + level2Commission);
+              
+              // Verificar nível 3 (quem indicou o referenciador nível 2)
+              if (level2Referrer.referredBy) {
+                const level3Referrer = (await storage.getAllUsers()).find(u => u.referralCode === level2Referrer.referredBy);
+                
+                if (level3Referrer) {
+                  const level3Commission = product.price * level3CommissionRate;
+                  console.log(`Comissão Nível 3: ${level3Commission} para ${level3Referrer.phoneNumber}`);
+                  
+                  // Criar transação de comissão nível 3
+                  await storage.createTransaction({
+                    userId: level3Referrer.id,
+                    type: "commission",
+                    amount: level3Commission,
+                    bankAccount: null,
+                    bankName: null,
+                    receipt: null,
+                    transactionId: null,
+                    status: 'completed' // Concluído automaticamente
+                  });
+                  
+                  // Atualizar o saldo do referenciador nível 3
+                  await storage.updateUserBalance(level3Referrer.id, level3Referrer.balance + level3Commission);
+                }
+              }
+            }
+          }
+        }
+      }
+      
       console.log(`===== COMPRA DE PRODUTO CONCLUÍDA COM SUCESSO =====`);
       
       // Retornar resposta com informações detalhadas

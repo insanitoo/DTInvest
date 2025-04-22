@@ -1221,7 +1221,7 @@ export const storage = new MemStorage();
       },
       {
         key: "level1_commission",
-        value: "0.1"
+        value: "0.25"
       },
       {
         key: "level2_commission",
@@ -1229,7 +1229,7 @@ export const storage = new MemStorage();
       },
       {
         key: "level3_commission",
-        value: "0.02"
+        value: "0.03"
       }
     ];
 

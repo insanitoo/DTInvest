@@ -56,7 +56,62 @@ export function setupAdminRoutes(app: Express) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
 
-      res.json(user);
+      // Buscar referrals para o admin ver (item 1 e 9 da lista)
+      const allUsers = await storage.getAllUsers();
+      
+      // Referrals nível 1
+      const level1Referrals = allUsers.filter(u => u.referredBy === user.referralCode)
+        .map(u => ({
+          id: u.id,
+          phoneNumber: u.phoneNumber,
+          hasProduct: u.hasProduct,
+          balance: u.balance,
+        }));
+
+      // Referrals nível 2
+      const level2ReferralCodes = level1Referrals.map(r => 
+        allUsers.find(u => u.id === r.id)?.referralCode
+      ).filter(Boolean);
+      
+      const level2Referrals = allUsers.filter(u => 
+        u.referredBy && level2ReferralCodes.includes(u.referredBy)
+      ).map(u => ({
+        id: u.id,
+        phoneNumber: u.phoneNumber,
+        hasProduct: u.hasProduct,
+        balance: u.balance,
+      }));
+
+      // Referrals nível 3
+      const level3ReferralCodes = level2Referrals.map(r => 
+        allUsers.find(u => u.id === r.id)?.referralCode
+      ).filter(Boolean);
+      
+      const level3Referrals = allUsers.filter(u => 
+        u.referredBy && level3ReferralCodes.includes(u.referredBy)
+      ).map(u => ({
+        id: u.id,
+        phoneNumber: u.phoneNumber,
+        hasProduct: u.hasProduct,
+        balance: u.balance,
+      }));
+      
+      // Adicionar contagem de referrals ao usuário
+      const userWithReferrals = {
+        ...user,
+        referrals: {
+          level1: level1Referrals,
+          level2: level2Referrals,
+          level3: level3Referrals,
+          counts: {
+            level1: level1Referrals.length,
+            level2: level2Referrals.length, 
+            level3: level3Referrals.length
+          }
+        }
+      };
+      
+      res.json(userWithReferrals);
     } catch (error) {
       res.status(500).json({ message: "Erro ao obter usuário" });
     }
