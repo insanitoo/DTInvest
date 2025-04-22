@@ -64,7 +64,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
     refetchInterval: 60 * 1000, // 1 minuto entre refreshes
     refetchOnWindowFocus: false, // Desabilitar refresh ao focar janela
   });
-  
+
   // Separamos o handling de erro para evitar problemas com o LSP
   useEffect(() => {
     if (error && error.message && error.message.includes('401')) {
@@ -85,7 +85,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       setLocalUser(user);
     }
   }, [user]);
-  
+
   // Adicionar um listener simplificado para atualização de transações
   useEffect(() => {
     // Função para recarregar dados do usuário quando transações são atualizadas
@@ -93,10 +93,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Evento de transação detectado, atualizando dados do usuário...');
       refetchUser();
     };
-    
+
     // Adicionar evento global customizado
     window.addEventListener('transaction-updated', handleTransactionUpdated);
-    
+
     // Limpar o listener quando o componente for desmontado
     return () => {
       window.removeEventListener('transaction-updated', handleTransactionUpdated);
