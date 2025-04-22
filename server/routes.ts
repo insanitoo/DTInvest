@@ -949,8 +949,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = req.user.id;
 
     try {
-      if (!amount || amount < 2000) {
-        return res.status(400).json({ message: "Valor mínimo para saque é KZ 2000" });
+      // Verificar valor mínimo e máximo
+      if (!amount || amount < 1400) {
+        return res.status(400).json({ message: "Valor mínimo para saque é KZ 1400" });
+      }
+      
+      if (amount > 50000) {
+        return res.status(400).json({ message: "Valor máximo para saque é KZ 50000" });
+      }
+
+      // Verificar horário de funcionamento (10h às 20h em Angola)
+      const now = new Date();
+      const hour = now.getUTCHours() + 1; // UTC+1 para Angola
+      if (hour < 10 || hour >= 20) {
+        return res.status(400).json({ 
+          message: "Saques estão disponíveis apenas das 10h às 20h (horário de Angola)" 
+        });
       }
 
       // Check user balance
@@ -963,13 +977,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Saldo insuficiente" });
       }
 
-      // Check if user has products
-      if (!user.hasProduct) {
+      // Check if user has products (VERIFICAÇÃO CRÍTICA)
+      const purchases = await storage.getUserPurchases(userId);
+      const hasProduct = purchases && purchases.length > 0;
+      
+      if (!hasProduct) {
         return res.status(400).json({ message: "É necessário comprar um produto antes de fazer saques" });
       }
 
-      // Check if user has deposited before
-      if (!user.hasDeposited) {
+      // Check if user has deposited before (VERIFICAÇÃO CRÍTICA)
+      const transactions = await storage.getTransactions(userId);
+      const hasDeposit = transactions.some(t => 
+        t.type === 'deposit' && t.status === 'completed');
+      
+      if (!hasDeposit) {
         return res.status(400).json({ message: "É necessário fazer um depósito antes de fazer saques" });
       }
 
@@ -978,6 +999,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!bankInfo) {
         return res.status(400).json({ message: "Configure suas informações bancárias antes de fazer saques" });
       }
+
+      // Create withdrawal request
+      const withdrawalRequest = await storage.createWithdrawalRequest({
+        userId,
+        amount,
+        bankName: bankInfo.bank,
+        bankAccount: bankInfo.accountNumber,
+        status: 'pending'
+      });
 
       // Create withdrawal transaction
       const transaction = await storage.createTransaction({
@@ -991,7 +1021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending' // Saques começam como pendentes e precisam de aprovação do admin
       });
 
-      // Update user balance
+      // Update user balance (temporariamente descontamos o valor)
       const newBalance = user.balance - amount;
       await storage.updateUserBalance(userId, newBalance);
 
@@ -1035,6 +1065,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         return res.status(201).json(bankInfo);
       }
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/user/bank", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+
+    try {
+      const bankInfo = await storage.getBankInfoByUserId(req.user.id);
+      if (!bankInfo) {
+        return res.status(404).json({ message: "Informações bancárias não encontradas" });
+      }
+      res.status(200).json(bankInfo);
     } catch (error) {
       next(error);
     }
