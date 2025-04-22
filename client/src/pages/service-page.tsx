@@ -44,11 +44,11 @@ export default function ServicePage() {
 
             <Button 
               variant="default" 
-              className="w-full py-6 flex items-center justify-center space-x-2 cyber-element bg-green-600 text-white"
+              className="w-full py-6 flex items-center justify-center space-x-2 cyber-element bg-blue-600 text-white"
               onClick={() => window.open("#", "_blank")}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
-              <span>Grupo WhatsApp</span>
+              <span>Canal Telegram</span>
             </Button>
           </div>
         </CyberneticBox>
@@ -57,9 +57,8 @@ export default function ServicePage() {
           <CyberneticBox className="p-4">
             <h2 className="text-xl font-bold mb-2">Horário de Atendimento</h2>
             <p className="text-sm text-gray-300 mb-4">
-              Segunda a Sexta: 09:00 - 18:00<br />
-              Sábado: 09:00 - 13:00<br />
-              Domingo: Fechado
+              Segunda à Segunda: 10:00 - 15:00<br />
+              (Todos os dias da semana)
             </p>
 
             <div className="bg-dark-tertiary p-3 rounded-md border-l-4 border-primary">
