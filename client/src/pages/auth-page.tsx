@@ -37,6 +37,13 @@ export default function AuthPage() {
     return tabParam === 'register' || referralCode ? 'register' : 'login';
   });
 
+  // Prevenir login automático quando houver código de convite
+  useEffect(() => {
+    if (referralCode) {
+      localStorage.removeItem('sp_global_auth_user');
+    }
+  }, [referralCode]);
+
   useEffect(() => {
     if (referralCode && activeTab === 'register') {
       registerForm.setValue('referralCode', referralCode);
