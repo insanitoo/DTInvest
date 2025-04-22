@@ -149,8 +149,22 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-dark-primary text-white">
       <div className="container mx-auto px-4 py-8 max-w-md">
-        {/* Session Status */}
-        <div className="mb-6 rounded-md bg-dark-tertiary p-3 cyber-element">
+        {/* Logo no topo direito */}
+        <div className="absolute top-4 right-4">
+          <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
+            <span className="text-dark-secondary text-sm font-bold">DTI</span>
+          </div>
+        </div>
+        
+        {/* Logo central acima dos formulários */}
+        <div className="flex justify-center mb-8">
+          <div className="rounded-full bg-white w-16 h-16 flex items-center justify-center">
+            <span className="text-dark-secondary text-lg font-bold">DTI</span>
+          </div>
+        </div>
+        
+        {/* Session Status - invisível mas mantido para funcionalidade */}
+        <div className="hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div 
@@ -415,8 +429,8 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Debug Panel */}
-        <div className="mt-8 bg-dark-secondary rounded-lg p-4 cyber-element">
+        {/* Debug Panel - Hidden */}
+        <div className="hidden">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-gray-400">Debug: Autenticação</h3>
             <button
