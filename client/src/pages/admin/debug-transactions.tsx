@@ -31,15 +31,8 @@ export default function DebugTransactions() {
 
       const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, requestData);
 
-      let data;
-      try {
-        const responseText = await res.text();
-        data = responseText ? JSON.parse(responseText) : { success: true, message: "Valor creditado com sucesso" };
-      } catch (parseError) {
-        console.error('Erro ao processar resposta:', parseError);
-        throw new Error(`Erro ao processar resposta: ${res.status} ${res.statusText}`);
-      }
-
+      const data = await res.json();
+      console.log('Resposta da API:', data);
       setResponse(JSON.stringify(data, null, 2));
 
       // Forçar atualização do cache
