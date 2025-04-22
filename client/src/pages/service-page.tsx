@@ -11,7 +11,7 @@ export default function ServicePage() {
       <header className="p-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Serviço</h1>
         <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
-          <span className="text-dark-secondary text-sm font-bold">DTI</span>
+          <span className="text-dark-secondary text-sm font-bold"></span>
         </div>
       </header>
 
@@ -57,7 +57,7 @@ export default function ServicePage() {
           <CyberneticBox className="p-4">
             <h2 className="text-xl font-bold mb-2">Horário de Atendimento</h2>
             <p className="text-sm text-gray-300 mb-4">
-              Segunda à Segunda: 10:00 - 15:00<br />
+              Segunda à Segunda: 10:00 - 20:00<br />
               (Todos os dias da semana)
             </p>
 

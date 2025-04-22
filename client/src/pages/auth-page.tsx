@@ -149,17 +149,10 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-dark-primary text-white">
       <div className="container mx-auto px-4 py-8 max-w-md">
-        {/* Logo no topo direito */}
-        <div className="absolute top-4 right-4">
-          <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
-            <span className="text-dark-secondary text-sm font-bold">DTI</span>
-          </div>
-        </div>
-        
         {/* Logo central acima dos formulários */}
         <div className="flex justify-center mb-8">
-          <div className="rounded-full bg-white w-16 h-16 flex items-center justify-center">
-            <span className="text-dark-secondary text-lg font-bold">DTI</span>
+          <div className="rounded-full bg-white w-20 h-20 flex items-center justify-center">
+            <span className="text-dark-secondary text-xl font-bold">DTI</span>
           </div>
         </div>
         
