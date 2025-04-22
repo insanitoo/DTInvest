@@ -90,6 +90,7 @@ export function setupAdminRoutes(app: Express) {
       console.log('Buscando todas as transações para admin...');
       const transactions = await storage.getAllTransactions();
       console.log(`Total de transações encontradas: ${transactions.length}`);
+      console.log('IDs das transações disponíveis:', transactions.map(t => t.id));
       console.log('Transações:', transactions);
       res.json(transactions);
     } catch (error) {

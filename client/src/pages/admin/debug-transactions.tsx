@@ -77,8 +77,9 @@ export default function DebugTransactions() {
     setIsLoading(true);
     try {
       // Validar ID da transação
-      if (!transactionId || isNaN(Number(transactionId))) {
-        throw new Error('ID da transação inválido');
+      const id = Number(transactionId);
+      if (!transactionId || isNaN(id) || id <= 0) {
+        throw new Error('ID da transação inválido. Digite um número positivo.');
       }
 
       // Verificar se o status é válido antes de enviar
