@@ -1793,156 +1793,207 @@ export const storage = new DatabaseStorage();
 // Initialize with test data
 (async () => {
   try {
-    // Create test user with phone number 999999999
-    const testUser = await storage.createUser({
-      phoneNumber: "999999999",
-      password: "protótipo", // Plain password, will be handled by auth.ts
-      referralCode: "AA1234",
-      referredBy: null,
-      isAdmin: true
-    });
-
-    // Definir um saldo inicial para teste (não passar pelo createUser para focar no problema real)
-    const updatedUser = await storage.updateUserBalance(testUser.id, 50000);
-    console.log(`Usuário de teste criado com saldo inicial de KZ ${updatedUser.balance}`);
-
-    console.log("Test user created:", testUser.phoneNumber);
-
-    // Criar produtos de teste
-    const testProducts = [
-      {
-        name: "Produto Premium",
-        description: "Produto com alto retorno para investidores experientes",
-        price: 5000,
-        returnRate: 3.0,
-        cycleDays: 30,
-        dailyIncome: 500,
-        totalReturn: 15000,
-        active: true
-      },
-      {
-        name: "Produto Básico",
-        description: "Produto para iniciantes com retorno moderado",
-        price: 2000,
-        returnRate: 2.0,
-        cycleDays: 30,
-        dailyIncome: 133,
-        totalReturn: 4000,
-        active: true
-      },
-      {
-        name: "Produto VIP",
-        description: "Produto exclusivo com alto retorno garantido",
-        price: 10000,
-        returnRate: 3.5,
-        cycleDays: 30,
-        dailyIncome: 1167,
-        totalReturn: 35000,
-        active: true
-      }
-    ];
-
-    for (const productData of testProducts) {
-      await storage.createProduct(productData);
+    // Check if test user already exists
+    let testUser = await storage.getUserByPhoneNumber("999999999");
+    
+    if (!testUser) {
+      // Create test user with phone number 999999999 if doesn't exist
+      testUser = await storage.createUser({
+        phoneNumber: "999999999",
+        password: "protótipo", // Plain password, will be handled by auth.ts
+        referralCode: "AA1234",
+        referredBy: null,
+        isAdmin: true
+      });
+      
+      // Definir um saldo inicial para teste
+      await storage.updateUserBalance(testUser.id, 50000);
+      console.log(`Usuário de teste criado com saldo inicial de KZ 50000`);
+      console.log("Test user created:", testUser.phoneNumber);
+    } else {
+      console.log("Usuário de teste já existe, pulando criação");
     }
 
-    console.log("Produtos de teste criados");
+    // Verificar se já existem produtos
+    const existingProducts = await storage.getProducts();
+    
+    // Só criar produtos se não existir nenhum
+    if (existingProducts.length === 0) {
+      // Criar produtos de teste
+      const testProducts = [
+        {
+          name: "Produto Premium",
+          description: "Produto com alto retorno para investidores experientes",
+          price: 5000,
+          returnRate: 3.0,
+          cycleDays: 30,
+          dailyIncome: 500,
+          totalReturn: 15000,
+          active: true
+        },
+        {
+          name: "Produto Básico",
+          description: "Produto para iniciantes com retorno moderado",
+          price: 2000,
+          returnRate: 2.0,
+          cycleDays: 30,
+          dailyIncome: 133,
+          totalReturn: 4000,
+          active: true
+        },
+        {
+          name: "Produto VIP",
+          description: "Produto exclusivo com alto retorno garantido",
+          price: 10000,
+          returnRate: 3.5,
+          cycleDays: 30,
+          dailyIncome: 1167,
+          totalReturn: 35000,
+          active: true
+        }
+      ];
 
-    // Criar links sociais padrão
-    const socialLinksData = [
-      {
-        name: "WhatsApp",
-        url: "https://wa.me/00000000000",
-        icon: "FaWhatsapp",
-        active: true
-      },
-      {
-        name: "Telegram",
-        url: "https://t.me/example",
-        icon: "FaTelegram",
-        active: true
-      },
-      {
-        name: "Instagram",
-        url: "https://instagram.com/example",
-        icon: "FaInstagram",
-        active: true
+      for (const productData of testProducts) {
+        await storage.createProduct(productData);
       }
-    ];
 
-    for (const linkData of socialLinksData) {
-      await storage.createSocialLink(linkData);
+      console.log("Produtos de teste criados");
+    } else {
+      console.log("Produtos já existem, pulando criação");
     }
 
-    console.log("Links sociais criados");
+    // Verificar se já existem links sociais
+    const existingLinks = await storage.getSocialLinks();
+    
+    if (existingLinks.length === 0) {
+      // Criar links sociais padrão
+      const socialLinksData = [
+        {
+          name: "WhatsApp",
+          url: "https://wa.me/00000000000",
+          icon: "FaWhatsapp",
+          active: true
+        },
+        {
+          name: "Telegram",
+          url: "https://t.me/example",
+          icon: "FaTelegram",
+          active: true
+        },
+        {
+          name: "Instagram",
+          url: "https://instagram.com/example",
+          icon: "FaInstagram",
+          active: true
+        }
+      ];
 
-    // Criar bancos padrão
-    const banksData = [
-      {
-        name: "Banco Angolano de Investimentos (BAI)",
-        logo: "bank-bai.png",
-        active: true
-      },
-      {
-        name: "Banco de Fomento Angola (BFA)",
-        logo: "bank-bfa.png",
-        active: true
-      },
-      {
-        name: "Banco Económico (BE)",
-        logo: "bank-be.png",
-        active: true
-      },
-      {
-        name: "Banco Millennium Atlântico (BMA)",
-        logo: "bank-bma.png",
-        active: true
+      for (const linkData of socialLinksData) {
+        await storage.createSocialLink(linkData);
       }
-    ];
 
-    for (const bankData of banksData) {
-      await storage.createBank(bankData);
+      console.log("Links sociais criados");
+    } else {
+      console.log("Links sociais já existem, pulando criação");
     }
 
-    console.log("Bancos padrão criados");
+    // Verificar se já existem bancos
+    const existingBanks = await storage.getAllBanks();
+    
+    if (existingBanks.length === 0) {
+      // Criar bancos padrão
+      const banksData = [
+        {
+          name: "Banco Angolano de Investimentos (BAI)",
+          logo: "bank-bai.png",
+          active: true
+        },
+        {
+          name: "Banco de Fomento Angola (BFA)",
+          logo: "bank-bfa.png",
+          active: true
+        },
+        {
+          name: "Banco Económico (BE)",
+          logo: "bank-be.png",
+          active: true
+        },
+        {
+          name: "Banco Millennium Atlântico (BMA)",
+          logo: "bank-bma.png",
+          active: true
+        }
+      ];
 
-    // Criar configurações iniciais
-    const settingsData = [
-      {
-        key: "deposit_min",
-        value: "1000"
-      },
-      {
-        key: "withdrawal_min",
-        value: "2000"
-      },
-      {
-        key: "company_name",
-        value: "DTI"
-      },
-      {
-        key: "company_address",
-        value: "Luanda, Angola"
-      },
-      {
-        key: "level1_commission",
-        value: "0.25"
-      },
-      {
-        key: "level2_commission",
-        value: "0.05"
-      },
-      {
-        key: "level3_commission",
-        value: "0.03"
+      for (const bankData of banksData) {
+        await storage.createBank(bankData);
       }
-    ];
 
-    for (const settingData of settingsData) {
-      await storage.createSetting(settingData);
+      console.log("Bancos padrão criados");
+    } else {
+      console.log("Bancos já existem, pulando criação");
     }
 
-    console.log("Configurações iniciais criadas");
+    // Verificar se já existem configurações
+    const existingSettings = await storage.getAllSettings();
+    
+    if (existingSettings.length === 0) {
+      // Criar configurações iniciais
+      const settingsData = [
+        {
+          key: "deposit_min",
+          value: "1000"
+        },
+        {
+          key: "withdrawal_min",
+          value: "1400" // Atualizando para 1400 conforme solicitado
+        },
+        {
+          key: "withdrawal_max",
+          value: "50000" // Adicionando limite máximo de 50000
+        },
+        {
+          key: "company_name",
+          value: "S&P Global" // Atualizando nome da empresa
+        },
+        {
+          key: "company_address",
+          value: "Luanda, Angola"
+        },
+        {
+          key: "level1_commission",
+          value: "0.25"
+        },
+        {
+          key: "level2_commission",
+          value: "0.05"
+        },
+        {
+          key: "level3_commission",
+          value: "0.03"
+        },
+        {
+          key: "service_hours_start",
+          value: "10" // Horário de início (10h)
+        },
+        {
+          key: "service_hours_end",
+          value: "20" // Horário de término (20h)
+        },
+        {
+          key: "withdrawal_rejection_penalty",
+          value: "0.20" // Penalidade de 20% para saques rejeitados
+        }
+      ];
+
+      for (const settingData of settingsData) {
+        await storage.createSetting(settingData);
+      }
+
+      console.log("Configurações iniciais criadas");
+    } else {
+      console.log("Configurações já existem, pulando criação");
+    }
 
   } catch (error) {
     console.error("Erro ao inicializar dados de teste:", error);
