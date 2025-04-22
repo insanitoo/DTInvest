@@ -402,6 +402,18 @@ export class MemStorage implements IStorage {
           .map(([dId, d]) => ({ id: dId, transactionId: d.transactionId }))
       );
       
+      // ÚLTIMA TENTATIVA - TENTAR APROVAR DIRETAMENTE PELO DEPÓSITO (FIX CRUCIAL)
+      if (typeof id === 'string') {
+        console.log(`TRANSACT >>> ÚLTIMA TENTATIVA: Buscando e aprovando depósito pelo transactionId ${id}`);
+        const depositRequest = Array.from(this.depositRequests.values())
+          .find(d => d.transactionId === id);
+          
+        if (depositRequest && status === 'completed') {
+          console.log(`TRANSACT >>> Encontrado depósito pendente com ID ${depositRequest.id}, aprovando diretamente...`);
+          return this.approveDepositRequest(depositRequest.id);
+        }
+      }
+      
       throw new Error(`Transação ${id} não encontrada`);
     }
     
@@ -488,16 +500,55 @@ export class MemStorage implements IStorage {
     
     console.log(`\n=== DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
     console.log(`DEPOSIT >>> Usuário: ${user.phoneNumber}, Valor: ${depositRequest.amount} KZ`);
+    console.log(`DEPOSIT >>> Saldo antes: ${user.balance}`);
     
     try {
+      // VERIFICAÇÃO IMPORTANTE: Checar se já existe uma transação com esse transactionId
+      let existingTransaction = null;
+      if (depositRequest.transactionId) {
+        existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
+      }
+      
+      // Se já existe uma transação, atualizar o saldo apenas uma vez
+      if (existingTransaction) {
+        console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
+        console.log(`DEPOSIT >>> Evitando duplicação de crédito`);
+        
+        // Remover a solicitação de depósito pendente para evitar reprocessamento
+        this.depositRequests.delete(id);
+        
+        return existingTransaction;
+      }
+    
+      // DIAGNÓSTICO: Obter saldo do usuário mais recente
+      const userBefore = await this.getUser(depositRequest.userId);
+      const oldBalance = userBefore ? userBefore.balance : user.balance;
+      
       // Atualizar saldo do usuário
-      const newBalance = user.balance + depositRequest.amount;
+      const newBalance = oldBalance + depositRequest.amount;
       await this.updateUserBalance(depositRequest.userId, newBalance);
       
+      // Verificar se a atualização do saldo foi bem-sucedida
+      const userAfter = await this.getUser(depositRequest.userId);
+      if (!userAfter) {
+        throw new Error(`Usuário ${depositRequest.userId} não encontrado após atualização`);
+      }
+      
+      console.log(`DEPOSIT >>> Saldo após a operação: ${userAfter.balance}`);
+      
+      if (Math.abs(userAfter.balance - newBalance) > 0.01) {
+        console.error(`DEPOSIT >>> ERRO CRÍTICO: Saldo não foi atualizado corretamente!`);
+        console.error(`DEPOSIT >>> Saldo esperado: ${newBalance}, Saldo atual: ${userAfter.balance}`);
+        
+        // Tentar novamente com força bruta
+        console.log(`DEPOSIT >>> Tentando atualizar novamente o saldo...`);
+        await this.updateUserBalance(userAfter.id, newBalance);
+      }
+      
       // Marcar que o usuário já realizou depósito
-      if (!user.hasDeposited) {
+      if (!userAfter.hasDeposited) {
         console.log(`DEPOSIT >>> Marcando usuário como tendo realizado depósito`);
-        await this.updateUser(user.id, { hasDeposited: true });
+        await this.updateUser(userAfter.id, { hasDeposited: true });
       }
       
       // Registrar uma transação completada no histórico
@@ -508,11 +559,16 @@ export class MemStorage implements IStorage {
         bankName: depositRequest.bankName,
         receipt: depositRequest.receipt,
         bankAccount: null,
-        transactionId: depositRequest.transactionId
+        transactionId: depositRequest.transactionId,
+        status: 'completed'  // Marcar como completada imediatamente
       });
       
       // Remover a solicitação de depósito pendente
       this.depositRequests.delete(id);
+      
+      // Verificação final do saldo
+      const finalUser = await this.getUser(depositRequest.userId);
+      console.log(`DEPOSIT >>> Verificação final - Saldo: ${finalUser?.balance || 'usuário não encontrado'}`);
       
       console.log(`DEPOSIT >>> Depósito processado com sucesso`);
       console.log(`DEPOSIT >>> Transação registrada: ID=${transaction.id}`);
