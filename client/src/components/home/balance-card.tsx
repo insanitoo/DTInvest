@@ -12,9 +12,38 @@ export function BalanceCard({
   onWithdrawClick: () => void 
 }) {
   const { user, isLoading } = useAuth();
+  const [dailyReturn, setDailyReturn] = useState(0);
 
-  // Valor fixo para rendimento diário (50% do saldo) - apenas para demonstração
-  const dailyReturn = user ? user.balance * 0.5 : 0;
+  useEffect(() => {
+    // Buscar as transações do tipo 'income' e 'commission' do dia atual
+    const fetchDailyIncome = async () => {
+      try {
+        const response = await fetch('/api/transactions');
+        const transactions = await response.json();
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todayIncome = transactions
+          .filter(tx => {
+            const txDate = new Date(tx.createdAt);
+            txDate.setHours(0, 0, 0, 0);
+            return txDate.getTime() === today.getTime() && 
+                   (tx.type === 'income' || tx.type === 'commission');
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
+          
+        setDailyReturn(todayIncome);
+      } catch (error) {
+        console.error('Erro ao buscar rendimento diário:', error);
+        setDailyReturn(0);
+      }
+    };
+
+    if (user) {
+      fetchDailyIncome();
+    }
+  }, [user]);
 
   return (
     <div className="px-4 mb-2">
