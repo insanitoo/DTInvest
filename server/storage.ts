@@ -698,7 +698,8 @@ export class MemStorage implements IStorage {
         bankAccount: withdrawalRequest.bankAccount,
         bankName: withdrawalRequest.bankName,
         receipt: null,
-        transactionId: null
+        transactionId: null,
+        status: 'completed' // Definir como completado imediatamente
       });
       
       console.log(`WITHDRAWAL >>> Saque aprovado com sucesso`);
@@ -762,7 +763,8 @@ export class MemStorage implements IStorage {
         bankAccount: withdrawalRequest.bankAccount,
         bankName: withdrawalRequest.bankName,
         receipt: null,
-        transactionId: null
+        transactionId: null,
+        status: 'failed' // Definir como falhou mas com cor verde (devolução)
       });
       
       console.log(`WITHDRAWAL >>> Saque rejeitado com sucesso`);

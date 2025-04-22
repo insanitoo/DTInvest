@@ -1,0 +1,23 @@
+1- referral não aparece para o admin
+2- página de gerenciar usuários poderia ter um buscador de usuários para facilitar
+3- os valores em rendimento diário são estranhos, não sei se onde tiras, rendimento diário deve aprensentar a renda do produto ou dos produtos que o usuário tiver, e comissões que ele ganhou durante o dia e as 0h de cada dia deve ser zerado.
+4- comprei produtos, mas eles não adicionaram a renda diária no meu saldo! após comprar o produto deve-se receber a primeira renda diária descontando já 1 dia no ciclo de tempo, as outras renda diárias devem ser creditadas uma por uma todas 0h de angola diminuindo 1 dia no ciclo de tempo (não é para enviar todas rendas de cada vez, por exemplo se o produto faz 7 dias, e a renda são 200kzs, quando eu comprar receberei os primeiros 200kzs e ficarei com 6 dias, e as 0h receberei mais 200kz e ficarei com 5 dias e assim sucessivamente e isso não é para você criar um produto de 7 dias, esse é o comportamento que qualquer produto que eu crie pelo painel administrativo deve ter com base na sua renda, ciclo de tempo)
+5- o app logo que clicas no link entra na página início e só vai para a página de login quando clica-se na página usuário, o link deve redirecionar pra página de login qualquer dispositivo que não tenha um login ativo, por exemplo se eu comprar um domínio e ficar dti.com, quem clica nele e não tem uma conta logada, não pode entrar à página início, tem que ser redirecionado à página login, quem tem uma conta mas fez logou também tem que ser redirecionado para a página de login independentemente de qual link tenha clicado/produtos /equipa /user entre outros.
+6- tire o “debug” que aparece na página de login, adicione aquela bolinha branca escrita DTI no centro, por cima do campo de preenchimento e a mesma bolinha no canto superior direito com o mesmo tamanho que as bolinhas que tem dentro do site na página de cadastro, também tire o debug autenticação que tem na página de cadastro, se abos de bugs forem importantes apenas torne-os invisíveis.
+7- após comprar um produto a transação vem pendente em amarelo, deveria vir concluído em vermelho para sinalizar a dedução.
+8- na página serviço, o botão grupo whatsapp mude para “Canal Telegram”, horário de atendimento (das 10h às 10h de segunda à segunda)
+9- os referrals dos usuários não aparecem para o admin.
+10- as percentagens das comissões não estão corretas, são 25% LVL1, 5% LVL2, 3% LVL3, mas quando comprei um produto de 10.000kzs no LVL1 a comissão foi de 2.000 ao invés de 2.000
+11- nas transações, a comissão do usuário vem “compra” estado pendente e laranja, deve vir “Comissão” estado Conluido e cor verde.
+12- ao clicar em usuário temos opção perfil, transações e banco, na opção banco o usuário tem que adicionar as informações e após salvar eles devem estar guardadas neste mesmo sítio, os campos não podem voltar a estar vazios a não ser que ele apague e salve um novo banco.
+12- quando o usuário salva um banco, o banco de dados tem que apresentar no painel admin no respectivo usuário 
+13- este é um dos pontos mais críticos que merece muita atenção para que não fiquemos semanas tentando resolver tal como foi com os depósitos! os saques não estão funcionando corretamente, mesmo após comprar um produto e fazer depósito ainda não consigo solicitar saque dizendo que devo fazer um depósito primeiro, ou que devo comprar um produto primeiro.
+14- funcionamento dos saques, tenha atenção para acertar de primeira: após solicitar os saques o painel admin deve receber na página de transação, os saques só podem ser rejeitados ou aceites, se aceites mudam o estado da transação para concluído com a cor verde, se rejeitados os valores voltam à conta do usuário com desconto de 20%, estado falhou mas com a cor verde, por ter creditado o valor.
+15- elimine os “DTI” que ficam nos produtos.
+16- os bancos que estão aí são fictícios, brevemente darei os dados bancários corretos para que substituas.
+
+pode voltar a usar e implementar o postgresql
+ 
+após isso certifique-se que tudo está em conformes, tanto o que citei como o que não citei.
+
+força!

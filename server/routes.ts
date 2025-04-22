@@ -562,7 +562,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankAccount: null,
         bankName: null,
         receipt: null,
-        transactionId: null
+        transactionId: null,
+        status: 'completed' // Definir como completado em vez de pendente (item 7 da lista)
       });
       console.log(`Transação registrada com sucesso: ID=${transaction.id}`);
       
