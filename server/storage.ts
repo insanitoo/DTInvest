@@ -5,10 +5,15 @@ import {
   Bank, InsertBank, Setting, InsertSetting,
   CarouselImage, InsertCarouselImage,
   DepositRequest, InsertDepositRequest,
-  WithdrawalRequest, InsertWithdrawalRequest
+  WithdrawalRequest, InsertWithdrawalRequest,
+  users, bankInfo, transactions, depositRequests, withdrawalRequests,
+  products, purchases, socialLinks, banks, settings, carouselImages
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { db, pool } from "./db";
+import { eq, desc, and, isNull, or, not } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -1083,7 +1088,707 @@ export class MemStorage implements IStorage {
 }
 
 // Export storage instance
-export const storage = new MemStorage();
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    const PostgresSessionStore = connectPg(session);
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    
+    if (user) {
+      // Carregar informações bancárias se existirem
+      const bankInfoData = await this.getBankInfoByUserId(user.id);
+      if (bankInfoData) {
+        return { ...user, bankInfo: bankInfoData };
+      }
+    }
+    
+    return user;
+  }
+
+  async getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.phoneNumber, phoneNumber));
+
+    return user;
+  }
+
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.referralCode, referralCode));
+
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+
+    return user;
+  }
+
+  async updateUserBalance(userId: number, newBalance: number): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        balance: newBalance,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    return updatedUser;
+  }
+
+  async updateUser(userId: number, updates: Partial<User>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        ...updates,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    return updatedUser;
+  }
+
+  // Bank info methods
+  async getBankInfoByUserId(userId: number): Promise<BankInfo | undefined> {
+    const [info] = await db
+      .select({
+        bank: bankInfo.bank,
+        ownerName: bankInfo.ownerName,
+        accountNumber: bankInfo.accountNumber
+      })
+      .from(bankInfo)
+      .where(eq(bankInfo.userId, userId));
+
+    return info;
+  }
+
+  async createBankInfo(userId: number, info: InsertBankInfo): Promise<BankInfo> {
+    // Primeiro verifica se já existe uma informação bancária para este usuário
+    const existing = await this.getBankInfoByUserId(userId);
+    
+    if (existing) {
+      // Se existir, atualiza ao invés de criar
+      return this.updateBankInfo(userId, info);
+    }
+    
+    const [createdInfo] = await db
+      .insert(bankInfo)
+      .values({
+        userId,
+        bank: info.bank,
+        ownerName: info.ownerName,
+        accountNumber: info.accountNumber
+      })
+      .returning({
+        bank: bankInfo.bank,
+        ownerName: bankInfo.ownerName,
+        accountNumber: bankInfo.accountNumber
+      });
+
+    return createdInfo;
+  }
+
+  async updateBankInfo(userId: number, info: InsertBankInfo): Promise<BankInfo> {
+    const [updatedInfo] = await db
+      .update(bankInfo)
+      .set({
+        bank: info.bank,
+        ownerName: info.ownerName,
+        accountNumber: info.accountNumber,
+        updatedAt: new Date()
+      })
+      .where(eq(bankInfo.userId, userId))
+      .returning({
+        bank: bankInfo.bank,
+        ownerName: bankInfo.ownerName,
+        accountNumber: bankInfo.accountNumber
+      });
+
+    if (!updatedInfo) {
+      // Se não existir um registro para atualizar, cria um novo
+      return this.createBankInfo(userId, info);
+    }
+
+    return updatedInfo;
+  }
+
+  async deleteBankInfo(userId: number): Promise<void> {
+    await db
+      .delete(bankInfo)
+      .where(eq(bankInfo.userId, userId));
+  }
+
+  // Transaction methods
+  async getTransactions(userId: number): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id));
+
+    return transaction;
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [newTransaction] = await db
+      .insert(transactions)
+      .values(transaction)
+      .returning();
+
+    return newTransaction;
+  }
+
+  async updateTransactionStatus(id: string | number, status: string): Promise<Transaction> {
+    let query;
+    if (typeof id === 'string') {
+      // Se o ID for uma string, assume que é um transactionId
+      query = eq(transactions.transactionId, id);
+    } else {
+      // Se o ID for um número, assume que é o ID primário
+      query = eq(transactions.id, id);
+    }
+
+    const [updatedTransaction] = await db
+      .update(transactions)
+      .set({ status })
+      .where(query)
+      .returning();
+
+    if (!updatedTransaction) {
+      throw new Error('Transação não encontrada');
+    }
+
+    return updatedTransaction;
+  }
+
+  // Deposit request methods
+  async createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest> {
+    const [newRequest] = await db
+      .insert(depositRequests)
+      .values(request)
+      .returning();
+
+    return newRequest;
+  }
+
+  async getDepositRequests(): Promise<DepositRequest[]> {
+    return await db
+      .select()
+      .from(depositRequests)
+      .orderBy(desc(depositRequests.createdAt));
+  }
+
+  async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(depositRequests)
+      .where(eq(depositRequests.transactionId, transactionId));
+
+    return request;
+  }
+
+  async approveDepositRequest(id: number): Promise<Transaction> {
+    // Buscar o depósito
+    const [depositRequest] = await db
+      .select()
+      .from(depositRequests)
+      .where(eq(depositRequests.id, id));
+
+    if (!depositRequest) {
+      throw new Error('Solicitação de depósito não encontrada');
+    }
+
+    // Buscar o usuário
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, depositRequest.userId));
+
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    // Criar uma transação para registrar o depósito
+    const [transaction] = await db
+      .insert(transactions)
+      .values({
+        userId: depositRequest.userId,
+        type: 'deposit',
+        amount: depositRequest.amount,
+        status: 'completed',
+        bankName: depositRequest.bankName,
+        transactionId: depositRequest.transactionId,
+        receipt: depositRequest.receipt
+      })
+      .returning();
+
+    // Atualizar o saldo do usuário
+    const newBalance = user.balance + depositRequest.amount;
+    await db
+      .update(users)
+      .set({ 
+        balance: newBalance, 
+        hasDeposited: true,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, user.id));
+
+    return transaction;
+  }
+
+  // Withdrawal request methods
+  async createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest> {
+    const [newRequest] = await db
+      .insert(withdrawalRequests)
+      .values(request)
+      .returning();
+
+    return newRequest;
+  }
+
+  async getWithdrawalRequests(): Promise<WithdrawalRequest[]> {
+    return await db
+      .select()
+      .from(withdrawalRequests)
+      .orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async getUserWithdrawalRequests(userId: number): Promise<WithdrawalRequest[]> {
+    return await db
+      .select()
+      .from(withdrawalRequests)
+      .where(eq(withdrawalRequests.userId, userId))
+      .orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async approveWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
+    // Buscar a solicitação de saque
+    const [withdrawalRequest] = await db
+      .select()
+      .from(withdrawalRequests)
+      .where(eq(withdrawalRequests.id, id));
+
+    if (!withdrawalRequest) {
+      throw new Error('Solicitação de saque não encontrada');
+    }
+
+    if (withdrawalRequest.status !== 'requested') {
+      throw new Error('Esta solicitação de saque já foi processada');
+    }
+
+    // Atualizar o status da solicitação para 'approved'
+    const [updatedRequest] = await db
+      .update(withdrawalRequests)
+      .set({ 
+        status: 'approved',
+        processedAt: new Date(),
+        processedBy: adminId
+      })
+      .where(eq(withdrawalRequests.id, id))
+      .returning();
+
+    // Criar uma transação para registrar o saque
+    const [transaction] = await db
+      .insert(transactions)
+      .values({
+        userId: withdrawalRequest.userId,
+        type: 'withdrawal',
+        amount: withdrawalRequest.amount,
+        status: 'processing', // Inicial como 'processing', depois atualizado para 'completed'
+        bankAccount: withdrawalRequest.bankAccount,
+        bankName: withdrawalRequest.bankName
+      })
+      .returning();
+
+    return transaction;
+  }
+
+  async rejectWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
+    // Buscar a solicitação de saque
+    const [withdrawalRequest] = await db
+      .select()
+      .from(withdrawalRequests)
+      .where(eq(withdrawalRequests.id, id));
+
+    if (!withdrawalRequest) {
+      throw new Error('Solicitação de saque não encontrada');
+    }
+
+    if (withdrawalRequest.status !== 'requested') {
+      throw new Error('Esta solicitação de saque já foi processada');
+    }
+
+    // Buscar o usuário
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, withdrawalRequest.userId));
+
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    // Calcular o valor a ser devolvido (80% do valor original - penalidade de 20%)
+    const penaltyAmount = withdrawalRequest.amount * 0.2;
+    const refundAmount = withdrawalRequest.amount - penaltyAmount;
+
+    // Atualizar o saldo do usuário, adicionando 80% do valor de volta
+    const newBalance = user.balance + refundAmount;
+    await db
+      .update(users)
+      .set({ 
+        balance: newBalance,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, user.id));
+
+    // Atualizar o status da solicitação para 'rejected'
+    const [updatedRequest] = await db
+      .update(withdrawalRequests)
+      .set({ 
+        status: 'rejected',
+        processedAt: new Date(),
+        processedBy: adminId
+      })
+      .where(eq(withdrawalRequests.id, id))
+      .returning();
+
+    // Criar uma transação para registrar o saque rejeitado
+    const [transaction] = await db
+      .insert(transactions)
+      .values({
+        userId: withdrawalRequest.userId,
+        type: 'withdrawal',
+        amount: withdrawalRequest.amount,
+        status: 'failed', // O status é 'failed' pois o saque foi rejeitado
+        bankAccount: withdrawalRequest.bankAccount,
+        bankName: withdrawalRequest.bankName
+      })
+      .returning();
+
+    return transaction;
+  }
+
+  // Product methods
+  async getProducts(): Promise<Product[]> {
+    return await db.select().from(products);
+  }
+
+  async getActiveProducts(): Promise<Product[]> {
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.active, true));
+  }
+
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, id));
+
+    return product;
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db
+      .insert(products)
+      .values(product)
+      .returning();
+
+    return newProduct;
+  }
+
+  async updateProduct(id: number, updates: Partial<InsertProduct>): Promise<Product> {
+    const [updatedProduct] = await db
+      .update(products)
+      .set({ 
+        ...updates,
+        updatedAt: new Date() 
+      })
+      .where(eq(products.id, id))
+      .returning();
+
+    if (!updatedProduct) {
+      throw new Error('Produto não encontrado');
+    }
+
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    await db
+      .delete(products)
+      .where(eq(products.id, id));
+  }
+
+  // Purchase methods
+  async getUserPurchases(userId: number): Promise<Purchase[]> {
+    return await db
+      .select()
+      .from(purchases)
+      .where(eq(purchases.userId, userId))
+      .orderBy(desc(purchases.createdAt));
+  }
+
+  async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
+    const [newPurchase] = await db
+      .insert(purchases)
+      .values(purchase)
+      .returning();
+
+    return newPurchase;
+  }
+
+  // Social links methods
+  async getSocialLinks(): Promise<SocialLink[]> {
+    return await db.select().from(socialLinks);
+  }
+
+  async getActiveSocialLinks(): Promise<SocialLink[]> {
+    return await db
+      .select()
+      .from(socialLinks)
+      .where(eq(socialLinks.active, true));
+  }
+
+  async getSocialLink(id: number): Promise<SocialLink | undefined> {
+    const [link] = await db
+      .select()
+      .from(socialLinks)
+      .where(eq(socialLinks.id, id));
+
+    return link;
+  }
+
+  async createSocialLink(link: InsertSocialLink): Promise<SocialLink> {
+    const [newLink] = await db
+      .insert(socialLinks)
+      .values(link)
+      .returning();
+
+    return newLink;
+  }
+
+  async updateSocialLink(id: number, updates: Partial<InsertSocialLink>): Promise<SocialLink> {
+    const [updatedLink] = await db
+      .update(socialLinks)
+      .set({ 
+        ...updates,
+        updatedAt: new Date() 
+      })
+      .where(eq(socialLinks.id, id))
+      .returning();
+
+    if (!updatedLink) {
+      throw new Error('Link social não encontrado');
+    }
+
+    return updatedLink;
+  }
+
+  async deleteSocialLink(id: number): Promise<void> {
+    await db
+      .delete(socialLinks)
+      .where(eq(socialLinks.id, id));
+  }
+
+  // Bank methods
+  async getAllBanks(): Promise<Bank[]> {
+    return await db.select().from(banks);
+  }
+
+  async getBank(id: number): Promise<Bank | undefined> {
+    const [bank] = await db
+      .select()
+      .from(banks)
+      .where(eq(banks.id, id));
+
+    return bank;
+  }
+
+  async createBank(bank: InsertBank): Promise<Bank> {
+    const [newBank] = await db
+      .insert(banks)
+      .values(bank)
+      .returning();
+
+    return newBank;
+  }
+
+  async updateBank(id: number, updates: Partial<InsertBank>): Promise<Bank> {
+    const [updatedBank] = await db
+      .update(banks)
+      .set({ 
+        ...updates,
+        updatedAt: new Date() 
+      })
+      .where(eq(banks.id, id))
+      .returning();
+
+    if (!updatedBank) {
+      throw new Error('Banco não encontrado');
+    }
+
+    return updatedBank;
+  }
+
+  async deleteBank(id: number): Promise<boolean> {
+    const result = await db
+      .delete(banks)
+      .where(eq(banks.id, id));
+    
+    return true; // Se não houver erros, consideramos como sucesso
+  }
+
+  // Settings methods
+  async getAllSettings(): Promise<Setting[]> {
+    return await db.select().from(settings);
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db
+      .select()
+      .from(settings)
+      .where(eq(settings.key, key));
+
+    return setting;
+  }
+
+  async createSetting(setting: InsertSetting): Promise<Setting> {
+    const [newSetting] = await db
+      .insert(settings)
+      .values(setting)
+      .returning();
+
+    return newSetting;
+  }
+
+  async updateSetting(key: string, value: string): Promise<Setting> {
+    const [updatedSetting] = await db
+      .update(settings)
+      .set({ 
+        value,
+        updatedAt: new Date() 
+      })
+      .where(eq(settings.key, key))
+      .returning();
+
+    if (!updatedSetting) {
+      return this.createSetting({ key, value });
+    }
+
+    return updatedSetting;
+  }
+
+  // Carousel images methods
+  async getAllCarouselImages(): Promise<CarouselImage[]> {
+    return await db
+      .select()
+      .from(carouselImages)
+      .orderBy(carouselImages.order);
+  }
+
+  async getActiveCarouselImages(): Promise<CarouselImage[]> {
+    return await db
+      .select()
+      .from(carouselImages)
+      .where(eq(carouselImages.active, true))
+      .orderBy(carouselImages.order);
+  }
+
+  async getCarouselImage(id: number): Promise<CarouselImage | undefined> {
+    const [image] = await db
+      .select()
+      .from(carouselImages)
+      .where(eq(carouselImages.id, id));
+
+    return image;
+  }
+
+  async createCarouselImage(image: InsertCarouselImage): Promise<CarouselImage> {
+    const [newImage] = await db
+      .insert(carouselImages)
+      .values(image)
+      .returning();
+
+    return newImage;
+  }
+
+  async updateCarouselImage(id: number, updates: Partial<InsertCarouselImage>): Promise<CarouselImage> {
+    const [updatedImage] = await db
+      .update(carouselImages)
+      .set({ 
+        ...updates,
+        updatedAt: new Date() 
+      })
+      .where(eq(carouselImages.id, id))
+      .returning();
+
+    if (!updatedImage) {
+      throw new Error('Imagem não encontrada');
+    }
+
+    return updatedImage;
+  }
+
+  async deleteCarouselImage(id: number): Promise<boolean> {
+    const result = await db
+      .delete(carouselImages)
+      .where(eq(carouselImages.id, id));
+    
+    return true; // Se não houver erros, consideramos como sucesso
+  }
+}
+
+// Usar o armazenamento PostgreSQL em vez do armazenamento em memória
+export const storage = new DatabaseStorage();
 
 // Initialize with test data
 (async () => {
