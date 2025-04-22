@@ -248,7 +248,7 @@ export default function AdminUsers() {
                   </div>
                 </div>
                 
-                {userDetailsQuery.data.referrals?.level1?.length > 0 && (
+                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level1 && userDetailsQuery.data.referrals.level1.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 1</h4>
                     <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
@@ -260,13 +260,16 @@ export default function AdminUsers() {
                               Produto
                             </span>
                           )}
+                          <span className="ml-2 text-gray-400">
+                            Saldo: {formatCurrency(ref.balance)}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
                 
-                {userDetailsQuery.data.referrals?.level2?.length > 0 && (
+                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level2 && userDetailsQuery.data.referrals.level2.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 2</h4>
                     <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
@@ -278,13 +281,16 @@ export default function AdminUsers() {
                               Produto
                             </span>
                           )}
+                          <span className="ml-2 text-gray-400">
+                            Saldo: {formatCurrency(ref.balance)}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
                 
-                {userDetailsQuery.data.referrals?.level3?.length > 0 && (
+                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level3 && userDetailsQuery.data.referrals.level3.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 3</h4>
                     <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
@@ -296,6 +302,9 @@ export default function AdminUsers() {
                               Produto
                             </span>
                           )}
+                          <span className="ml-2 text-gray-400">
+                            Saldo: {formatCurrency(ref.balance)}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -303,31 +312,33 @@ export default function AdminUsers() {
                 )}
               </div>
               
-              <div className="border-t border-gray-700 pt-4">
-                <h3 className="font-medium mb-2">Status</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-400">Status da Conta</p>
-                    <p className={selectedUser.isBlocked ? 'text-red-400' : 'text-green-400'}>
-                      {selectedUser.isBlocked ? 'Bloqueada' : 'Ativa'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Último Acesso</p>
-                    <p>{selectedUser.lastOnline ? formatDate(selectedUser.lastOnline) : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Tem Produto?</p>
-                    <p>{selectedUser.hasProduct ? 'Sim' : 'Não'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Fez Depósito?</p>
-                    <p>{selectedUser.hasDeposited ? 'Sim' : 'Não'}</p>
+              {selectedUser && (
+                <div className="border-t border-gray-700 pt-4">
+                  <h3 className="font-medium mb-2">Status</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-400">Status da Conta</p>
+                      <p className={selectedUser.isBlocked ? 'text-red-400' : 'text-green-400'}>
+                        {selectedUser.isBlocked ? 'Bloqueada' : 'Ativa'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Último Acesso</p>
+                      <p>{selectedUser.lastOnline ? formatDate(selectedUser.lastOnline) : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Tem Produto?</p>
+                      <p>{selectedUser.hasProduct ? 'Sim' : 'Não'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Fez Depósito?</p>
+                      <p>{selectedUser.hasDeposited ? 'Sim' : 'Não'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               
-              {selectedUser.bankInfo && Object.keys(selectedUser.bankInfo).length > 0 && (
+              {selectedUser && selectedUser.bankInfo && Object.keys(selectedUser.bankInfo).length > 0 && (
                 <div className="border-t border-gray-700 pt-4">
                   <h3 className="font-medium mb-2">Informações Bancárias</h3>
                   <div>
