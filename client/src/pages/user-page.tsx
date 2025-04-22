@@ -226,7 +226,7 @@ export default function UserPage() {
                               } flex items-center justify-center`}>
                               <i className={`fas fa-${getTransactionStatusIcon(transaction.status)} text-white text-xs`}></i>
                             </div>
-                            <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status)}`}>
+                            <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status, transaction.type)}`}>
                               {transaction.status === 'completed' ? 'Concluído' :
                                transaction.status === 'pending' ? 'Pendente' :
                                transaction.status === 'processing' ? 'Processando' :
@@ -309,7 +309,7 @@ export default function UserPage() {
                               } flex items-center justify-center`}>
                               <i className={`fas fa-${getTransactionStatusIcon(transaction.status)} text-white text-xs`}></i>
                             </div>
-                            <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status)}`}>
+                            <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status, transaction.type)}`}>
                               {transaction.status === 'completed' ? 'Concluído' :
                                transaction.status === 'pending' ? 'Pendente' :
                                transaction.status === 'processing' ? 'Processando' :
