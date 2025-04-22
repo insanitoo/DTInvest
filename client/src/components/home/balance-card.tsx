@@ -14,8 +14,8 @@ export function BalanceCard({
   const { user, isLoading } = useAuth();
   const [dailyReturn, setDailyReturn] = useState(0);
 
+  // Atualizar quando as transações mudarem
   useEffect(() => {
-    // Buscar as transações do tipo 'income' e 'commission' do dia atual
     const fetchDailyIncome = async () => {
       try {
         const response = await fetch('/api/transactions');

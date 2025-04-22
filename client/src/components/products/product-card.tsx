@@ -17,20 +17,16 @@ export function ProductCard({ product }: ProductCardProps) {
   const purchaseMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', `/api/products/${product.id}/purchase`);
-      return await res.json();
+      const data = await res.json();
+      
+      // Forçar atualização imediata dos dados
+      await refreshAllData();
+      
+      return data;
     },
     onSuccess: async (data) => {
-      // Forçar revalidação imediata e aguardar conclusão
-      await queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/user/investments'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-      
-      // Forçar refetch imediato
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/user'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/user/investments'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/transactions'] })
-      ]);
+      // Garantir que os dados estão atualizados novamente após o sucesso
+      await refreshAllData();
       
       toast({
         title: 'Produto adquirido',
