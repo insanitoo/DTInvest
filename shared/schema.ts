@@ -273,9 +273,42 @@ export interface UserProduct {
   purchasedAt: Date;
 }
 
+// Tipo para referido
+export interface ReferralInfo {
+  id: number;
+  phoneNumber: string;
+  hasProduct: boolean;
+  balance: number;
+}
+
+// Interface para dados de referrals agrupados
+export interface ReferralsData {
+  level1: ReferralInfo[];
+  level2: ReferralInfo[];
+  level3: ReferralInfo[];
+  counts: {
+    level1: number;
+    level2: number;
+    level3: number;
+  };
+}
+
 // Types
 export type User = typeof users.$inferSelect & { 
   bankInfo?: BankInfo;
+  
+  // Propriedades estendidas
+  isBlocked?: boolean;
+  lastOnline?: Date;
+  dailyIncome?: number;
+  
+  // Dados de referral calculados
+  level1Referrals?: number;
+  level2Referrals?: number;
+  level3Referrals?: number;
+  
+  // Dados completos de referral
+  referrals?: ReferralsData;
 };
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Transaction = typeof transactions.$inferSelect;

@@ -78,6 +78,17 @@ export default function AdminUsers() {
     },
   });
   
+  // Consulta para obter detalhes de um usuário específico, incluindo referrals
+  const userDetailsQuery = useQuery<User>({
+    queryKey: ['/api/admin/users/details', selectedUser?.id],
+    queryFn: async () => {
+      if (!selectedUser) throw new Error("Usuário não selecionado");
+      const res = await apiRequest('GET', `/api/admin/users/${selectedUser.id}`);
+      return await res.json();
+    },
+    enabled: !!selectedUser && showDialog, // Só executa quando um usuário for selecionado e o diálogo aberto
+  });
+  
   // Handle user click
   const handleUserClick = (user: User) => {
     setSelectedUser(user);
@@ -184,24 +195,33 @@ export default function AdminUsers() {
             )}
           </DialogHeader>
           
-          {selectedUser && (
+          {userDetailsQuery.isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : userDetailsQuery.error ? (
+            <div className="text-center py-8">
+              <AlertCircle className="mx-auto h-8 w-8 text-red-400 mb-2" />
+              <p className="text-red-400">Erro ao carregar detalhes do usuário</p>
+            </div>
+          ) : userDetailsQuery.data ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-400">Código de Convite</p>
-                  <p>{selectedUser.referralCode}</p>
+                  <p>{userDetailsQuery.data.referralCode}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Referido por</p>
-                  <p>{selectedUser.referredBy || 'N/A'}</p>
+                  <p>{userDetailsQuery.data.referredBy || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Saldo</p>
-                  <p>{formatCurrency(selectedUser.balance)}</p>
+                  <p>{formatCurrency(userDetailsQuery.data.balance)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Renda Diária</p>
-                  <p>{formatCurrency(selectedUser.dailyIncome || 0)}</p>
+                  <p>{formatCurrency(userDetailsQuery.data.dailyIncome || 0)}</p>
                 </div>
               </div>
               
@@ -210,23 +230,77 @@ export default function AdminUsers() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-400">Nível 1</p>
-                    <p>{selectedUser.level1Referrals} referrals</p>
+                    <p>{userDetailsQuery.data.referrals?.counts?.level1 || 0} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level1Commission || 0)}</p>
+                    <p>{formatCurrency(userDetailsQuery.data.level1Commission || 0)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Nível 2</p>
-                    <p>{selectedUser.level2Referrals || 0} referrals</p>
+                    <p>{userDetailsQuery.data.referrals?.counts?.level2 || 0} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level2Commission || 0)}</p>
+                    <p>{formatCurrency(userDetailsQuery.data.level2Commission || 0)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Nível 3</p>
-                    <p>{selectedUser.level3Referrals || 0} referrals</p>
+                    <p>{userDetailsQuery.data.referrals?.counts?.level3 || 0} referrals</p>
                     <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(selectedUser.level3Commission || 0)}</p>
+                    <p>{formatCurrency(userDetailsQuery.data.level3Commission || 0)}</p>
                   </div>
                 </div>
+                
+                {userDetailsQuery.data.referrals?.level1?.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 1</h4>
+                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
+                      {userDetailsQuery.data.referrals.level1.map(ref => (
+                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
+                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
+                          {ref.hasProduct && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
+                              Produto
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {userDetailsQuery.data.referrals?.level2?.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 2</h4>
+                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
+                      {userDetailsQuery.data.referrals.level2.map(ref => (
+                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
+                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
+                          {ref.hasProduct && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
+                              Produto
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {userDetailsQuery.data.referrals?.level3?.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 3</h4>
+                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
+                      {userDetailsQuery.data.referrals.level3.map(ref => (
+                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
+                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
+                          {ref.hasProduct && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
+                              Produto
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="border-t border-gray-700 pt-4">
