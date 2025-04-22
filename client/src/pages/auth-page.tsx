@@ -33,7 +33,8 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const referralCode = new URLSearchParams(window.location.search).get('ref');
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(() => {
-    return referralCode ? 'register' : 'login';
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    return tabParam === 'register' || referralCode ? 'register' : 'login';
   });
 
   useEffect(() => {
