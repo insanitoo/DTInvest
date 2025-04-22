@@ -759,10 +759,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user => level3ReferralCodes.includes(user.referredBy || '')
       );
       
-      // Calcular comissões (exemplo simplificado)
-      const level1Commission = level1Referrals.length * 1000; // KZ 1000 por referido direto
-      const level2Commission = level2Referrals.length * 500; // KZ 500 por referido de nível 2
-      const level3Commission = level3Referrals.length * 250; // KZ 250 por referido de nível 3
+      // Obter as configurações de comissão atualizadas
+      const level1CommissionSetting = await storage.getSetting('level1_commission');
+      const level2CommissionSetting = await storage.getSetting('level2_commission');
+      const level3CommissionSetting = await storage.getSetting('level3_commission');
+      
+      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
+      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
+      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+      
+      // Calcular base média para comissões (simulação)
+      const baseAmount = 50000; // KZ 50,000 como base média de compra
+      
+      // Calcular comissões usando as taxas configuradas
+      const level1Commission = level1Referrals.length > 0 ? level1Referrals.length * baseAmount * level1CommissionRate : 0;
+      const level2Commission = level2Referrals.length > 0 ? level2Referrals.length * baseAmount * level2CommissionRate : 0;
+      const level3Commission = level3Referrals.length > 0 ? level3Referrals.length * baseAmount * level3CommissionRate : 0;
       
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
@@ -878,7 +890,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankName: bankName,
         bankAccount: bankAccount,
         receipt: receipt || null,
-        transactionId: `DEP${Date.now().toString(36).toUpperCase()}`
+        transactionId: `DEP${Date.now().toString(36).toUpperCase()}`,
+        status: 'pending' // Os depósitos começam como pendentes e precisam de aprovação
       });
 
       console.log(`Transação de depósito criada com sucesso: ${JSON.stringify(transaction)}`);
@@ -941,7 +954,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
         receipt: null,
-        transactionId: `WDR${Date.now().toString(36).toUpperCase()}`
+        transactionId: `WDR${Date.now().toString(36).toUpperCase()}`,
+        status: 'pending' // Saques começam como pendentes e precisam de aprovação do admin
       });
 
       // Update user balance
@@ -1059,7 +1073,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankAccount: null,
         bankName: null,
         receipt: null,
-        transactionId: `PURCH${Date.now().toString(36).toUpperCase()}`
+        transactionId: `PURCH${Date.now().toString(36).toUpperCase()}`,
+        status: 'completed' // Adicionando status que estava faltando
       });
       
       res.status(201).json(purchase);

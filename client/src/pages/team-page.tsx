@@ -77,7 +77,8 @@ export default function TeamPage() {
         <div className="mx-4 mt-6 mb-4">
           <div className="bg-gradient-to-r from-brand-red to-brand-orange rounded-xl p-3 text-center">
             <h3 className="text-base font-bold">RECOMPENSAS DE CONVITE</h3>
-            <p className="text-sm">Convide amigos para ganhar 33% de recompensa por convite</p>
+            <p className="text-sm">Convide amigos e ganhe até 33% de comissões em cascata</p>
+            <p className="text-xs mt-1">25% nível 1 + 5% nível 2 + 3% nível 3</p>
           </div>
         </div>
 

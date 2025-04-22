@@ -20,7 +20,8 @@ export function setupTestEndpoints(app: Express) {
         bankAccount: '987654321',
         bankName: 'Banco Angolano de Investimentos (BAI)',
         receipt: null,
-        transactionId: `TEST${Date.now().toString(36).toUpperCase()}`
+        transactionId: `TEST${Date.now().toString(36).toUpperCase()}`,
+        status: 'pending' // Adicionando status que estava faltando
       });
       
       console.log('Transação pendente criada:', transaction);
