@@ -87,10 +87,17 @@ export function setupAdminRoutes(app: Express) {
   // Get all transactions
   app.get("/api/admin/transactions", isAdmin, async (req: Request, res: Response) => {
     try {
+      console.log('Buscando todas as transações para admin...');
       const transactions = await storage.getAllTransactions();
+      console.log(`Total de transações encontradas: ${transactions.length}`);
+      console.log('Transações:', transactions);
       res.json(transactions);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao obter transações" });
+      console.error('Erro ao buscar transações:', error);
+      res.status(500).json({ 
+        message: "Erro ao obter transações",
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   });
 

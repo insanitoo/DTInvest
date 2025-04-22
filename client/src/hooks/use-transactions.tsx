@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useState, useCallback } from "react";
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Transaction, 
   DepositRequest, 
@@ -19,10 +19,10 @@ type TransactionsContextType = {
   adminTransactions: Transaction[];
   adminDepositRequests: DepositRequest[];
   adminWithdrawalRequests: WithdrawalRequest[];
-  
+
   // Estado de carregamento
   isLoading: boolean;
-  
+
   // Funções de carregamento manual (chamar apenas quando necessário)
   loadTransactions: () => Promise<Transaction[]>;
   loadDeposits: () => Promise<DepositRequest[]>;
@@ -30,16 +30,17 @@ type TransactionsContextType = {
   loadAdminTransactions: () => Promise<Transaction[]>;
   loadAdminDepositRequests: () => Promise<DepositRequest[]>;
   loadAdminWithdrawalRequests: () => Promise<WithdrawalRequest[]>;
-  
+
   // Ações do usuário
   createDeposit: (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>) => Promise<{ success: boolean; transactionId?: string }>;
   checkDepositStatus: (transactionId: string) => Promise<{ status: string; message: string }>;
   createWithdrawal: (data: Omit<InsertWithdrawalRequest, 'userId' | 'status'>) => Promise<{ success: boolean }>;
-  
+
   // Ações do admin
   approveDeposit: (id: number) => Promise<boolean>;
   approveWithdrawal: (id: number) => Promise<boolean>;
   rejectWithdrawal: (id: number) => Promise<boolean>;
+  updateTransactionStatus: (data: {id: number; status: string}) => Promise<void>;
 };
 
 // Create context
@@ -49,7 +50,8 @@ export const TransactionsContext = createContext<TransactionsContextType | null>
 export function TransactionsProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  
+  const queryClient = useQueryClient();
+
   // Dados locais - inicialmente vazios, carregados sob demanda
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
@@ -60,7 +62,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   // Funções de carregamento manual - só são executadas quando o usuário interage
   // com a interface ou quando explicitamente chamadas no código
-  
+
   const loadTransactions = useCallback(async (): Promise<Transaction[]> => {
     try {
       setIsLoading(true);
@@ -176,7 +178,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === MUTAÇÕES DO USUÁRIO ===
-  
+
   // Criar solicitação de depósito
   const createDepositMutation = useMutation({
     mutationFn: async (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>) => {
@@ -203,7 +205,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       });
     }
   });
-  
+
   // Criar solicitação de saque
   const createWithdrawalMutation = useMutation({
     mutationFn: async (data: Omit<InsertWithdrawalRequest, 'userId' | 'status'>) => {
@@ -230,7 +232,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       });
     }
   });
-  
+
   // Verificar status de depósito
   const checkDepositMutation = useMutation({
     mutationFn: async (transactionId: string) => {
@@ -240,7 +242,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   });
 
   // === MUTAÇÕES DO ADMIN ===
-  
+
   // Aprovar depósito 
   const approveDepositMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -267,7 +269,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       });
     }
   });
-  
+
   // Aprovar saque
   const approveWithdrawalMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -294,7 +296,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       });
     }
   });
-  
+
   // Rejeitar saque
   const rejectWithdrawalMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -323,7 +325,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   });
 
   // === FUNÇÕES DE INTERFACE ===
-  
+
   // Criar depósito
   const createDeposit = async (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>): Promise<{ success: boolean; transactionId?: string }> => {
     try {
@@ -337,7 +339,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       return { success: false };
     }
   };
-  
+
   // Verificar status do depósito
   const checkDepositStatus = async (transactionId: string): Promise<{ status: string; message: string }> => {
     try {
@@ -350,7 +352,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       };
     }
   };
-  
+
   // Criar saque
   const createWithdrawal = async (data: Omit<InsertWithdrawalRequest, 'userId' | 'status'>): Promise<{ success: boolean }> => {
     try {
@@ -361,7 +363,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       return { success: false };
     }
   };
-  
+
   // Admin: Aprovar depósito
   const approveDeposit = async (id: number): Promise<boolean> => {
     try {
@@ -372,7 +374,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  
+
   // Admin: Aprovar saque
   const approveWithdrawal = async (id: number): Promise<boolean> => {
     try {
@@ -383,7 +385,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  
+
   // Admin: Rejeitar saque
   const rejectWithdrawal = async (id: number): Promise<boolean> => {
     try {
@@ -394,7 +396,56 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  
+
+  const updateTransactionStatus = async (data: {id: number; status: string}): Promise<void> => {
+    try {
+      await updateStatusMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Erro ao atualizar status da transação:", error);
+    }
+  };
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async (data: { id: number; status: string }) => {
+      console.log('Atualizando status da transação:', data);
+
+      const response = await fetch(`/api/admin/transactions/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: data.status })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao atualizar status');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidar todas as queries relacionadas
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+
+      toast({
+        title: "Status atualizado",
+        description: "A transação foi atualizada com sucesso."
+      });
+
+      console.log('Transação atualizada com sucesso:', data);
+    },
+    onError: (error) => {
+      console.error('Erro ao atualizar transação:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar a transação.",
+        variant: "destructive"
+      });
+    }
+  });
+
+
   return (
     <TransactionsContext.Provider
       value={{
@@ -405,10 +456,10 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         adminTransactions,
         adminDepositRequests,
         adminWithdrawalRequests,
-        
+
         // Estado de carregamento
         isLoading,
-        
+
         // Funções de carregamento manual
         loadTransactions,
         loadDeposits,
@@ -416,16 +467,17 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         loadAdminTransactions,
         loadAdminDepositRequests,
         loadAdminWithdrawalRequests,
-        
+
         // Funções do usuário
         createDeposit,
         checkDepositStatus,
         createWithdrawal,
-        
+
         // Funções do admin
         approveDeposit,
         approveWithdrawal,
         rejectWithdrawal,
+        updateTransactionStatus
       }}
     >
       {children}

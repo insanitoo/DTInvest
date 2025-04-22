@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Transaction } from '@shared/schema';
@@ -30,9 +30,17 @@ export default function AdminTransactions() {
   const [showDialog, setShowDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
 
-  const { data: transactions, isLoading } = useQuery<Transaction[]>({
+  // Usar query com refetch automático
+  const { data: transactions, isLoading, refetch } = useQuery<Transaction[]>({
     queryKey: ['/api/admin/transactions'],
+    refetchInterval: 5000, // Recarregar a cada 5 segundos
+    staleTime: 0 // Considerar dados sempre desatualizados
   });
+
+  // Carregar transações ao montar componente
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async (data: { id: number; status: string }) => {
