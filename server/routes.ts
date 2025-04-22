@@ -1228,6 +1228,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // ROTA DE EMERGÊNCIA: Creditar depósito direto
+  app.post("/api/admin/creditar-deposito", isAdmin, async (req, res) => {
+    try {
+      const { transactionId } = req.body;
+      
+      if (!transactionId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID da transação não fornecido"
+        });
+      }
+      
+      console.log(`\n=== CREDITAR EMERGÊNCIA >>> Iniciando para transação ${transactionId} ===\n`);
+      
+      // Buscar depósito pendente
+      const depositRequest = await storage.getDepositRequestByTransactionId(transactionId);
+      
+      if (!depositRequest) {
+        return res.status(404).json({
+          success: false,
+          message: `Depósito com ID ${transactionId} não encontrado`
+        });
+      }
+      
+      // Buscar usuário
+      const user = await storage.getUser(depositRequest.userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: `Usuário ${depositRequest.userId} não encontrado`
+        });
+      }
+      
+      console.log(`CREDITAR EMERGÊNCIA >>> Usuário: ${user.phoneNumber}, Saldo atual: ${user.balance}`);
+      
+      // Atualizar saldo diretamente
+      const novoSaldo = user.balance + depositRequest.amount;
+      const userAtualizado = await storage.updateUserBalance(user.id, novoSaldo);
+      
+      if (!userAtualizado) {
+        return res.status(500).json({
+          success: false,
+          message: "Falha ao atualizar saldo"
+        });
+      }
+      
+      // Marcar como tendo depósito se necessário
+      if (!userAtualizado.hasDeposited) {
+        await storage.updateUser(user.id, { hasDeposited: true });
+      }
+      
+      console.log(`CREDITAR EMERGÊNCIA >>> Saldo atualizado: ${user.balance} -> ${novoSaldo}`);
+      
+      // Criar transação completada
+      const transaction = await storage.createTransaction({
+        userId: depositRequest.userId,
+        type: 'deposit',
+        amount: depositRequest.amount,
+        status: 'completed',
+        bankName: depositRequest.bankName,
+        receipt: depositRequest.receipt,
+        bankAccount: null,
+        transactionId: depositRequest.transactionId
+      });
+      
+      // Remover solicitação de depósito (opcional)
+      // storage.depositRequests.delete(depositRequest.id);
+      
+      // Resposta com informações detalhadas
+      return res.status(200).json({
+        success: true,
+        message: "Depósito creditado com sucesso (modo emergência)",
+        data: {
+          user: {
+            id: userAtualizado.id,
+            phoneNumber: userAtualizado.phoneNumber,
+            saldoAnterior: user.balance,
+            saldoAtual: userAtualizado.balance,
+            valorCreditado: depositRequest.amount
+          },
+          transaction: {
+            id: transaction.id,
+            transactionId: transaction.transactionId,
+            type: transaction.type,
+            amount: transaction.amount,
+            status: transaction.status
+          }
+        }
+      });
+    } catch (error) {
+      console.error("CREDITAR EMERGÊNCIA >>> ERRO:", error);
+      return res.status(500).json({
+        success: false,
+        message: `Erro ao processar: ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  });
 
   const httpServer = createServer(app);
 
