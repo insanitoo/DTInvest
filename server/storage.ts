@@ -32,7 +32,7 @@ export interface IStorage {
   getAllTransactions(): Promise<Transaction[]>;
   getTransaction(id: number): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  updateTransactionStatus(id: number, status: string): Promise<Transaction>;
+  updateTransactionStatus(id: string | number, status: string): Promise<Transaction>;
   
   // Solicitações de depósito
   createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest>;
@@ -345,34 +345,34 @@ export class MemStorage implements IStorage {
     return newTransaction;
   }
 
-  async updateTransactionStatus(transactionId: string, status: string): Promise<Transaction> {
-    console.log(`\n=== TRANSACT >>> Atualizando transação ${transactionId} para ${status} ===\n`);
+  async updateTransactionStatus(id: string | number, status: string): Promise<Transaction> {
+    console.log(`\n=== TRANSACT >>> Atualizando transação ${id} para ${status} ===\n`);
     
     // CORREÇÃO: Verificar se o parâmetro é numérico (id interno) ou string (transactionId externo)
     let transaction: Transaction | undefined;
     
     // Tentar primeiro como id interno (conversão para número)
-    const numericId = parseInt(transactionId);
+    const numericId = typeof id === 'number' ? id : parseInt(id as string);
     if (!isNaN(numericId)) {
       console.log(`TRANSACT >>> Buscando transação por ID interno: ${numericId}`);
       transaction = this.transactions.get(numericId);
     }
     
     // Se não encontrou por ID interno, busca por transactionId
-    if (!transaction) {
-      console.log(`TRANSACT >>> Buscando transação por transactionId: ${transactionId}`);
+    if (!transaction && typeof id === 'string') {
+      console.log(`TRANSACT >>> Buscando transação por transactionId: ${id}`);
       transaction = Array.from(this.transactions.values())
-        .find(t => t.transactionId === transactionId);
+        .find(t => t.transactionId === id);
     }
       
     if (!transaction) {
       // Log de depuração: mostrar todas as transações e seus IDs para diagnóstico
-      console.error(`TRANSACT >>> Transação ${transactionId} não encontrada`);
+      console.error(`TRANSACT >>> Transação ${id} não encontrada`);
       console.log('TRANSACT >>> Transações disponíveis:', 
         Array.from(this.transactions.entries())
-          .map(([id, t]) => ({ id, transactionId: t.transactionId }))
+          .map(([tId, t]) => ({ id: tId, transactionId: t.transactionId }))
       );
-      throw new Error(`Transação ${transactionId} não encontrada`);
+      throw new Error(`Transação ${id} não encontrada`);
     }
     
     console.log(`TRANSACT >>> Transação encontrada:`, transaction);
