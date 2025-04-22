@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-new";
 import { formatCurrency } from "@/lib/utils";
 import { Loader2, ArrowDown, ArrowUp } from "lucide-react";
