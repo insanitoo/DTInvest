@@ -32,14 +32,23 @@ export default function DebugTransactions() {
 
       const res = await apiRequest('PUT', `/api/admin/transactions/${transactionId}`, requestData);
 
+      const contentType = res.headers.get('content-type');
+      const responseText = await res.text();
+
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Erro na requisição: ${res.status} - ${errorText}`);
+        throw new Error(`Erro na requisição: ${res.status} - ${responseText}`);
       }
 
-      const data = await res.json();
-      console.log('Resposta da API:', data);
-      setResponse(JSON.stringify(data, null, 2));
+      try {
+        const data = contentType?.includes('application/json') 
+          ? JSON.parse(responseText)
+          : { message: responseText };
+        
+        console.log('Resposta da API:', data);
+        setResponse(JSON.stringify(data, null, 2));
+      } catch (error) {
+        throw new Error(`Erro ao processar resposta: ${responseText}`);
+      }
 
       // Forçar atualização do cache
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
