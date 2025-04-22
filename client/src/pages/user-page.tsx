@@ -43,7 +43,7 @@ export default function UserPage() {
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-  
+
   // Get tab from URL query parameter
   useEffect(() => {
     const params = new URLSearchParams(location.split('?')[1]);
@@ -52,7 +52,7 @@ export default function UserPage() {
       setActiveTab(tab);
     }
   }, [location]);
-  
+
   // Transactions query - Agora com staleTime reduzido para forçar revalidação mais frequente
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
@@ -60,7 +60,7 @@ export default function UserPage() {
     refetchInterval: 30 * 1000, // Revalidar a cada 30 segundos
     refetchOnWindowFocus: true, // Revalidar quando o usuário voltar para a janela
   });
-  
+
   // Bank form
   const form = useForm<BankFormValues>({
     resolver: zodResolver(bankFormSchema),
@@ -70,7 +70,7 @@ export default function UserPage() {
       accountNumber: user?.bankInfo?.accountNumber || '',
     },
   });
-  
+
   // Update form values when user data changes
   useEffect(() => {
     if (user?.bankInfo) {
@@ -81,7 +81,7 @@ export default function UserPage() {
       });
     }
   }, [user, form]);
-  
+
   // Save bank information mutation
   const saveBankMutation = useMutation({
     mutationFn: async (data: BankFormValues) => {
@@ -90,7 +90,7 @@ export default function UserPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      
+
       toast({
         title: 'Informações bancárias salvas',
         description: 'Suas informações bancárias foram salvas com sucesso!',
@@ -104,11 +104,11 @@ export default function UserPage() {
       });
     },
   });
-  
+
   const onSubmit = (data: BankFormValues) => {
     saveBankMutation.mutate(data);
   };
-  
+
   // Handle logout
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -124,7 +124,7 @@ export default function UserPage() {
             <span className="text-dark-secondary text-sm font-bold">DTI</span>
           </div>
         </header>
-        
+
         {/* User Info */}
         <div className="mx-4 mb-6">
           <CyberneticBox>
@@ -141,13 +141,13 @@ export default function UserPage() {
             </div>
           </CyberneticBox>
         </div>
-        
+
         {/* Balance Card */}
         <BalanceCard 
           onDepositClick={() => setShowDepositModal(true)}
           onWithdrawClick={() => setShowWithdrawalModal(true)}
         />
-        
+
         {/* Tabs */}
         <div className="mx-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -156,7 +156,7 @@ export default function UserPage() {
               <TabsTrigger value="transactions">Transações</TabsTrigger>
               <TabsTrigger value="bank">Banco</TabsTrigger>
             </TabsList>
-            
+
             {/* Profile Tab */}
             <TabsContent value="profile">
               <div className="mb-6">
@@ -184,7 +184,7 @@ export default function UserPage() {
                   </div>
                 </CyberneticBox>
               </div>
-              
+
               {/* Logout Button */}
               <Button 
                 variant="default" 
@@ -202,12 +202,12 @@ export default function UserPage() {
                 )}
               </Button>
             </TabsContent>
-            
+
             {/* Transactions Tab */}
             <TabsContent value="transactions">
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Transações Recentes</h3>
-                
+
                 {isLoadingTransactions ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -256,7 +256,7 @@ export default function UserPage() {
                         </div>
                       </CyberneticBox>
                     ))}
-                    
+
                     {transactions.length > 5 && (
                       <Button 
                         variant="default" 
@@ -276,7 +276,7 @@ export default function UserPage() {
                 )}
               </div>
             </TabsContent>
-            
+
             {/* All Transactions Tab */}
             <TabsContent value="transactionsAll">
               <div className="mb-6">
@@ -290,7 +290,7 @@ export default function UserPage() {
                     Voltar
                   </Button>
                 </div>
-                
+
                 {isLoadingTransactions ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -349,7 +349,7 @@ export default function UserPage() {
                 )}
               </div>
             </TabsContent>
-            
+
             {/* Bank Information Tab */}
             <TabsContent value="bank">
               <div className="mb-6">
@@ -387,7 +387,7 @@ export default function UserPage() {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="ownerName"
@@ -406,7 +406,7 @@ export default function UserPage() {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="accountNumber"
@@ -425,7 +425,7 @@ export default function UserPage() {
                         </FormItem>
                       )}
                     />
-                    
+
                     <Button 
                       type="submit" 
                       className="w-full"
@@ -443,7 +443,7 @@ export default function UserPage() {
                   </form>
                 </Form>
               </div>
-              
+
               <div className="mt-6 bg-dark-secondary border-l-4 border-yellow-500 p-4 rounded-r-md">
                 <h4 className="font-medium mb-2 text-yellow-400">Importante:</h4>
                 <p className="text-sm text-gray-300">
@@ -455,7 +455,7 @@ export default function UserPage() {
           </Tabs>
         </div>
       </div>
-      
+
       {/* Modals */}
       <WithdrawalModal 
         isOpen={showWithdrawalModal} 
@@ -465,7 +465,7 @@ export default function UserPage() {
         isOpen={showDepositModal} 
         onClose={() => setShowDepositModal(false)} 
       />
-      
+
       {/* Bottom Navigation */}
       <BottomNavigation />
     </>
