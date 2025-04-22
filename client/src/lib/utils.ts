@@ -75,7 +75,18 @@ export function isWeekday(): boolean {
   return day >= 1 && day <= 5; // 0 is Sunday, 6 is Saturday
 }
 
-export function getTransactionStatusColor(status: string): string {
+export function getTransactionStatusColor(status: string, type?: string): string {
+  // Para transações de compra, sempre usar vermelho mesmo se estiver concluída
+  if (type === 'purchase' && status === 'completed') {
+    return 'text-red-500';
+  }
+  
+  // Para comissões, sempre usar verde
+  if (type === 'commission') {
+    return 'text-green-500';
+  }
+  
+  // Para os demais casos, usar a lógica normal baseada no status
   switch (status) {
     case 'completed':
       return 'text-green-500';
