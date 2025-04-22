@@ -76,8 +76,8 @@ export function isWeekday(): boolean {
 }
 
 export function getTransactionStatusColor(status: string, type?: string): string {
-  // Para transações de compra, sempre usar vermelho mesmo se estiver concluída
-  if (type === 'purchase' && status === 'completed') {
+  // Para transações de compra, sempre usar vermelho
+  if (type === 'purchase') {
     return 'text-red-500';
   }
   
