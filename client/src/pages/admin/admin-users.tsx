@@ -110,7 +110,7 @@ export default function AdminUsers() {
           
           <div className="relative w-full md:w-96">
             <Input
-              placeholder="Buscar por Telefone, ID ou Código"
+              placeholder="Buscar por Telefone, ID, Código ou Referral"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-dark-tertiary text-white pr-10"
@@ -147,7 +147,14 @@ export default function AdminUsers() {
                     <td className="px-4 py-3">{formatPhoneNumber(user.phoneNumber)}</td>
                     <td className="px-4 py-3">{formatCurrency(user.balance)}</td>
                     <td className="px-4 py-3">
-                      {(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}
+                      <div className="flex items-center space-x-1">
+                        <span className="font-medium">{(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}</span>
+                        {user.level1Referrals > 0 && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
+                            Nv1: {user.level1Referrals}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {user.isBlocked ? (
