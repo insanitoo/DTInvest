@@ -8,6 +8,7 @@ interface Referral {
   id: number;
   phoneNumber: string;
   hasProduct: boolean;
+  balance?: number;
 }
 
 interface LevelCardProps {
@@ -46,7 +47,7 @@ export function LevelCard({
       </div>
       
       <Button 
-        variant="cybernetic"
+        variant="outline"
         className="w-full mt-3 flex items-center justify-center gap-2"
         onClick={() => setShowReferrals(!showReferrals)}
       >
@@ -61,13 +62,14 @@ export function LevelCard({
       
       {showReferrals && referrals.length > 0 && (
         <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
-          <div className="text-sm font-medium grid grid-cols-3">
+          <div className="text-sm font-medium grid grid-cols-4">
             <span>ID</span>
             <span>Telefone</span>
             <span>Status</span>
+            <span>Saldo</span>
           </div>
           {referrals.map(referral => (
-            <div key={referral.id} className="text-sm grid grid-cols-3 py-1 border-t border-gray-800">
+            <div key={referral.id} className="text-sm grid grid-cols-4 py-1 border-t border-gray-800">
               <span className="text-gray-400">{referral.id}</span>
               <span>{referral.phoneNumber}</span>
               <span>
@@ -77,6 +79,7 @@ export function LevelCard({
                   <span className="text-yellow-500">Pendente</span>
                 )}
               </span>
+              <span className="text-gray-400">{formatCurrency(referral.balance || 0)}</span>
             </div>
           ))}
         </div>

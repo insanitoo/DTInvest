@@ -14,6 +14,7 @@ interface ReferralStats {
       id: number;
       phoneNumber: string;
       hasProduct: boolean;
+      balance?: number;
     }[];
   };
   level2: {
@@ -23,6 +24,7 @@ interface ReferralStats {
       id: number;
       phoneNumber: string;
       hasProduct: boolean;
+      balance?: number;
     }[];
   };
   level3: {
@@ -32,6 +34,7 @@ interface ReferralStats {
       id: number;
       phoneNumber: string;
       hasProduct: boolean;
+      balance?: number;
     }[];
   };
 }
