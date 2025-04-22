@@ -24,7 +24,7 @@ export function setupAdminRoutes(app: Express) {
       const totalDeposits = await storage.getTotalDeposits();
       const totalWithdrawals = await storage.getTotalWithdrawals();
       const popularProducts = await storage.getPopularProducts();
-      
+
       res.json({
         totalUsers,
         totalDeposits,
@@ -51,11 +51,11 @@ export function setupAdminRoutes(app: Express) {
     try {
       const userId = parseInt(req.params.id);
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Erro ao obter usuário" });
@@ -67,17 +67,17 @@ export function setupAdminRoutes(app: Express) {
     try {
       const userId = parseInt(req.params.id);
       const { isBlocked } = req.body;
-      
+
       if (typeof isBlocked !== 'boolean') {
         return res.status(400).json({ message: "Parâmetro 'isBlocked' deve ser um booleano" });
       }
-      
+
       const user = await storage.blockUser(userId, isBlocked);
-      
+
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar usuário" });
@@ -107,11 +107,11 @@ export function setupAdminRoutes(app: Express) {
     try {
       const transactionId = parseInt(req.params.id);
       const transaction = await storage.getTransaction(transactionId);
-      
+
       if (!transaction) {
         return res.status(404).json({ message: "Transação não encontrada" });
       }
-      
+
       res.json(transaction);
     } catch (error) {
       res.status(500).json({ message: "Erro ao obter transação" });
@@ -125,11 +125,11 @@ export function setupAdminRoutes(app: Express) {
      * Criado do zero para garantir robustez e consistência
      * Versão 1.0 - Abril 2025 
      *******************************************************************/
-    
+
     try {
       console.log(`\n=== ADMIN API >>> INÍCIO ATUALIZAÇÃO DE TRANSAÇÃO ===\n`);
-      const transactionId = parseInt(req.params.id);
-      
+      const transactionId = req.params.id; // Changed to string
+
       // ETAPA 1: Validação básica da requisição
       if (!req.body || typeof req.body !== 'object') {
         console.error('ADMIN API >>> Corpo da requisição inválido');
@@ -138,13 +138,13 @@ export function setupAdminRoutes(app: Express) {
           message: "Corpo da requisição inválido"
         });
       }
-      
+
       console.log('ADMIN API >>> Dados recebidos:', req.body);
-      
+
       // ETAPA 2: Validar o status solicitado
       const status = req.body.status;
       const validStatuses = ['pending', 'processing', 'completed', 'failed'];
-      
+
       if (!status || typeof status !== 'string' || !validStatuses.includes(status)) {
         console.error(`ADMIN API >>> Status inválido: '${status}'`);
         return res.status(400).json({
@@ -152,11 +152,11 @@ export function setupAdminRoutes(app: Express) {
           message: `Status inválido. Valores permitidos: ${validStatuses.join(', ')}`
         });
       }
-      
+
       console.log(`ADMIN API >>> Atualizando transação ${transactionId} para status: ${status}`);
-      
+
       // ETAPA 3: Verificar se a transação existe
-      const transaction = await storage.getTransaction(transactionId);
+      const transaction = await storage.getTransactionByTransactionId(transactionId); // Changed function call
       if (!transaction) {
         console.error(`ADMIN API >>> Transação ${transactionId} não encontrada`);
         return res.status(404).json({
@@ -164,7 +164,7 @@ export function setupAdminRoutes(app: Express) {
           message: "Transação não encontrada"
         });
       }
-      
+
       // ETAPA 4: Verificar usuário antes da atualização (para diagnóstico posterior)
       const userBefore = await storage.getUser(transaction.userId);
       if (!userBefore) {
@@ -174,14 +174,14 @@ export function setupAdminRoutes(app: Express) {
           message: "Usuário da transação não encontrado"
         });
       }
-      
+
       console.log(`ADMIN API >>> Usuário ${userBefore.phoneNumber}, Saldo atual: ${userBefore.balance}`);
-      
+
       // Para fins de diagnóstico, calcular o saldo esperado após a operação
       const expectedBalance = (status === 'completed' && transaction.type === 'deposit') 
         ? userBefore.balance + transaction.amount
         : userBefore.balance;
-      
+
       // ETAPA 5: Realizar a atualização da transação
       console.log(`ADMIN API >>> Executando atualização para status ${status}...`);
       try {
@@ -189,37 +189,37 @@ export function setupAdminRoutes(app: Express) {
         const startTime = Date.now();
         const updatedTransaction = await storage.updateTransactionStatus(transactionId, status);
         const endTime = Date.now();
-        
+
         console.log(`ADMIN API >>> Atualização concluída em ${endTime - startTime}ms`);
         console.log(`ADMIN API >>> Transação ${transactionId} processada`);
-        
+
         // ETAPA 6: Verificar resultado da operação - usuário após a atualização
         const userAfter = await storage.getUser(transaction.userId);
         if (!userAfter) {
           throw new Error(`Usuário ${transaction.userId} não encontrado após atualização`);
         }
-        
+
         console.log(`ADMIN API >>> Saldo antes: ${userBefore.balance}, Saldo depois: ${userAfter.balance}`);
-        
+
         // Verificar se o saldo foi atualizado corretamente para depósitos concluídos
         const balanceUpdated = (status === 'completed' && transaction.type === 'deposit') 
           ? Math.abs(userAfter.balance - expectedBalance) < 0.01 
           : true;
-          
+
         if (!balanceUpdated) {
           console.error(`ADMIN API >>> ALERTA: Saldo não foi atualizado corretamente!`);
           console.error(`ADMIN API >>> Esperado: ${expectedBalance}, Atual: ${userAfter.balance}`);
         } else {
           console.log(`ADMIN API >>> Verificação de saldo OK`);
         }
-        
+
         // ETAPA 7: Montar resposta detalhada com dados atualizados
         console.log(`ADMIN API >>> Preparando resposta para o cliente...`);
-        
+
         // Garantir cabeçalhos corretos para prevenir problemas no cliente
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 'no-store');
-        
+
         // Construir resposta completa com todas as informações necessárias
         const responseData = {
           success: true,
@@ -254,12 +254,12 @@ export function setupAdminRoutes(app: Express) {
             requestedStatus: status
           }
         };
-        
+
         // CORRIGIDO: Enviar resposta com res.json() em vez de res.send() para garantir Content-Type correto
         console.log(`ADMIN API >>> Enviando resposta JSON...`);
         console.log(`\n=== ADMIN API >>> FIM ATUALIZAÇÃO DE TRANSAÇÃO ===\n`);
         return res.status(200).json(responseData);
-        
+
       } catch (error) {
         console.error('ADMIN API >>> Erro durante atualização:', error);
         return res.status(500).json({
@@ -292,7 +292,7 @@ export function setupAdminRoutes(app: Express) {
   app.post("/api/admin/products", isAdmin, async (req: Request, res: Response) => {
     try {
       const productData = insertProductSchema.parse(req.body);
-      
+
       const product = await storage.createProduct(productData);
       res.status(201).json(product);
     } catch (error) {
@@ -309,13 +309,13 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/products/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const productId = parseInt(req.params.id);
-      
+
       const product = await storage.updateProduct(productId, req.body);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Produto não encontrado" });
       }
-      
+
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar produto" });
@@ -326,13 +326,13 @@ export function setupAdminRoutes(app: Express) {
   app.delete("/api/admin/products/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const productId = parseInt(req.params.id);
-      
+
       const success = await storage.deleteProduct(productId);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Produto não encontrado" });
       }
-      
+
       res.sendStatus(204);
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir produto" });
@@ -353,7 +353,7 @@ export function setupAdminRoutes(app: Express) {
   app.post("/api/admin/banks", isAdmin, async (req: Request, res: Response) => {
     try {
       const bankData = insertBankSchema.parse(req.body);
-      
+
       const bank = await storage.createBank(bankData);
       res.status(201).json(bank);
     } catch (error) {
@@ -370,13 +370,13 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/banks/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const bankId = parseInt(req.params.id);
-      
+
       const bank = await storage.updateBank(bankId, req.body);
-      
+
       if (!bank) {
         return res.status(404).json({ message: "Banco não encontrado" });
       }
-      
+
       res.json(bank);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar banco" });
@@ -387,13 +387,13 @@ export function setupAdminRoutes(app: Express) {
   app.delete("/api/admin/banks/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const bankId = parseInt(req.params.id);
-      
+
       const success = await storage.deleteBank(bankId);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Banco não encontrado" });
       }
-      
+
       res.sendStatus(204);
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir banco" });
@@ -415,19 +415,19 @@ export function setupAdminRoutes(app: Express) {
     try {
       const key = req.params.key;
       const { value } = req.body;
-      
+
       if (typeof value !== 'string') {
         return res.status(400).json({ message: "Valor deve ser uma string" });
       }
-      
+
       let setting = await storage.getSetting(key);
-      
+
       if (setting) {
         setting = await storage.updateSetting(key, value);
       } else {
         setting = await storage.createSetting({ key, value });
       }
-      
+
       res.json(setting);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar configuração" });
@@ -448,7 +448,7 @@ export function setupAdminRoutes(app: Express) {
   app.post("/api/admin/carousel", isAdmin, async (req: Request, res: Response) => {
     try {
       const imageData = insertCarouselImageSchema.parse(req.body);
-      
+
       const image = await storage.createCarouselImage(imageData);
       res.status(201).json(image);
     } catch (error) {
@@ -465,13 +465,13 @@ export function setupAdminRoutes(app: Express) {
   app.put("/api/admin/carousel/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const imageId = parseInt(req.params.id);
-      
+
       const image = await storage.updateCarouselImage(imageId, req.body);
-      
+
       if (!image) {
         return res.status(404).json({ message: "Imagem não encontrada" });
       }
-      
+
       res.json(image);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar imagem do carrossel" });
@@ -482,13 +482,13 @@ export function setupAdminRoutes(app: Express) {
   app.delete("/api/admin/carousel/:id", isAdmin, async (req: Request, res: Response) => {
     try {
       const imageId = parseInt(req.params.id);
-      
+
       const success = await storage.deleteCarouselImage(imageId);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Imagem não encontrada" });
       }
-      
+
       res.sendStatus(204);
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir imagem do carrossel" });

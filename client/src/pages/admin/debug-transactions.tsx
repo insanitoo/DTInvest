@@ -262,8 +262,8 @@ export default function DebugTransactions() {
                 <Input
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  placeholder="Digite o ID numérico"
-                  type="number"
+                  placeholder="Digite o ID da transação (ex: DEPM9SB...)"
+                  type="text"
                 />
               </div>
               

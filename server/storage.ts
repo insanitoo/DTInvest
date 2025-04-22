@@ -320,6 +320,11 @@ export class MemStorage implements IStorage {
     return this.transactions.get(id);
   }
 
+  async getTransactionByTransactionId(transactionId: string): Promise<Transaction | undefined> {
+    return Array.from(this.transactions.values())
+      .find(transaction => transaction.transactionId === transactionId);
+  }
+
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const id = this.currentTransactionId++;
     const now = new Date();
