@@ -348,13 +348,34 @@ export class MemStorage implements IStorage {
   async updateTransactionStatus(transactionId: string, status: string): Promise<Transaction> {
     console.log(`\n=== TRANSACT >>> Atualizando transação ${transactionId} para ${status} ===\n`);
     
-    // Buscar transação pelo transactionId
-    const transaction = Array.from(this.transactions.values())
-      .find(t => t.transactionId === transactionId);
+    // CORREÇÃO: Verificar se o parâmetro é numérico (id interno) ou string (transactionId externo)
+    let transaction: Transaction | undefined;
+    
+    // Tentar primeiro como id interno (conversão para número)
+    const numericId = parseInt(transactionId);
+    if (!isNaN(numericId)) {
+      console.log(`TRANSACT >>> Buscando transação por ID interno: ${numericId}`);
+      transaction = this.transactions.get(numericId);
+    }
+    
+    // Se não encontrou por ID interno, busca por transactionId
+    if (!transaction) {
+      console.log(`TRANSACT >>> Buscando transação por transactionId: ${transactionId}`);
+      transaction = Array.from(this.transactions.values())
+        .find(t => t.transactionId === transactionId);
+    }
       
     if (!transaction) {
+      // Log de depuração: mostrar todas as transações e seus IDs para diagnóstico
+      console.error(`TRANSACT >>> Transação ${transactionId} não encontrada`);
+      console.log('TRANSACT >>> Transações disponíveis:', 
+        Array.from(this.transactions.entries())
+          .map(([id, t]) => ({ id, transactionId: t.transactionId }))
+      );
       throw new Error(`Transação ${transactionId} não encontrada`);
     }
+    
+    console.log(`TRANSACT >>> Transação encontrada:`, transaction);
 
     // Se for um depósito sendo completado, atualizar o saldo do usuário
     if (status === 'completed' && transaction.type === 'deposit') {

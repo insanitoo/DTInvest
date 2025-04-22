@@ -156,9 +156,38 @@ export function setupAdminRoutes(app: Express) {
       console.log(`ADMIN API >>> Atualizando transação ${transactionId} para status: ${status}`);
 
       // ETAPA 3: Verificar se a transação existe
-      const transaction = await storage.getTransactionByTransactionId(transactionId); // Changed function call
+      // CORREÇÃO: Tentar encontrar transação primeiro por ID interno (número) e depois por transactionId
+      let transaction;
+      
+      // Tentar primeiro como ID interno
+      const numericId = parseInt(transactionId);
+      if (!isNaN(numericId)) {
+        console.log(`ADMIN API >>> Tentando buscar transação pelo ID interno ${numericId}`);
+        transaction = await storage.getTransaction(numericId);
+      }
+      
+      // Se não encontrou por ID interno, buscar por transactionId
       if (!transaction) {
+        console.log(`ADMIN API >>> Tentando buscar transação pelo transactionId ${transactionId}`);
+        transaction = await storage.getTransactionByTransactionId(transactionId);
+      }
+      
+      // Se ainda não encontrou, mostrar erro
+      if (!transaction) {
+        // Log para diagnóstico
         console.error(`ADMIN API >>> Transação ${transactionId} não encontrada`);
+        console.log(`ADMIN API >>> Listando algumas transações disponíveis para depuração:`);
+        
+        const allTransactions = await storage.getAllTransactions();
+        const sampleTransactions = allTransactions.slice(0, Math.min(5, allTransactions.length));
+        
+        console.log(sampleTransactions.map(t => ({
+          id: t.id,
+          transactionId: t.transactionId,
+          type: t.type,
+          amount: t.amount
+        })));
+        
         return res.status(404).json({
           success: false,
           message: "Transação não encontrada"
