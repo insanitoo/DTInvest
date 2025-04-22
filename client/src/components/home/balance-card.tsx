@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth-new";
 import { formatCurrency } from "@/lib/utils";
-import { Loader2, ArrowDown, ArrowUp } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Transaction, User } from "@shared/schema";
 
 export function BalanceCard({ 
   onDepositClick, 
@@ -11,39 +13,32 @@ export function BalanceCard({
   onDepositClick: () => void, 
   onWithdrawClick: () => void 
 }) {
-  const { user, isLoading } = useAuth();
-  const [dailyReturn, setDailyReturn] = useState(0);
-
-  // Atualizar quando as transações mudarem
-  useEffect(() => {
-    const fetchDailyIncome = async () => {
-      try {
-        const response = await fetch('/api/transactions');
-        const transactions = await response.json();
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayIncome = transactions
-          .filter(tx => {
-            const txDate = new Date(tx.createdAt);
-            txDate.setHours(0, 0, 0, 0);
-            return txDate.getTime() === today.getTime() && 
-                   (tx.type === 'income' || tx.type === 'commission');
-          })
-          .reduce((sum, tx) => sum + tx.amount, 0);
-          
-        setDailyReturn(todayIncome);
-      } catch (error) {
-        console.error('Erro ao buscar rendimento diário:', error);
-        setDailyReturn(0);
-      }
-    };
-
-    if (user) {
-      fetchDailyIncome();
-    }
-  }, [user]);
+  // Buscar dados do usuário diretamente para sempre ter o saldo atualizado
+  const { data: currentUser, isLoading: isUserLoading } = useQuery<User>({
+    queryKey: ['/api/user'],
+  });
+  
+  // Buscar transações para calcular o rendimento diário
+  const { data: transactions, isLoading: isTransactionsLoading } = useQuery<Transaction[]>({
+    queryKey: ['/api/transactions'],
+  });
+  
+  // Calcular rendimento diário
+  const dailyReturn = React.useMemo(() => {
+    if (!transactions) return 0;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return transactions
+      .filter(tx => {
+        const txDate = new Date(tx.createdAt);
+        txDate.setHours(0, 0, 0, 0);
+        return txDate.getTime() === today.getTime() && 
+               (tx.type === 'income' || tx.type === 'commission');
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0);
+  }, [transactions]);
 
   return (
     <div className="px-4 mb-2">
@@ -51,22 +46,28 @@ export function BalanceCard({
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-sm text-gray-400 mb-1">Saldo da conta</h2>
-            {isLoading ? (
+            {isUserLoading ? (
               <div className="flex items-center h-10">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
               </div>
             ) : (
               <h3 className="text-3xl font-bold">
-                {user ? formatCurrency(user.balance) : 'KZ 0.00'}
+                {currentUser ? formatCurrency(currentUser.balance) : 'KZ 0.00'}
               </h3>
             )}
           </div>
           
           <div className="text-right">
             <h2 className="text-sm text-gray-400 mb-1">Rendimento diário</h2>
-            <h3 className="text-3xl font-bold text-primary">
-              {formatCurrency(dailyReturn)}
-            </h3>
+            {isTransactionsLoading ? (
+              <div className="flex items-center justify-end h-10">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <h3 className="text-3xl font-bold text-primary">
+                {formatCurrency(dailyReturn)}
+              </h3>
+            )}
           </div>
         </div>
         <div className="absolute bottom-0 left-0 w-2 h-2 border-l-2 border-b-2 border-primary border-opacity-30 -mb-2 -ml-2"></div>
