@@ -19,13 +19,14 @@ export function ProductCard({ product }: ProductCardProps) {
       const res = await apiRequest('POST', `/api/products/${product.id}/purchase`);
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user/investments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       
       toast({
         title: 'Produto adquirido',
-        description: `Você adquiriu o produto ${product.name} com sucesso!`,
+        description: `Você adquiriu o produto ${product.name} com sucesso! A primeira renda diária de ${formatCurrency(product.dailyIncome)} já foi creditada.`,
       });
     },
     onError: (error: Error) => {

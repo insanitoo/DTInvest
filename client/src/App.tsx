@@ -42,26 +42,28 @@ export default function App() {
         <TransactionsProvider>
           <Switch>
             <Route path="/auth" component={AuthPage} />
-            <Route path="/" component={HomePage} />
+            <ProtectedRoute path="/">
+              <HomePage />
+            </ProtectedRoute>
             
             {/* Rotas lazy-loaded */}
-            <Route path="/products">
+            <ProtectedRoute path="/products">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <ProductsPage />
               </Suspense>
-            </Route>
+            </ProtectedRoute>
             
-            <Route path="/team">
+            <ProtectedRoute path="/team">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <TeamPage />
               </Suspense>
-            </Route>
+            </ProtectedRoute>
             
-            <Route path="/service">
+            <ProtectedRoute path="/service">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <ServicePage />
               </Suspense>
-            </Route>
+            </ProtectedRoute>
             
             <ProtectedRoute path="/user">
               <Suspense fallback={<LazyLoadingSpinner />}>
