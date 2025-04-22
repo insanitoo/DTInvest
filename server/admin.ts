@@ -421,6 +421,56 @@ export function setupAdminRoutes(app: Express) {
       res.status(500).json({ message: "Erro ao excluir produto" });
     }
   });
+  
+  // Aprovar solicitação de saque
+  app.put("/api/admin/withdrawal/:id/approve", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const withdrawalId = parseInt(req.params.id);
+      
+      // Aprovar o saque e criar transação correspondente
+      const transaction = await storage.approveWithdrawalRequest(withdrawalId, req.user?.id || 0);
+      
+      // Atualizar o status da transação para "completed"
+      await storage.updateTransactionStatus(transaction.id, "completed");
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Saque aprovado com sucesso", 
+        transaction
+      });
+    } catch (error: any) {
+      console.error("Erro ao aprovar saque:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Erro ao aprovar saque" 
+      });
+    }
+  });
+
+  // Rejeitar solicitação de saque (com penalidade de 20%)
+  app.put("/api/admin/withdrawal/:id/reject", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const withdrawalId = parseInt(req.params.id);
+      
+      // Rejeitar o saque (com penalidade de 20%) e retornar 80% do valor à conta do usuário
+      const transaction = await storage.rejectWithdrawalRequest(withdrawalId, req.user?.id || 0);
+      
+      // Atualizar o status da transação para "failed" (mas o valor já foi devolvido)
+      await storage.updateTransactionStatus(transaction.id, "failed");
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Saque rejeitado com sucesso. 80% do valor foi devolvido ao usuário.", 
+        transaction
+      });
+    } catch (error: any) {
+      console.error("Erro ao rejeitar saque:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Erro ao rejeitar saque" 
+      });
+    }
+  });
 
   // Get all banks
   app.get("/api/admin/banks", isAdmin, async (req: Request, res: Response) => {
