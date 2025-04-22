@@ -345,18 +345,39 @@ export class MemStorage implements IStorage {
     return newTransaction;
   }
 
-  // Método legado para compatibilidade - será removido em versões futuras
-  async updateTransactionStatus(id: number, status: string): Promise<Transaction> {
-    console.log(`\n--- TRANSACT >>> AVISO: Método LEGADO chamado. Prefira usar as novas funções ---\n`);
+  async updateTransactionStatus(transactionId: string, status: string): Promise<Transaction> {
+    console.log(`\n=== TRANSACT >>> Atualizando transação ${transactionId} para ${status} ===\n`);
     
-    const transaction = this.transactions.get(id);
+    // Buscar transação pelo transactionId
+    const transaction = Array.from(this.transactions.values())
+      .find(t => t.transactionId === transactionId);
+      
     if (!transaction) {
-      throw new Error(`Transação ${id} não encontrada`);
+      throw new Error(`Transação ${transactionId} não encontrada`);
     }
-    
-    // Não faz nada, apenas retorna a transação
-    console.log(`TRANSACT >>> AVISO: Método não possui mais efeito. Usando apenas para compatibilidade.`);
-    
+
+    // Se for um depósito sendo completado, atualizar o saldo do usuário
+    if (status === 'completed' && transaction.type === 'deposit') {
+      const user = await this.getUser(transaction.userId);
+      if (!user) {
+        throw new Error(`Usuário ${transaction.userId} não encontrado`);
+      }
+
+      console.log(`TRANSACT >>> Atualizando saldo do usuário ${user.phoneNumber}`);
+      console.log(`TRANSACT >>> Saldo atual: ${user.balance}, Depósito: ${transaction.amount}`);
+      
+      const newBalance = user.balance + transaction.amount;
+      await this.updateUserBalance(user.id, newBalance);
+      
+      console.log(`TRANSACT >>> Novo saldo: ${newBalance}`);
+      
+      // Marcar que o usuário já realizou depósito
+      if (!user.hasDeposited) {
+        await this.updateUser(user.id, { hasDeposited: true });
+        console.log(`TRANSACT >>> Usuário marcado como tendo realizado depósito`);
+      }
+    }
+
     return transaction;
   }
   
