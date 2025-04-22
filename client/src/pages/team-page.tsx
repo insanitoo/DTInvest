@@ -51,7 +51,7 @@ export default function TeamPage() {
         <header className="p-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Equipa</h1>
           <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
-            <span className="text-dark-secondary text-sm font-bold">S&P</span>
+            <span className="text-dark-secondary text-sm font-bold">DTI</span>
           </div>
         </header>
         

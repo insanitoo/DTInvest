@@ -11,7 +11,7 @@ export default function ServicePage() {
       <header className="p-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Serviço</h1>
         <div className="rounded-full bg-white w-10 h-10 flex items-center justify-center">
-          <span className="text-dark-secondary text-sm font-bold">S&P</span>
+          <span className="text-dark-secondary text-sm font-bold">DTI</span>
         </div>
       </header>
 
@@ -61,7 +61,7 @@ export default function ServicePage() {
               Sábado: 09:00 - 13:00<br />
               Domingo: Fechado
             </p>
-            
+
             <div className="bg-dark-tertiary p-3 rounded-md border-l-4 border-primary">
               <p className="text-sm">
                 Nosso tempo médio de resposta é de 30 minutos durante o horário comercial.
