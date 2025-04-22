@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, Lock, Unlock, Search } from 'lucide-react';
-import { User } from '@shared/schema';
+import { User, ReferralInfo } from '@shared/schema';
 import { AdminNavigation } from './components/admin-navigation';
 import { CyberneticBox } from '@/components/ui/cybernetic-box';
 import { Button } from '@/components/ui/button';
@@ -147,7 +147,7 @@ export default function AdminUsers() {
                     <td className="px-4 py-3">{formatPhoneNumber(user.phoneNumber)}</td>
                     <td className="px-4 py-3">{formatCurrency(user.balance)}</td>
                     <td className="px-4 py-3">
-                      {user.level1Referrals + user.level2Referrals + user.level3Referrals}
+                      {(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}
                     </td>
                     <td className="px-4 py-3">
                       {user.isBlocked ? (
