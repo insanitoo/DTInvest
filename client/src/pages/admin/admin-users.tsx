@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, AlertCircle, Lock, Unlock } from 'lucide-react';
+import { Loader2, AlertCircle, Lock, Unlock, Search } from 'lucide-react';
 import { User } from '@shared/schema';
 import { AdminNavigation } from './components/admin-navigation';
 import { CyberneticBox } from '@/components/ui/cybernetic-box';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -21,11 +22,29 @@ export default function AdminUsers() {
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Get all users
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
+  
+  // Filtered users based on search query
+  const filteredUsers = useMemo(() => {
+    if (!users || !searchQuery.trim()) return users;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return users.filter(user => 
+      // Procurar por número de telefone
+      user.phoneNumber.toLowerCase().includes(query) ||
+      // Procurar por ID
+      user.id.toString().includes(query) ||
+      // Procurar por código de referral
+      (user.referralCode?.toLowerCase().includes(query) || false) ||
+      // Procurar por quem indicou
+      (user.referredBy?.toLowerCase().includes(query) || false)
+    );
+  }, [users, searchQuery]);
   
   // Block/unblock user mutation
   const blockUserMutation = useMutation({
@@ -75,13 +94,25 @@ export default function AdminUsers() {
       <AdminNavigation />
       
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Gerenciar Usuários</h1>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold">Gerenciar Usuários</h1>
+          
+          <div className="relative w-full md:w-96">
+            <Input
+              placeholder="Buscar por Telefone, ID ou Código"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-dark-tertiary text-white pr-10"
+            />
+            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+          </div>
+        </div>
         
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
           </div>
-        ) : users && users.length > 0 ? (
+        ) : filteredUsers && filteredUsers.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -96,7 +127,7 @@ export default function AdminUsers() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr 
                     key={user.id} 
                     className="border-b border-gray-800 hover:bg-dark-tertiary/30 transition-colors"
