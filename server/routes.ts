@@ -4,6 +4,14 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { User } from "../shared/schema";
 
+// Função para formatar valores em moeda (KZ)
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-AO', {
+    style: 'currency',
+    currency: 'AOA'
+  }).format(value);
+}
+
 // Middleware para verificar se o usuário é administrador
 function isAdmin(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -567,6 +575,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`Transação registrada com sucesso: ID=${transaction.id}`);
       
+      // 4. Quarto: Creditar a primeira renda diária ao usuário imediatamente
+      console.log(`Creditando a primeira renda diária ao usuário...`);
+      // Calcular novo saldo com a renda diária
+      const updatedBalanceWithIncome = updatedUser.balance + product.dailyIncome;
+      
+      // Atualizar o saldo do usuário adicionando a renda diária
+      const userWithDailyIncome = await storage.updateUserBalance(userId, updatedBalanceWithIncome);
+      console.log(`Saldo atualizado com renda diária: ${userWithDailyIncome.balance}`);
+      
+      // Registrar a transação de renda diária
+      const dailyIncomeTransaction = await storage.createTransaction({
+        userId,
+        type: "income",
+        amount: product.dailyIncome,
+        bankAccount: null,
+        bankName: null,
+        receipt: null,
+        transactionId: null,
+        status: 'completed'
+      });
+      console.log(`Transação de renda diária registrada: ID=${dailyIncomeTransaction.id}`);
+      
       // Verificar se o usuário realmente está marcado como tendo produtos
       if (!updatedUser.hasProduct) {
         console.log(`Garantindo que o usuário está marcado como tendo produtos...`);
@@ -669,15 +699,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         purchase,
         transaction,
-        message: `Produto ${product.name} adquirido com sucesso!`,
+        incomeTransaction: dailyIncomeTransaction,
+        message: `Produto ${product.name} adquirido com sucesso! A primeira renda diária de ${formatCurrency(product.dailyIncome)} já foi creditada.`,
         previousBalance: user.balance,
-        newBalance: updatedUser.balance,
+        finalBalance: userWithDailyIncome.balance,
+        dailyIncomeAmount: product.dailyIncome,
         product: {
           id: product.id,
           name: product.name,
           price: product.price,
           dailyIncome: product.dailyIncome,
-          cycleDays: product.cycleDays
+          cycleDays: product.cycleDays,
+          daysRemaining: product.cycleDays - 1 // Já descontamos o primeiro dia
         }
       });
     } catch (error) {
