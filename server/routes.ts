@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { User } from "../shared/schema";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // Função para formatar valores em moeda (KZ)
 function formatCurrency(value: number): string {
@@ -57,6 +59,27 @@ function validateTransactionStatus(status: any): { valid: boolean; error?: strin
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint para o Render
+  app.get("/api/health", async (req, res) => {
+    try {
+      // Verificar conexão com o banco de dados fazendo uma consulta simples
+      const result = await db.execute(sql`SELECT 1 as health`);
+      
+      res.status(200).json({ 
+        status: "ok", 
+        database: "connected",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Erro no health check:", error);
+      res.status(500).json({ 
+        status: "error", 
+        database: "disconnected",
+        timestamp: new Date().toISOString(),
+        message: "Não foi possível conectar ao banco de dados"
+      });
+    }
+  });
   // Set up authentication
   setupAuth(app);
 
