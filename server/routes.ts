@@ -352,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Rota para obter os detalhes das contas bancárias do sistema
-  app.get("/api/bank-accounts", isAdmin, async (req, res) => {
+  app.get("/api/bank-accounts", async (req, res) => {
     try {
       const accounts = await storage.getBankAccountDetails();
       res.json(accounts);
