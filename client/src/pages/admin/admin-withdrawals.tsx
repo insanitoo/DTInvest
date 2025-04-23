@@ -75,7 +75,9 @@ export default function AdminWithdrawals() {
       return await res.json();
     },
     onSuccess: () => {
+      // Update both admin and user-facing queries
       queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawal-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       
       toast({
         title: 'Saque aprovado',

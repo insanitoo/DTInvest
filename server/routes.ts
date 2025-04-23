@@ -1028,6 +1028,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Apply 20% penalty if request is rejected
+      const REJECTION_PENALTY = 0.2;
+      const penaltyAmount = amount * REJECTION_PENALTY;
+      const refundAmount = amount - penaltyAmount;
+
       // Create withdrawal request
       const withdrawalRequest = await storage.createWithdrawalRequest({
         userId,
@@ -1035,10 +1040,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
         ownerName: bankInfo.ownerName,
-        status: 'requested'
+        status: 'requested',
+        penaltyAmount,
+        refundAmount
       });
 
-      // Gerar um ID de transação único
+      // Generate unique transaction ID
       const transactionId = `WDR${Date.now().toString(36).toUpperCase()}`;
       
       // Deduzimos o valor imediatamente para evitar saques excessivos

@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth-new';
 import { useTransactions } from '@/hooks/use-transactions';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface WithdrawalModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { createWithdrawal } = useTransactions();
+  const queryClient = useQueryClient(); // Added queryClient
 
   // Estados do formulário
   const [amount, setAmount] = useState<number | ''>('');
@@ -96,6 +98,12 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
       });
 
       if (result.success) {
+        // Update queries to reflect new balance and add transaction
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+        ]);
+
         setWithdrawalSuccess(true);
         setAmount('');
       } else {
@@ -110,7 +118,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
       console.error("Erro ao criar saque:", error);
       // Exibe a mensagem detalhada do erro de API
       let errorMessage = 'Erro desconhecido ao processar o saque';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error instanceof Response) {
@@ -118,7 +126,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
       } else if (typeof error === 'object' && error && 'message' in error) {
         errorMessage = String(error.message);
       }
-      
+
       toast({
         title: 'Erro na Solicitação',
         description: errorMessage,
