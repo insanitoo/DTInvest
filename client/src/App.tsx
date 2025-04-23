@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { ProtectedRoute } from '@/lib/protected-route';
+import { AdminRoute } from '@/lib/admin-route';
 import { AuthProvider } from '@/hooks/use-auth-new';
 import { TransactionsProvider } from '@/hooks/use-transactions';
 import { Loader2 } from 'lucide-react';
@@ -78,42 +79,42 @@ export default function App() {
               </Suspense>
             </ProtectedRoute>
             
-            {/* Rotas Admin */}
-            <ProtectedRoute path="/admin">
+            {/* Rotas Admin - Adicionado proteção específica para admin */}
+            <AdminRoute path="/admin">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <AdminDashboard />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
-            <ProtectedRoute path="/admin/usuarios">
+            <AdminRoute path="/admin/usuarios">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <AdminUsers />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
-            <ProtectedRoute path="/admin/produtos">
+            <AdminRoute path="/admin/produtos">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <AdminProducts />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
-            <ProtectedRoute path="/admin/transacoes">
+            <AdminRoute path="/admin/transacoes">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <AdminTransactions />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
-            <ProtectedRoute path="/admin/configuracoes">
+            <AdminRoute path="/admin/configuracoes">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <AdminSettings />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
-            <ProtectedRoute path="/admin/debug">
+            <AdminRoute path="/admin/debug">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <DebugTransactions />
               </Suspense>
-            </ProtectedRoute>
+            </AdminRoute>
             
             <Route component={NotFound} />
           </Switch>
