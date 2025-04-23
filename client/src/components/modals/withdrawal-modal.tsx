@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { X, AlertTriangle, Loader2, Check, InfoIcon } from 'lucide-react';
+import { X, AlertTriangle, Loader2, Check, InfoIcon, Clock } from 'lucide-react';
 import { formatCurrency, isWithinAngolaBusinessHours, isWeekday } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth-new';
 import { useTransactions } from '@/hooks/use-transactions';
@@ -150,13 +150,27 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 <span className="text-white">{formatCurrency(typeof amount === 'number' ? amount : 0)}</span>
               </div>
             </div>
-            <Button
-              variant="default"
-              className="w-full bg-primary hover:bg-primary/90"
-              onClick={handleClose}
-            >
-              Fechar
-            </Button>
+            <div className="space-y-3">
+              <Button
+                variant="default"
+                className="w-full bg-primary hover:bg-primary/90"
+                onClick={handleClose}
+              >
+                Fechar
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center"
+                onClick={() => {
+                  handleClose();
+                  window.location.href = "/historico-saques";
+                }}
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                Ver histórico de saques
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="py-2">

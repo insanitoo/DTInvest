@@ -1035,6 +1035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasDeposit) {
         return res.status(400).json({ message: "É necessário fazer um depósito antes de fazer saques" });
       }
+      
+      // Verificação de saque diário já é feita anteriormente no código
 
       // Get bank info
       const bankInfo = await storage.getBankInfoByUserId(userId);
