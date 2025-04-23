@@ -639,12 +639,21 @@ export class MemStorage implements IStorage {
       throw new Error('É necessário ter realizado pelo menos um depósito para sacar');
     }
     
-    // Verificação de horário removida para testes
-    // const now = new Date();
-    // const angolaHour = now.getUTCHours() + 1; // Angola está em UTC+1
-    // if (angolaHour < 10 || angolaHour >= 15) {
-    //   throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
-    // }
+    // Verificar horário de Angola (UTC+1)
+    const now = new Date();
+    const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
+    const angolaHour = angolaTime.getHours();
+    const angolaDay = angolaTime.getDay();
+    
+    // Verificar se é dia útil (segunda a sexta)
+    if (angolaDay === 0 || angolaDay === 6) {
+      throw new Error('Saques só podem ser solicitados em dias úteis (segunda a sexta-feira)');
+    }
+    
+    // Verificar se está dentro do horário comercial (10h às 15h)
+    if (angolaHour < 10 || angolaHour >= 15) {
+      throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
+    }
     
     // Bloquear o valor no saldo do usuário
     const newBalance = user.balance - request.amount;
