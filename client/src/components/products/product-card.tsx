@@ -30,7 +30,7 @@ export function ProductCard({ product }: ProductCardProps) {
       
       toast({
         title: 'Produto adquirido',
-        description: `Você adquiriu o produto ${product.name} com sucesso! A primeira renda diária de ${formatCurrency(product.dailyIncome)} já foi creditada.`,
+        description: `Você adquiriu o produto ${product.name} com sucesso! A primeira renda de ${formatCurrency(product.dailyIncome)} já foi creditada.`,
       });
     },
     onError: (error: Error) => {
@@ -73,7 +73,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-base">{product.cycleDays} Dias</p>
         </div>
         <div>
-          <p className="text-sm text-gray-400">Renda diária</p>
+          <p className="text-sm text-gray-400">Renda</p>
           <p className="text-base">{formatCurrency(product.dailyIncome)}</p>
         </div>
       </div>
