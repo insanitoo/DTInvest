@@ -176,11 +176,11 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 className="w-full flex items-center justify-center"
                 onClick={() => {
                   handleClose();
-                  window.location.href = "/historico-saques";
+                  window.location.href = "/?tab=transactionsAll";
                 }}
               >
                 <Clock className="mr-2 h-4 w-4" />
-                Ver histórico de saques
+                Ver histórico de transações
               </Button>
             </div>
           </div>

@@ -29,12 +29,12 @@ export function BottomNavigation() {
           <span>Produtos</span>
         </Link>
 
-        <Link href="/historico-saques" className={cn(
+        <Link href="/?tab=transactionsAll" className={cn(
           "flex flex-col items-center justify-center text-xs py-1",
-          isActive("/historico-saques") ? "text-primary" : "text-gray-400"
+          location.startsWith("/?tab=transactions") ? "text-primary" : "text-gray-400"
         )}>
           <Clock className="h-5 w-5 mb-1" />
-          <span>Saques</span>
+          <span>Transações</span>
         </Link>
 
         <Link href="/team" className={cn(
