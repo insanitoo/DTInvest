@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/use-auth-new';
 import { useTransactions } from '@/hooks/use-transactions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
+import { BankAccountDetail } from '@shared/schema';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -25,22 +27,12 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
   const [copied, setCopied] = useState(false);
   const [loadingDeposit, setLoadingDeposit] = useState(false);
   const [depositId, setDepositId] = useState<string | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   
-  // Lista de bancos disponíveis para transferência
-  const bankAccounts = [
-    {
-      id: "BAI",
-      bank: "BAI",
-      number: "9876543210",
-      owner: "S&P Global Payments"
-    },
-    {
-      id: "BFA",
-      bank: "BFA",
-      number: "1234567890",
-      owner: "S&P Global Payments"
-    }
-  ];
+  // Carregar contas bancárias do banco de dados
+  const { data: bankAccountDetails, isLoading: isLoadingBankAccounts } = useQuery<BankAccountDetail[]>({
+    queryKey: ['/api/bank-accounts'],
+  });
 
   // Criação do depósito
   const handleDeposit = async () => {
@@ -176,27 +168,43 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
             <div className="bg-dark-tertiary rounded-lg p-3 mb-3">
               <h3 className="text-sm font-medium text-gray-300 mb-2">Contas Bancárias</h3>
               <div className="space-y-2">
-                {bankAccounts.map((account) => (
-                  <div key={account.bank} className="bg-dark-secondary p-2 rounded-md">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">{account.bank}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-gray-400"
-                        onClick={() => handleCopy(account.number)}
-                      >
-                        {copied ? (
-                          <Check className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <CopyIcon className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-400">Número: <span className="text-gray-300">{account.number}</span></p>
-                    <p className="text-xs text-gray-400">Titular: <span className="text-gray-300">{account.owner}</span></p>
+                {isLoadingBankAccounts ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-400">Carregando contas bancárias...</p>
                   </div>
-                ))}
+                ) : bankAccountDetails && bankAccountDetails.length > 0 ? (
+                  bankAccountDetails.map((account) => (
+                    <div key={account.id} className="bg-dark-secondary p-2 rounded-md">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium">
+                          {account.bank?.name || 'Banco'}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-gray-400"
+                          onClick={() => {
+                            handleCopy(account.iban);
+                            setCopiedText(account.iban);
+                          }}
+                        >
+                          {copied && copiedText === account.iban ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <CopyIcon className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-400">IBAN: <span className="text-gray-300">{account.iban}</span></p>
+                      <p className="text-xs text-gray-400">Titular: <span className="text-gray-300">{account.accountHolder}</span></p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-2">
+                    <p className="text-sm text-gray-400">Nenhuma conta bancária disponível no momento.</p>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -221,14 +229,14 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
               {/* Banco */}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Banco utilizado</label>
-                <Select disabled={loadingDeposit} value={bankName} onValueChange={setBankName}>
+                <Select disabled={loadingDeposit || isLoadingBankAccounts} value={bankName} onValueChange={setBankName}>
                   <SelectTrigger className="bg-dark-tertiary text-white border-gray-700">
                     <SelectValue placeholder="Selecione o banco" />
                   </SelectTrigger>
                   <SelectContent className="bg-dark-tertiary text-white border-gray-700">
-                    {bankAccounts.map(account => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.bank}
+                    {bankAccountDetails?.map(account => (
+                      <SelectItem key={account.id.toString()} value={account.bank?.name || ''}>
+                        {account.bank?.name || 'Banco'}
                       </SelectItem>
                     ))}
                   </SelectContent>
