@@ -34,16 +34,15 @@ export default function AdminUsers() {
     if (!users || !searchQuery.trim()) return users;
     
     const query = searchQuery.toLowerCase().trim();
-    return users.filter(user => 
-      // Procurar por número de telefone
-      user.phoneNumber.toLowerCase().includes(query) ||
-      // Procurar por ID
-      user.id.toString().includes(query) ||
-      // Procurar por código de referral
-      (user.referralCode?.toLowerCase().includes(query) || false) ||
-      // Procurar por quem indicou
-      (user.referredBy?.toLowerCase().includes(query) || false)
-    );
+    return users.filter(user => {
+      // Verificar se os campos existem antes de usar
+      const phoneMatch = user.phoneNumber ? user.phoneNumber.toLowerCase().includes(query) : false;
+      const idMatch = user.id ? user.id.toString().includes(query) : false;
+      const referralCodeMatch = user.referralCode ? user.referralCode.toLowerCase().includes(query) : false;
+      const referredByMatch = user.referredBy ? user.referredBy.toLowerCase().includes(query) : false;
+      
+      return phoneMatch || idMatch || referralCodeMatch || referredByMatch;
+    });
   }, [users, searchQuery]);
   
   // Block/unblock user mutation
@@ -148,8 +147,10 @@ export default function AdminUsers() {
                     <td className="px-4 py-3">{formatCurrency(user.balance)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-1">
-                        <span className="font-medium">{(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}</span>
-                        {user.level1Referrals > 0 && (
+                        <span className="font-medium">
+                          {((user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0))}
+                        </span>
+                        {user.level1Referrals && user.level1Referrals > 0 && (
                           <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
                             Nv1: {user.level1Referrals}
                           </span>
