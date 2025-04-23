@@ -138,6 +138,19 @@ export function setupAdminRoutes(app: Express) {
     }
   });
 
+  // Get withdrawal requests
+  app.get("/api/admin/withdrawal-requests", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const withdrawalRequests = await storage.getWithdrawalRequests();
+      res.json(withdrawalRequests);
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao buscar solicitações de saque", 
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   // Get all transactions
   app.get("/api/admin/transactions", isAdmin, async (req: Request, res: Response) => {
     try {

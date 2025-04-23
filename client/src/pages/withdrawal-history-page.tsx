@@ -1,14 +1,14 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navbar } from '../components/navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Clock, AlertCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
 
-// Tipo dos itens de saque
 interface WithdrawalRequest {
   id: number;
   userId: number;
@@ -23,13 +23,11 @@ interface WithdrawalRequest {
 export default function WithdrawalHistoryPage() {
   const [, setLocation] = useLocation();
   
-  // Carregar histórico de saques do usuário
   const { data: withdrawals, isLoading, error } = useQuery<WithdrawalRequest[]>({
     queryKey: ['/api/withdrawals'],
     retry: 1,
   });
   
-  // Formata data para exibição
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('pt-AO', {
@@ -41,7 +39,6 @@ export default function WithdrawalHistoryPage() {
     }).format(date);
   };
   
-  // Retorna o ícone apropriado para o status
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'requested':
@@ -55,33 +52,34 @@ export default function WithdrawalHistoryPage() {
     }
   };
   
-  // Retorna o texto e a cor do badge de status
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'requested':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Em análise</Badge>;
+        return <Badge variant="outline" className="bg-yellow-900/30 text-yellow-400 border-yellow-900">Em análise</Badge>;
       case 'approved':
-        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Aprovado</Badge>;
+        return <Badge variant="outline" className="bg-green-900/30 text-green-400 border-green-900">Aprovado</Badge>;
       case 'rejected':
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">Rejeitado</Badge>;
+        return <Badge variant="outline" className="bg-red-900/30 text-red-400 border-red-900">Rejeitado</Badge>;
       default:
         return <Badge variant="outline">Desconhecido</Badge>;
     }
   };
   
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-black">
       <Navbar />
       
       <main className="flex-1 container py-6 space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight">Histórico de Saques</h1>
           <Button 
             onClick={() => setLocation('/')}
             variant="outline"
+            size="icon"
+            className="h-10 w-10 bg-zinc-900 border-zinc-800"
           >
-            Voltar
+            <ArrowLeft className="h-5 w-5" />
           </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Histórico de Saques</h1>
         </div>
         
         {isLoading ? (
@@ -89,7 +87,7 @@ export default function WithdrawalHistoryPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <Card>
+          <Card className="bg-zinc-900 border-zinc-800">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center text-center p-6">
                 <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
@@ -103,7 +101,7 @@ export default function WithdrawalHistoryPage() {
         ) : withdrawals && withdrawals.length > 0 ? (
           <div className="grid gap-4">
             {withdrawals.map(withdrawal => (
-              <Card key={withdrawal.id} className="overflow-hidden">
+              <Card key={withdrawal.id} className="bg-zinc-900 border-zinc-800">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <div>
@@ -144,7 +142,7 @@ export default function WithdrawalHistoryPage() {
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="bg-zinc-900 border-zinc-800">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center text-center p-6">
                 <Clock className="h-12 w-12 text-muted-foreground mb-4" />

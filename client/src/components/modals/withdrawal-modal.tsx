@@ -23,23 +23,21 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { createWithdrawal } = useTransactions();
-  
+
   // Estados do formulário
   const [amount, setAmount] = useState<number | ''>('');
   const [loadingWithdrawal, setLoadingWithdrawal] = useState(false);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
-  
-  // Define se usuário tem informações bancárias (simplificado)
-  // Na implementação real, isso viria de uma chamada API separada
-  const hasBankInfo = user?.hasDeposited || false;  // Simplificando para teste
-  
+  const [bankInfo, setBankInfo] = useState(user?.bankInfo || null); // Add bank info state
+
   // Verificar se o usuário pode fazer saques
-  const canWithdraw = 
-    user?.hasProduct && 
+  const canWithdraw =
+    user?.hasProduct &&
     user?.hasDeposited &&
     isWithinAngolaBusinessHours() &&
     isWeekday() &&
-    hasBankInfo;
+    bankInfo; // Check for bankInfo
+
 
   // Reset do modal ao fechar
   const handleClose = () => {
@@ -77,16 +75,24 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
       return;
     }
 
+    if (!bankInfo) {
+      toast({
+        title: 'Informações Bancárias',
+        description: 'Configure suas informações bancárias antes de solicitar saques.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+
     try {
       setLoadingWithdrawal(true);
 
-      // Para simplificar o teste, estamos incluindo dados bancários padrão
-      // Na implementação real, essas informações viriam do perfil do usuário
       const result = await createWithdrawal({
         amount: Number(amount),
-        bankName: "Banco de Teste",
-        bankAccount: "12345678901",
-        ownerName: "Usuário de Teste"
+        bankName: bankInfo.bankName, // Use bank info from state
+        bankAccount: bankInfo.bankAccount, // Use bank info from state
+        ownerName: bankInfo.ownerName // Use bank info from state
       });
 
       if (result.success) {
@@ -158,7 +164,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
               >
                 Fechar
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="w-full flex items-center justify-center"
@@ -178,7 +184,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
               <p className="text-sm text-gray-400">Saldo disponível</p>
               <p className="text-xl font-semibold">{user ? formatCurrency(user.balance) : 'KZ 0.00'}</p>
             </div>
-            
+
             <div className="space-y-3 mb-3">
               <div className="text-sm text-gray-300">
                 <h4 className="text-yellow-500 font-medium mb-1">Regras de saque</h4>
@@ -189,20 +195,20 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 </ul>
               </div>
             </div>
-            
+
             {/* Alerta quando não é possível sacar */}
             {!canWithdraw && (
               <Alert variant="destructive" className="mb-3 py-2">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Saque indisponível</AlertTitle>
                 <AlertDescription>
-                  {!hasBankInfo ? (
+                  {!bankInfo ? (
                     <>
                       <span>Configure seus dados bancários antes.</span>
                       <div className="mt-1">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="text-primary bg-primary/10 border-primary/20"
                           onClick={() => {
                             onClose();
@@ -213,15 +219,15 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                         </Button>
                       </div>
                     </>
-                  ) : !user?.hasProduct ? "Compre um produto primeiro." : 
-                  !user?.hasDeposited ? "Faça um depósito primeiro." :
-                  !isWithinAngolaBusinessHours() ? "Apenas das 10h às 15h." : 
-                  !isWeekday() ? "Apenas dias úteis." : 
-                  "Indisponível no momento."}
+                  ) : !user?.hasProduct ? "Compre um produto primeiro." :
+                    !user?.hasDeposited ? "Faça um depósito primeiro." :
+                      !isWithinAngolaBusinessHours() ? "Apenas das 10h às 15h." :
+                        !isWeekday() ? "Apenas dias úteis." :
+                          "Indisponível no momento."}
                 </AlertDescription>
               </Alert>
             )}
-            
+
             {/* Formulário de saque */}
             <div className="mb-3">
               <label className="block text-sm text-gray-400 mb-1">Valor a retirar</label>
@@ -237,7 +243,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 disabled={!canWithdraw || loadingWithdrawal}
               />
             </div>
-            
+
             {/* Alerta sobre taxa de reposição */}
             <Alert className="bg-amber-900/30 border-amber-800 mb-4 py-2">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
@@ -246,16 +252,16 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 Verifique seus dados bancários. Saques falhos devido a informações incorretas sofrem taxa de 20%.
               </AlertDescription>
             </Alert>
-            
+
             <Button
               variant="default"
               className="w-full bg-primary hover:bg-primary/90"
               onClick={handleWithdrawal}
               disabled={
-                !canWithdraw || 
-                loadingWithdrawal || 
-                !amount || 
-                amount < MIN_WITHDRAWAL || 
+                !canWithdraw ||
+                loadingWithdrawal ||
+                !amount ||
+                amount < MIN_WITHDRAWAL ||
                 amount > MAX_WITHDRAWAL ||
                 (user && amount > user.balance)
               }
