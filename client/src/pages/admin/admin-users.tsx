@@ -107,14 +107,33 @@ export default function AdminUsers() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <h1 className="text-3xl font-bold">Gerenciar Usuários</h1>
           
-          <div className="relative w-full md:w-96">
-            <Input
-              placeholder="Buscar por Telefone, ID, Código ou Referral"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-dark-tertiary text-white pr-10"
-            />
-            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+          <div className="flex w-full md:w-96 gap-2">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Buscar por Telefone, ID, Código ou Referral"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-dark-tertiary text-white pr-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+                  }
+                }}
+              />
+              <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+            </div>
+            <Button 
+              variant="default" 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                // Reimplementa a busca (refresh)
+                if (searchQuery.trim()) {
+                  queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+                }
+              }}
+            >
+              Buscar
+            </Button>
           </div>
         </div>
         
@@ -148,13 +167,13 @@ export default function AdminUsers() {
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-1">
                         <span className="font-medium">
-                          {((user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0))}
+                          {(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}
                         </span>
-                        {user.level1Referrals && user.level1Referrals > 0 && (
+                        {user.level1Referrals && user.level1Referrals > 0 ? (
                           <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
                             Nv1: {user.level1Referrals}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-4 py-3">
