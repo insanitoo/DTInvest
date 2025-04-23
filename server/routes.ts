@@ -966,18 +966,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Verificar se o usuário já fez um saque hoje
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      // Verificar se o usuário já fez um saque hoje (usando horário local de Angola)
+      const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD formato
       const withdrawalRequests = await storage.getUserWithdrawalRequests(userId);
       const todayWithdrawals = withdrawalRequests.filter(w => {
-        const reqDate = new Date(w.createdAt).toISOString().split('T')[0];
+        if (!w.createdAt) return false; // Proteção contra dados inválidos
+        const reqDate = new Date(w.createdAt).toLocaleDateString('en-CA');
         return reqDate === today;
       });
       
       if (todayWithdrawals.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "Apenas um saque por dia é permitido. Tente novamente amanhã."
+          message: "Você já fez um saque hoje. Tente novamente amanhã."
         });
       }
 
