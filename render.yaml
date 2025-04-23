@@ -2,8 +2,10 @@ services:
   - type: web
     name: sp-global-finance
     env: node
-    buildCommand: npm ci
-    startCommand: node dist/server/index.js
+    buildCommand: |
+      npm ci
+      npm run build
+    startCommand: npm start
     envVars:
       - key: DATABASE_URL
         value: postgresql://neondb_owner:npg_a9OAdPlB7zom@ep-lingering-lab-a2boyuq3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require

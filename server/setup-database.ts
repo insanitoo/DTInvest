@@ -1,0 +1,318 @@
+import { db } from "./db";
+import { sql } from "drizzle-orm";
+import { 
+  users, 
+  transactions, 
+  depositRequests, 
+  withdrawalRequests, 
+  bankInfo, 
+  products, 
+  purchases, 
+  socialLinks, 
+  banks, 
+  settings, 
+  carouselImages, 
+  bankAccountDetails 
+} from "../shared/schema";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+export async function setupDatabase() {
+  console.log("🔄 Iniciando configuração do banco de dados...");
+  
+  try {
+    // Verificar conexão com o banco
+    console.log("Testando conexão com o banco de dados...");
+    await db.execute(sql`SELECT 1`);
+    console.log("✅ Conexão com o banco de dados estabelecida com sucesso!");
+    
+    // 1. Criar tabela de usuários
+    console.log("Criando tabela de usuários...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        phone_number TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        balance DOUBLE PRECISION NOT NULL DEFAULT 0,
+        referral_code TEXT NOT NULL UNIQUE,
+        referred_by INTEGER REFERENCES users(id),
+        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+        is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+        has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
+        has_purchased BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'users' criada/verificada");
+    
+    // 2. Criar tabela de transações
+    console.log("Criando tabela de transações...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        type TEXT NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
+        status TEXT NOT NULL,
+        transaction_id TEXT,
+        bank_account TEXT,
+        bank_name TEXT,
+        receipt TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'transactions' criada/verificada");
+    
+    // 3. Criar tabela de solicitações de depósito
+    console.log("Criando tabela de solicitações de depósito...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS deposit_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        amount DOUBLE PRECISION NOT NULL,
+        transaction_id TEXT NOT NULL,
+        bank_name TEXT,
+        receipt TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'deposit_requests' criada/verificada");
+    
+    // 4. Criar tabela de solicitações de saque
+    console.log("Criando tabela de solicitações de saque...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS withdrawal_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        amount DOUBLE PRECISION NOT NULL,
+        bank_account TEXT NOT NULL,
+        bank_name TEXT NOT NULL,
+        owner_name TEXT NOT NULL,
+        status TEXT NOT NULL,
+        processed_at TIMESTAMP,
+        processed_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'withdrawal_requests' criada/verificada");
+    
+    // 5. Criar tabela para informações bancárias
+    console.log("Criando tabela de informações bancárias...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bank_info (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) UNIQUE,
+        bank TEXT NOT NULL,
+        owner_name TEXT NOT NULL,
+        account_number TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'bank_info' criada/verificada");
+    
+    // 6. Criar tabela para produtos
+    console.log("Criando tabela de produtos...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        price DOUBLE PRECISION NOT NULL,
+        return_rate DOUBLE PRECISION NOT NULL,
+        cycle_days INTEGER NOT NULL,
+        daily_income DOUBLE PRECISION NOT NULL,
+        total_return DOUBLE PRECISION NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'products' criada/verificada");
+    
+    // 7. Criar tabela para compras
+    console.log("Criando tabela de compras...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS purchases (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        product_id INTEGER NOT NULL REFERENCES products(id),
+        amount DOUBLE PRECISION NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'purchases' criada/verificada");
+    
+    // 8. Criar tabela para links sociais
+    console.log("Criando tabela de links sociais...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS social_links (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'social_links' criada/verificada");
+    
+    // 9. Criar tabela para bancos
+    console.log("Criando tabela de bancos...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS banks (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        logo TEXT,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'banks' criada/verificada");
+    
+    // 10. Criar tabela para configurações
+    console.log("Criando tabela de configurações...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS settings (
+        id SERIAL PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        value TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'settings' criada/verificada");
+    
+    // 11. Criar tabela para imagens do carrossel
+    console.log("Criando tabela para imagens do carrossel...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS carousel_images (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        link_url TEXT,
+        "order" INTEGER DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'carousel_images' criada/verificada");
+    
+    // 12. Criar tabela para detalhes de contas bancárias
+    console.log("Criando tabela para detalhes de contas bancárias...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bank_account_details (
+        id SERIAL PRIMARY KEY,
+        bank_id INTEGER NOT NULL REFERENCES banks(id),
+        account_holder TEXT NOT NULL,
+        iban TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Tabela 'bank_account_details' criada/verificada");
+    
+    // Criar usuário admin se não existir
+    console.log("Verificando usuário administrador...");
+    const adminUsers = await db.execute(sql`SELECT * FROM users WHERE phone_number = '999999999'`);
+    
+    if (adminUsers.rows.length === 0) {
+      console.log("Criando usuário administrador...");
+      const hashedPassword = await hashPassword("protótipo");
+      
+      await db.execute(
+        sql`INSERT INTO users (phone_number, password, referral_code, is_admin) 
+            VALUES ('999999999', ${hashedPassword}, 'ADMIN01', true)`
+      );
+      
+      console.log("✅ Usuário administrador criado com sucesso!");
+    } else {
+      console.log("✅ Usuário administrador já existe, pulando criação");
+    }
+    
+    // Criar bancos padrão se não existirem
+    console.log("Verificando bancos padrão...");
+    const existingBanks = await db.execute(sql`SELECT * FROM banks`);
+    
+    if (existingBanks.rows.length === 0) {
+      console.log("Criando bancos padrão...");
+      
+      await db.execute(
+        sql`INSERT INTO banks (name, active) VALUES ('BAI', true), ('Banco Atlântico', true)`
+      );
+      
+      console.log("✅ Bancos padrão criados com sucesso!");
+    } else {
+      console.log("✅ Bancos já existem, pulando criação");
+    }
+    
+    // Criar detalhes das contas bancárias para os bancos
+    console.log("Verificando detalhes das contas bancárias...");
+    const existingBankDetails = await db.execute(sql`SELECT * FROM bank_account_details`);
+    
+    if (existingBankDetails.rows.length === 0) {
+      console.log("Criando detalhes das contas bancárias...");
+      
+      // Obter IDs dos bancos
+      const banks = await db.execute(sql`SELECT id, name FROM banks`);
+      const baiBank = banks.rows.find(bank => bank.name === 'BAI');
+      const atlanticoBank = banks.rows.find(bank => bank.name === 'Banco Atlântico');
+      
+      if (baiBank && atlanticoBank) {
+        await db.execute(
+          sql`INSERT INTO bank_account_details (bank_id, account_holder, iban) 
+               VALUES 
+               (${baiBank.id}, 'Mario Tchicassa', '004000009614317310133'),
+               (${atlanticoBank.id}, 'Mario Tchicassa', '005500004514753710102')`
+        );
+        
+        console.log("✅ Detalhes das contas bancárias criados com sucesso!");
+      } else {
+        console.log("⚠️ Não foi possível criar detalhes das contas bancárias: bancos não encontrados");
+      }
+    } else {
+      console.log("✅ Detalhes das contas bancárias já existem, pulando criação");
+    }
+    
+    // Criar produtos padrão se não existirem
+    console.log("Verificando produtos...");
+    const existingProducts = await db.execute(sql`SELECT * FROM products`);
+    
+    if (existingProducts.rows.length === 0) {
+      console.log("Criando produtos padrão...");
+      
+      await db.execute(
+        sql`INSERT INTO products (name, description, price, return_rate, cycle_days, daily_income, total_return, active) 
+             VALUES 
+             ('Plano Básico', 'Investimento inicial para novos usuários', 5000, 0.7, 7, 500, 3500, true),
+             ('Plano Standard', 'Plano intermediário com retorno moderado', 10000, 1.0, 7, 1000, 7000, true),
+             ('Plano Premium', 'Melhor opção de retorno para investidores', 25000, 1.2, 7, 3000, 21000, true)`
+      );
+      
+      console.log("✅ Produtos padrão criados com sucesso!");
+    } else {
+      console.log("✅ Produtos já existem, pulando criação");
+    }
+    
+    console.log("🎉 Configuração do banco de dados concluída com sucesso!");
+    return true;
+  } catch (error) {
+    console.error("❌ Erro durante a configuração do banco de dados:", error);
+    return false;
+  }
+}
+
+// Não precisamos mais do bloco de auto-execução para ESM
+// O script será chamado diretamente por init-db.ts
