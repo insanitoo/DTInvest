@@ -1048,26 +1048,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount,
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
-        status: 'pending'
+        ownerName: bankInfo.ownerName,
+        status: 'requested'
       });
 
-      // Create withdrawal transaction
-      const transaction = await storage.createTransaction({
-        userId,
-        type: "withdrawal",
-        amount,
-        bankName: bankInfo.bank,
-        bankAccount: bankInfo.accountNumber,
-        receipt: null,
-        transactionId: `WDR${Date.now().toString(36).toUpperCase()}`,
-        status: 'pending' // Saques começam como pendentes e precisam de aprovação do admin
+      // Gerar um ID de transação único
+      const transactionId = `WDR${Date.now().toString(36).toUpperCase()}`;
+      
+      // Não deduzimos o valor imediatamente - isso só ocorre na aprovação
+      // Apenas registramos a solicitação no sistema para análise
+      
+      // Retornamos a resposta com informações da solicitação criada
+      return res.status(201).json({
+        success: true,
+        message: "Solicitação de saque registrada com sucesso e está em análise",
+        withdrawalRequest: {
+          id: withdrawalRequest.id,
+          amount: withdrawalRequest.amount,
+          status: withdrawalRequest.status,
+          createdAt: withdrawalRequest.createdAt
+        }
       });
-
-      // Update user balance (temporariamente descontamos o valor)
-      const newBalance = user.balance - amount;
-      await storage.updateUserBalance(userId, newBalance);
-
-      return res.status(201).json(transaction);
     } catch (error) {
       next(error);
     }

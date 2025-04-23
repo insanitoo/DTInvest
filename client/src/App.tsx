@@ -21,6 +21,7 @@ const TeamPage = lazy(() => import('@/pages/team-page'));
 const ServicePage = lazy(() => import('@/pages/service-page'));
 const UserPage = lazy(() => import('@/pages/user-page'));
 const BankAccountsPage = lazy(() => import('@/pages/bank-accounts-page'));
+const WithdrawalHistoryPage = lazy(() => import('@/pages/withdrawal-history-page'));
 
 // Páginas Admin - todas lazy loaded para economizar recursos
 const AdminDashboard = lazy(() => import('@/pages/admin/admin-dashboard'));
@@ -76,6 +77,12 @@ export default function App() {
             <ProtectedRoute path="/contas-bancarias">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <BankAccountsPage />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/historico-saques">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <WithdrawalHistoryPage />
               </Suspense>
             </ProtectedRoute>
             
