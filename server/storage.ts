@@ -17,6 +17,9 @@ import connectPg from "connect-pg-simple";
 import { db, pool } from "./db";
 import { eq, desc, and, isNull, or, not } from "drizzle-orm";
 
+// Verifica se database está disponível
+const isDatabaseAvailable = !!db && !!pool;
+
 // Interface for storage operations
 export interface IStorage {
   // Usuários
@@ -1844,7 +1847,31 @@ export class DatabaseStorage implements IStorage {
 }
 
 // Usar o armazenamento PostgreSQL em vez do armazenamento em memória
-export const storage = new DatabaseStorage();
+// Cria store de sessão baseado na disponibilidade do database
+let sessionStore;
+
+if (isDatabaseAvailable) {
+  // Conexão persistente para sessões com PostgreSQL
+  const PostgresSessionStore = connectPg(session);
+  sessionStore = new PostgresSessionStore({ 
+    pool, 
+    createTableIfMissing: true,
+    tableName: 'session'
+  });
+  console.log("✅ Usando PostgreSQL para armazenar sessões");
+} else {
+  // Fallback para store em memória quando não há banco de dados
+  const MemoryStore = createMemoryStore(session);
+  sessionStore = new MemoryStore({
+    checkPeriod: 86400000 // Limpa expiradas a cada 24h
+  });
+  console.log("⚠️ Usando armazenamento em memória para sessões (dados serão perdidos na reinicialização)");
+}
+
+// Escolhe a implementação de armazenamento baseada na disponibilidade do banco de dados
+export const storage = isDatabaseAvailable 
+  ? new DatabaseStorage() 
+  : new MemStorage();
 
 // Initialize with test data
 (async () => {
