@@ -129,10 +129,10 @@ export function TransactionsList({ limit, showFilters = true, title = "Históric
                       transaction.status === 'processing' ? 'bg-blue-500' :
                       'bg-red-500'
                     } flex items-center justify-center`}>
-                    <i className={`fas fa-${getTransactionStatusIcon(transaction.status)} text-white text-xs`}></i>
+                    <i className={`fas fa-${getTransactionStatusIcon(transaction.status?.toString() || 'pending')} text-white text-xs`}></i>
                   </div>
-                  <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status, transaction.type)}`}>
-                    {getTransactionTypeLabel(transaction.type)}
+                  <span className={`text-sm font-medium ${getTransactionStatusColor(transaction.status?.toString() || 'pending', transaction.type?.toString() || 'deposit')}`}>
+                    {getTransactionTypeLabel(transaction.type?.toString() || 'pending')}
                   </span>
                 </div>
                 <div className="text-right">
