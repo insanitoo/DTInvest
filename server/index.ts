@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializeDatabase } from "./init-db";
 
 const app = express();
 app.use(express.json());
@@ -37,14 +38,42 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Inicializar banco de dados primeiro - isso garante que sempre exista um usuário admin
+  await initializeDatabase();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const message = err.message || "Erro interno do servidor";
+    
+    // Mensagens de erro mais amigáveis para o usuário
+    let userFriendlyMessage = message;
+    
+    if (status === 400) {
+      userFriendlyMessage = "Pedido inválido. Por favor verifique os dados informados.";
+    } else if (status === 401) {
+      userFriendlyMessage = "Não autorizado. Por favor faça login novamente.";
+    } else if (status === 402) {
+      userFriendlyMessage = "Pagamento necessário para continuar.";
+    } else if (status === 403) {
+      userFriendlyMessage = "Acesso negado. Você não tem permissão para esta ação.";
+    } else if (status === 404) {
+      userFriendlyMessage = "Recurso não encontrado. Verifique o endereço e tente novamente.";
+    } else if (status === 500) {
+      userFriendlyMessage = "Erro interno no servidor. Por favor tente novamente mais tarde.";
+    }
+    
+    // Adicionamos o erro original para debugging em ambientes de desenvolvimento
+    const response: any = { message: userFriendlyMessage };
+    if (process.env.NODE_ENV !== 'production') {
+      response.originalError = message;
+    }
 
-    res.status(status).json({ message });
-    throw err;
+    res.status(200).json(response); // Sempre retornar 200 para o cliente, mas com mensagem de erro apropriada
+    
+    // Registrar o erro para debugging, mas não quebrar o app
+    console.error(`[ERRO ${status}]`, err);
   });
 
   // importantly only setup vite in development and after

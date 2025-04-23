@@ -310,39 +310,65 @@ export function setupAuth(app: Express) {
   // Update bank info
   app.post("/api/user/bank", async (req, res, next) => {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Não autenticado" });
+      return res.status(200).json({ 
+        success: false,
+        message: "Não autenticado. Por favor faça login novamente." 
+      });
     }
 
     try {
       const userId = req.user.id;
       const { bank, ownerName, accountNumber } = req.body;
+      
+      // Validação dos dados
+      if (!bank || !ownerName || !accountNumber) {
+        return res.status(200).json({ 
+          success: false,
+          message: "Informações incompletas. Por favor preencha todos os campos." 
+        });
+      }
 
       // Verificar se já existe informação bancária para este usuário
       const existingBankInfo = await storage.getBankInfoByUserId(userId);
 
       let bankInfo;
-      if (existingBankInfo) {
-        // Se já existe, atualizamos
-        bankInfo = await storage.updateBankInfo(userId, { 
-          bank, 
-          ownerName, 
-          accountNumber,
-          userId 
+      try {
+        if (existingBankInfo) {
+          // Se já existe, atualizamos
+          bankInfo = await storage.updateBankInfo(userId, { 
+            bank, 
+            ownerName, 
+            accountNumber,
+            userId 
+          });
+        } else {
+          // Se não existe, criamos uma nova
+          bankInfo = await storage.createBankInfo(userId, { 
+            bank, 
+            ownerName, 
+            accountNumber,
+            userId 
+          });
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: "Informações bancárias salvas com sucesso",
+          data: bankInfo
         });
-      } else {
-        // Se não existe, criamos uma nova
-        bankInfo = await storage.createBankInfo(userId, { 
-          bank, 
-          ownerName, 
-          accountNumber,
-          userId 
+      } catch (dbError) {
+        console.error("Erro no banco de dados ao atualizar informações bancárias:", dbError);
+        return res.status(200).json({ 
+          success: false,
+          message: "Não foi possível salvar as informações bancárias. Tente novamente mais tarde." 
         });
       }
-
-      return res.status(200).json(bankInfo);
     } catch (error) {
       console.error("Erro ao atualizar informações bancárias:", error);
-      return next(error);
+      return res.status(200).json({ 
+        success: false,
+        message: "Erro ao processar a solicitação. Por favor tente novamente."
+      });
     }
   });
 }
