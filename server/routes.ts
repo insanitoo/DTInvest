@@ -1041,9 +1041,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
         ownerName: bankInfo.ownerName,
-        status: 'requested',
-        penaltyAmount,
-        refundAmount
+        status: 'requested'
+        // Removidos campos que não estão no esquema:
+        // penaltyAmount,
+        // refundAmount
       });
 
       // Generate unique transaction ID
