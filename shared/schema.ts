@@ -67,7 +67,7 @@ export const bankInfo = pgTable("bank_info", {
   bank: text("bank").notNull(),
   ownerName: text("owner_name").notNull(),
   accountNumber: text("account_number").notNull(),
-  iban: text("iban"),
+  // Removendo campo iban que não existe no banco de dados
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -271,7 +271,6 @@ export interface BankInfo {
   bank: string;
   ownerName: string;
   accountNumber: string;
-  iban?: string;
 }
 
 // Interface para Investimentos do Usuário (baseado em Purchase + dados do produto)
