@@ -79,7 +79,7 @@ export default function WithdrawalHistoryPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">DTI - Histórico de Saques</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Histórico de Saques</h1>
         </div>
         
         {isLoading ? (

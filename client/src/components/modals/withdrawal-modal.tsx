@@ -146,16 +146,9 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
             <p className="text-gray-400 mb-4 text-center">
               Sua solicitação de saque foi enviada com sucesso.
             </p>
-            <div className="bg-dark-tertiary p-3 rounded-md w-full mb-4">
-              <div className="flex justify-between items-center text-sm mb-2">
-                <span className="text-gray-400">Status:</span>
-                <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">Em análise</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-400">Valor:</span>
-                <span className="text-white">{formatCurrency(typeof amount === 'number' ? amount : 0)}</span>
-              </div>
-            </div>
+            <p className="text-center text-green-400 mb-4">
+              Sua solicitação de {formatCurrency(typeof amount === 'number' ? amount : 0)} foi registrada e está em análise.
+            </p>
             <div className="space-y-3">
               <Button
                 variant="default"

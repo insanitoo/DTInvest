@@ -1056,8 +1056,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Gerar um ID de transação único
       const transactionId = `WDR${Date.now().toString(36).toUpperCase()}`;
       
-      // Não deduzimos o valor imediatamente - isso só ocorre na aprovação
-      // Apenas registramos a solicitação no sistema para análise
+      // Deduzimos o valor imediatamente para evitar saques excessivos
+      await storage.updateUserBalance(userId, user.balance - amount);
+      
+      // Criar transação para registrar o saque pendente
+      await storage.createTransaction({
+        userId,
+        type: "withdrawal",
+        amount,
+        status: 'pending',
+        bankName: bankInfo.bank,
+        bankAccount: bankInfo.accountNumber,
+        receipt: null,
+        transactionId
+      });
       
       // Retornamos a resposta com informações da solicitação criada
       return res.status(201).json({
