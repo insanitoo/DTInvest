@@ -639,12 +639,12 @@ export class MemStorage implements IStorage {
       throw new Error('É necessário ter realizado pelo menos um depósito para sacar');
     }
     
-    // Verificar horário permitido (10h às 15h horário de Angola)
-    const now = new Date();
-    const angolaHour = now.getUTCHours() + 1; // Angola está em UTC+1
-    if (angolaHour < 10 || angolaHour >= 15) {
-      throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
-    }
+    // Verificação de horário removida para testes
+    // const now = new Date();
+    // const angolaHour = now.getUTCHours() + 1; // Angola está em UTC+1
+    // if (angolaHour < 10 || angolaHour >= 15) {
+    //   throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
+    // }
     
     // Bloquear o valor no saldo do usuário
     const newBalance = user.balance - request.amount;

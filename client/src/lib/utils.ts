@@ -62,17 +62,21 @@ export function calculateNetWithdrawal(amount: number): number {
 }
 
 export function isWithinAngolaBusinessHours(): boolean {
-  const now = new Date();
-  const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
-  const hours = angolaTime.getHours();
-  return hours >= 10 && hours < 15;
+  // Verificação removida para testes - sempre retorna true
+  // const now = new Date();
+  // const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
+  // const hours = angolaTime.getHours();
+  // return hours >= 10 && hours < 15;
+  return true;
 }
 
 export function isWeekday(): boolean {
-  const now = new Date();
-  const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
-  const day = angolaTime.getDay();
-  return day >= 1 && day <= 5; // 0 is Sunday, 6 is Saturday
+  // Verificação removida para testes - sempre retorna true
+  // const now = new Date();
+  // const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
+  // const day = angolaTime.getDay();
+  // return day >= 1 && day <= 5; // 0 is Sunday, 6 is Saturday
+  return true;
 }
 
 export function getTransactionStatusColor(status: string, type?: string): string {
