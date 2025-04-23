@@ -104,6 +104,14 @@ export interface IStorage {
 
 // In-memory storage implementation
 export class MemStorage implements IStorage {
+  async getBankAccountDetails(): Promise<BankAccountDetail[]> {
+    return Array.from(this.bankAccountDetails.values());
+  }
+  
+  async getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined> {
+    return Array.from(this.bankAccountDetails.values())
+      .find(details => details.bankId === bankId);
+  }
   private users: Map<number, User>;
   private bankInfo: Map<number, BankInfo & { userId: number }>;
   private transactions: Map<number, Transaction>;
@@ -1106,6 +1114,37 @@ export class DatabaseStorage implements IStorage {
       pool, 
       createTableIfMissing: true 
     });
+  }
+  
+  async getBankAccountDetails(): Promise<BankAccountDetail[]> {
+    const result = await db.select({
+      id: bankAccountDetails.id,
+      bankId: bankAccountDetails.bankId,
+      accountHolder: bankAccountDetails.accountHolder,
+      iban: bankAccountDetails.iban,
+      createdAt: bankAccountDetails.createdAt,
+      updatedAt: bankAccountDetails.updatedAt,
+      bank: banks
+    }).from(bankAccountDetails)
+      .leftJoin(banks, eq(bankAccountDetails.bankId, banks.id));
+    
+    return result;
+  }
+  
+  async getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined> {
+    const [result] = await db.select({
+      id: bankAccountDetails.id,
+      bankId: bankAccountDetails.bankId,
+      accountHolder: bankAccountDetails.accountHolder,
+      iban: bankAccountDetails.iban,
+      createdAt: bankAccountDetails.createdAt,
+      updatedAt: bankAccountDetails.updatedAt,
+      bank: banks
+    }).from(bankAccountDetails)
+      .where(eq(bankAccountDetails.bankId, bankId))
+      .leftJoin(banks, eq(bankAccountDetails.bankId, banks.id));
+      
+    return result || undefined;
   }
 
   // User methods

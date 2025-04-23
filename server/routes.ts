@@ -351,6 +351,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para obter os detalhes das contas bancárias do sistema
+  app.get("/api/bank-accounts", isAdmin, async (req, res) => {
+    try {
+      const accounts = await storage.getBankAccountDetails();
+      res.json(accounts);
+    } catch (error) {
+      console.error('Erro ao obter contas bancárias:', error);
+      res.status(500).json({ error: 'Erro ao obter contas bancárias' });
+    }
+  });
+  
+  // Rota para obter uma conta bancária específica pelo ID do banco
+  app.get("/api/bank-accounts/:bankId", async (req, res) => {
+    try {
+      const bankId = parseInt(req.params.bankId);
+      const account = await storage.getBankAccountDetailsByBankId(bankId);
+      
+      if (!account) {
+        return res.status(404).json({ error: 'Conta bancária não encontrada' });
+      }
+      
+      res.json(account);
+    } catch (error) {
+      console.error('Erro ao obter conta bancária:', error);
+      res.status(500).json({ error: 'Erro ao obter conta bancária' });
+    }
+  });
+  
   // NOVO FLUXO: Lista de solicitações de depósito pendentes
   app.get("/api/admin/deposit-requests", isAdmin, async (req, res) => {
     try {
