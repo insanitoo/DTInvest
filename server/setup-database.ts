@@ -34,7 +34,7 @@ export async function setupDatabase() {
     await db.execute(sql`SELECT 1`);
     console.log("✅ Conexão com o banco de dados estabelecida com sucesso!");
     
-    // 1. Criar tabela de usuários
+    // 1. Criar tabela de usuários com campos adicionais
     console.log("Criando tabela de usuários...");
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -48,10 +48,39 @@ export async function setupDatabase() {
         is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
         has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
         has_purchased BOOLEAN NOT NULL DEFAULT FALSE,
+        level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
+        level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
+        level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
+    
+    // Verificar e adicionar as colunas de comissão se não existirem
+    try {
+      console.log("Verificando colunas de comissão...");
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level1_commission') THEN
+            ALTER TABLE users ADD COLUMN level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+          END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level2_commission') THEN
+            ALTER TABLE users ADD COLUMN level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+          END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level3_commission') THEN
+            ALTER TABLE users ADD COLUMN level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+          END IF;
+        END
+        $$;
+      `);
+      console.log("✅ Colunas de comissão verificadas/adicionadas");
+    } catch (error) {
+      console.error("⚠️ Erro ao verificar/adicionar colunas de comissão:", error);
+    }
+    
     console.log("✅ Tabela 'users' criada/verificada");
     
     // 2. Criar tabela de transações
@@ -223,6 +252,54 @@ export async function setupDatabase() {
       )
     `);
     console.log("✅ Tabela 'bank_account_details' criada/verificada");
+    
+    // 13. Criar view para visualizar a contagem de referidos por nível
+    console.log("Criando view de referidos...");
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE VIEW referral_counts AS
+        WITH RECURSIVE referral_tree AS (
+          -- Base case: all users
+          SELECT 
+            id, 
+            phone_number, 
+            referral_code, 
+            referred_by, 
+            balance,
+            0 AS level
+          FROM users
+          
+          UNION ALL
+          
+          -- Recursive case: all users referred by users in the previous level
+          SELECT 
+            u.id, 
+            u.phone_number, 
+            u.referral_code, 
+            u.referred_by, 
+            u.balance,
+            rt.level + 1
+          FROM users u
+          JOIN referral_tree rt ON u.referred_by = rt.id
+          WHERE rt.level < 3 -- Limit to 3 levels
+        )
+        
+        SELECT 
+          u.id AS user_id,
+          COUNT(CASE WHEN r.level = 1 THEN 1 END) AS level1_count,
+          COUNT(CASE WHEN r.level = 2 THEN 1 END) AS level2_count,
+          COUNT(CASE WHEN r.level = 3 THEN 1 END) AS level3_count,
+          SUM(CASE WHEN r.level = 1 THEN 1 ELSE 0 END) AS level1_active,
+          SUM(CASE WHEN r.level = 2 THEN 1 ELSE 0 END) AS level2_active,
+          SUM(CASE WHEN r.level = 3 THEN 1 ELSE 0 END) AS level3_active
+        FROM users u
+        LEFT JOIN referral_tree r ON r.referred_by = u.id
+        GROUP BY u.id;
+      `);
+      console.log("✅ View 'referral_counts' criada/atualizada");
+    } catch (error) {
+      console.error("⚠️ Erro ao criar view de referidos:", error);
+    }
     
     // Criar usuário admin se não existir
     console.log("Verificando usuário administrador...");
