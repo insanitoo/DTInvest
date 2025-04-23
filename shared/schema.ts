@@ -305,7 +305,7 @@ export interface ReferralsData {
 
 // Tipo para detalhes da conta bancária
 export type BankAccountDetail = typeof bankAccountDetails.$inferSelect & {
-  bank?: Bank; // Relação com o banco
+  bank?: Bank | null; // Relação com o banco
 };
 
 // Types

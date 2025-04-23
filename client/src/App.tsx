@@ -19,6 +19,7 @@ const ProductsPage = lazy(() => import('@/pages/products-page'));
 const TeamPage = lazy(() => import('@/pages/team-page'));
 const ServicePage = lazy(() => import('@/pages/service-page'));
 const UserPage = lazy(() => import('@/pages/user-page'));
+const BankAccountsPage = lazy(() => import('@/pages/bank-accounts-page'));
 
 // Páginas Admin - todas lazy loaded para economizar recursos
 const AdminDashboard = lazy(() => import('@/pages/admin/admin-dashboard'));
@@ -68,6 +69,12 @@ export default function App() {
             <ProtectedRoute path="/user">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <UserPage />
+              </Suspense>
+            </ProtectedRoute>
+            
+            <ProtectedRoute path="/contas-bancarias">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <BankAccountsPage />
               </Suspense>
             </ProtectedRoute>
             

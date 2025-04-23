@@ -1117,34 +1117,33 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getBankAccountDetails(): Promise<BankAccountDetail[]> {
-    const result = await db.select({
-      id: bankAccountDetails.id,
-      bankId: bankAccountDetails.bankId,
-      accountHolder: bankAccountDetails.accountHolder,
-      iban: bankAccountDetails.iban,
-      createdAt: bankAccountDetails.createdAt,
-      updatedAt: bankAccountDetails.updatedAt,
-      bank: banks
-    }).from(bankAccountDetails)
-      .leftJoin(banks, eq(bankAccountDetails.bankId, banks.id));
+    const accounts = await db.select().from(bankAccountDetails);
+    const result: BankAccountDetail[] = [];
+    
+    for (const account of accounts) {
+      const [bankInfo] = await db.select().from(banks).where(eq(banks.id, account.bankId));
+      result.push({
+        ...account,
+        bank: bankInfo || null
+      });
+    }
     
     return result;
   }
   
   async getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined> {
-    const [result] = await db.select({
-      id: bankAccountDetails.id,
-      bankId: bankAccountDetails.bankId,
-      accountHolder: bankAccountDetails.accountHolder,
-      iban: bankAccountDetails.iban,
-      createdAt: bankAccountDetails.createdAt,
-      updatedAt: bankAccountDetails.updatedAt,
-      bank: banks
-    }).from(bankAccountDetails)
-      .where(eq(bankAccountDetails.bankId, bankId))
-      .leftJoin(banks, eq(bankAccountDetails.bankId, banks.id));
-      
-    return result || undefined;
+    const [account] = await db.select().from(bankAccountDetails).where(eq(bankAccountDetails.bankId, bankId));
+    
+    if (!account) {
+      return undefined;
+    }
+    
+    const [bankInfo] = await db.select().from(banks).where(eq(banks.id, account.bankId));
+    
+    return {
+      ...account,
+      bank: bankInfo || null
+    };
   }
 
   // User methods
@@ -1410,6 +1409,7 @@ export class DatabaseStorage implements IStorage {
         amount: depositRequest.amount,
         status: 'completed',
         bankName: depositRequest.bankName,
+        bankAccount: null,
         transactionId: depositRequest.transactionId,
         receipt: depositRequest.receipt
       })
