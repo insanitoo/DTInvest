@@ -1283,7 +1283,7 @@ export class DatabaseStorage implements IStorage {
         bank: info.bank,
         ownerName: info.ownerName,
         accountNumber: info.accountNumber,
-        iban: info.iban || null,
+        iban: info.accountNumber, // O IBAN é o mesmo que o accountNumber
         updatedAt: new Date()
       })
       .where(eq(bankInfo.userId, userId))
