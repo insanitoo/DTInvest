@@ -6,7 +6,8 @@ import {
   Check, 
   X,
   Search,
-  Clock
+  Clock,
+  Banknote
 } from 'lucide-react';
 import { AdminNavigation } from './components/admin-navigation';
 import { Button } from '@/components/ui/button';
@@ -30,16 +31,13 @@ interface WithdrawalRequest {
   id: number;
   userId: number;
   amount: number;
-  bankName: string;
-  bankAccount: string;
+  bankName: string | null;
+  bankAccount: string | null;
   ownerName: string;
   status: 'requested' | 'approved' | 'rejected';
   createdAt: string;
-  updatedAt: string;
-  user?: {
-    phoneNumber: string;
-    name?: string;
-  };
+  processedAt: string | null;
+  processedBy: number | null;
 }
 
 export default function AdminWithdrawals() {
@@ -60,10 +58,10 @@ export default function AdminWithdrawals() {
     const query = searchQuery.toLowerCase().trim();
     
     return (
-      withdrawal.bankName.toLowerCase().includes(query) ||
-      withdrawal.bankAccount.toLowerCase().includes(query) ||
+      (withdrawal.bankName?.toLowerCase()?.includes(query) || false) ||
+      (withdrawal.bankAccount?.toLowerCase()?.includes(query) || false) ||
       withdrawal.ownerName.toLowerCase().includes(query) ||
-      withdrawal.user?.phoneNumber?.toLowerCase().includes(query) ||
+      withdrawal.userId.toString().includes(query) ||
       withdrawal.id.toString().includes(query)
     );
   }) : [];
@@ -206,7 +204,7 @@ export default function AdminWithdrawals() {
                         {formatCurrency(withdrawal.amount)}
                       </CardTitle>
                       <CardDescription>
-                        {withdrawal.user?.phoneNumber ? formatPhoneNumber(withdrawal.user.phoneNumber) : 'ID: ' + withdrawal.userId}
+                        {'ID do usuário: ' + withdrawal.userId}
                       </CardDescription>
                     </div>
                     {getStatusBadge(withdrawal.status)}
@@ -263,16 +261,16 @@ export default function AdminWithdrawals() {
                   <p>{selectedWithdrawal.userId}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Telefone</p>
-                  <p>{selectedWithdrawal.user?.phoneNumber ? formatPhoneNumber(selectedWithdrawal.user.phoneNumber) : 'N/A'}</p>
-                </div>
-                <div>
                   <p className="text-sm text-gray-400">Valor</p>
                   <p className="font-semibold text-lg">{formatCurrency(selectedWithdrawal.amount)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Status</p>
                   <p>{getStatusBadge(selectedWithdrawal.status)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Data</p>
+                  <p>{formatDate(selectedWithdrawal.createdAt)}</p>
                 </div>
               </div>
               
@@ -295,15 +293,15 @@ export default function AdminWithdrawals() {
               </div>
               
               <div className="border-t border-gray-700 pt-4">
-                <h3 className="font-medium mb-2">Data e Hora</h3>
+                <h3 className="font-medium mb-2">Processamento</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-400">Solicitado em</p>
-                    <p>{formatDate(selectedWithdrawal.createdAt)}</p>
+                    <p className="text-sm text-gray-400">Processado em</p>
+                    <p>{selectedWithdrawal.processedAt ? formatDate(selectedWithdrawal.processedAt) : 'Pendente'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">Última atualização</p>
-                    <p>{formatDate(selectedWithdrawal.updatedAt)}</p>
+                    <p className="text-sm text-gray-400">ID do Processador</p>
+                    <p>{selectedWithdrawal.processedBy || 'Pendente'}</p>
                   </div>
                 </div>
               </div>
