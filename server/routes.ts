@@ -958,12 +958,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valor máximo para saque é KZ 50000" });
       }
 
-      // Verificar horário de funcionamento (10h às 20h em Angola)
+      // Verificar horário de funcionamento (10h às 16h em Angola)
       const now = new Date();
       const hour = now.getUTCHours() + 1; // UTC+1 para Angola
-      if (hour < 10 || hour >= 20) {
+      if (hour < 10 || hour >= 16) {
         return res.status(400).json({ 
-          message: "Saques estão disponíveis apenas das 10h às 20h (horário de Angola)" 
+          message: "Saques estão disponíveis apenas das 10h às 16h (horário de Angola)" 
+        });
+      }
+      
+      // Verificar se o usuário já fez um saque hoje
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const withdrawalRequests = await storage.getUserWithdrawalRequests(userId);
+      const todayWithdrawals = withdrawalRequests.filter(w => {
+        const reqDate = new Date(w.createdAt).toISOString().split('T')[0];
+        return reqDate === today;
+      });
+      
+      if (todayWithdrawals.length > 0) {
+        return res.status(400).json({
+          message: "Apenas um saque por dia é permitido"
         });
       }
 

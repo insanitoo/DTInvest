@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -132,6 +132,16 @@ export const carouselImages = pgTable("carousel_images", {
   linkUrl: text("link_url"),
   order: integer("order").default(0),
   active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema para detalhes de contas bancárias oficiais (para depositar)
+export const bankAccountDetails = pgTable("bank_account_details", {
+  id: serial("id").primaryKey(),
+  bankId: integer("bank_id").notNull().references(() => banks.id),
+  accountHolder: text("account_holder").notNull(),
+  iban: text("iban").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -292,6 +302,11 @@ export interface ReferralsData {
     level3: number;
   };
 }
+
+// Tipo para detalhes da conta bancária
+export type BankAccountDetail = typeof bankAccountDetails.$inferSelect & {
+  bank?: Bank; // Relação com o banco
+};
 
 // Types
 export type User = typeof users.$inferSelect & { 
