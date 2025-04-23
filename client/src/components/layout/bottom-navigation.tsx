@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Home, User, ShoppingCart, Users, Clock } from "lucide-react";
+import { Home, User, ShoppingCart, Users } from "lucide-react";
 
 export function BottomNavigation() {
   const [location] = useLocation();
@@ -27,14 +27,6 @@ export function BottomNavigation() {
         )}>
           <ShoppingCart className="h-5 w-5 mb-1" />
           <span>Produtos</span>
-        </Link>
-
-        <Link href="/?tab=transactionsAll" className={cn(
-          "flex flex-col items-center justify-center text-xs py-1",
-          location.startsWith("/?tab=transactions") ? "text-primary" : "text-gray-400"
-        )}>
-          <Clock className="h-5 w-5 mb-1" />
-          <span>Transações</span>
         </Link>
 
         <Link href="/team" className={cn(
