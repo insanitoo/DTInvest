@@ -39,11 +39,7 @@ export function MenuList() {
       title: "Meu banco",
       href: "/user?tab=bank"
     },
-    {
-      icon: <Clock className="h-6 w-6" />,
-      title: "Registros de fundos",
-      href: "/user?tab=transactions"
-    },
+    
     {
       icon: <Headphones className="h-6 w-6" />,
       title: "Serviço",
