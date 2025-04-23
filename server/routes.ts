@@ -56,37 +56,9 @@ function validateTransactionStatus(status: any): { valid: boolean; error?: strin
   return { valid: true };
 }
 
-import { testSupabaseConnection } from './supabase';
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
-
-  // Endpoint para testar a conexão com o Supabase
-  app.get("/api/test-supabase", async (req, res) => {
-    try {
-      console.log("Testando conexão com o Supabase...");
-      const result = await testSupabaseConnection();
-      
-      if (result) {
-        return res.json({
-          success: true,
-          message: "Conexão com o Supabase bem-sucedida!"
-        });
-      } else {
-        return res.status(500).json({
-          success: false,
-          message: "Falha na conexão com o Supabase."
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao testar conexão com Supabase:", error);
-      return res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Erro desconhecido"
-      });
-    }
-  });
 
   // Endpoint de teste para transações
   app.post("/api/test-transaction", async (req, res) => {
