@@ -6,8 +6,10 @@ import {
   CarouselImage, InsertCarouselImage,
   DepositRequest, InsertDepositRequest,
   WithdrawalRequest, InsertWithdrawalRequest,
+  BankAccountDetail,
   users, bankInfo, transactions, depositRequests, withdrawalRequests,
-  products, purchases, socialLinks, banks, settings, carouselImages
+  products, purchases, socialLinks, banks, settings, carouselImages,
+  bankAccountDetails
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -31,6 +33,10 @@ export interface IStorage {
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   createBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   deleteBankInfo(userId: number): Promise<void>;
+  
+  // Detalhes de contas bancárias (admin)
+  getBankAccountDetails(): Promise<BankAccountDetail[]>;
+  getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined>;
 
   // Transações (histórico)
   getTransactions(userId: number): Promise<Transaction[]>;
@@ -109,6 +115,7 @@ export class MemStorage implements IStorage {
   private banks: Map<number, Bank>;
   private settings: Map<string, Setting>;
   private carouselImages: Map<number, CarouselImage>;
+  private bankAccountDetails: Map<number, BankAccountDetail>;
   
   private currentUserId: number;
   private currentBankInfoId: number;
@@ -137,6 +144,7 @@ export class MemStorage implements IStorage {
     this.banks = new Map();
     this.settings = new Map();
     this.carouselImages = new Map();
+    this.bankAccountDetails = new Map();
     
     // Initialize IDs
     this.currentUserId = 1;
