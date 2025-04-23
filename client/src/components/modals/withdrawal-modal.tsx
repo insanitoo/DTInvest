@@ -90,9 +90,9 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
 
       const result = await createWithdrawal({
         amount: Number(amount),
-        bankName: bankInfo.bankName, // Use bank info from state
-        bankAccount: bankInfo.bankAccount, // Use bank info from state
-        ownerName: bankInfo.ownerName // Use bank info from state
+        bankName: bankInfo.bank, // Usando nomes de propriedades corretos
+        bankAccount: bankInfo.accountNumber, // Usando nomes de propriedades corretos
+        ownerName: bankInfo.ownerName // Nome do proprietário já está correto
       });
 
       if (result.success) {

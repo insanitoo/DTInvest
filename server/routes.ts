@@ -235,37 +235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // NOVO FLUXO: Solicitar saque
-  app.post("/api/withdrawals", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Não autenticado" });
-    }
-    
-    try {
-      // Criar solicitação de saque
-      const withdrawalRequest = await storage.createWithdrawalRequest({
-        userId: req.user.id,
-        amount: req.body.amount,
-        bankAccount: req.body.bankAccount,
-        bankName: req.body.bankName,
-        ownerName: req.body.ownerName,
-        status: 'requested'
-      });
-      
-      res.status(201).json({
-        success: true,
-        message: "Solicitação de saque criada com sucesso",
-        withdrawalRequest
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        error: "Erro ao criar solicitação de saque", 
-        message: error instanceof Error ? error.message : "Erro desconhecido" 
-      });
-    }
-  });
+  // NOTA: A rota para solicitar saque está definida mais abaixo (cerca da linha 970)
   
-  // NOVO FLUXO: Obter solicitações de saque do usuário
+  // Obter solicitações de saque do usuário
   app.get("/api/withdrawals", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Não autenticado" });
@@ -274,10 +246,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const withdrawalRequests = await storage.getUserWithdrawalRequests(req.user.id);
       res.json(withdrawalRequests);
-    } catch (error) {
+    } catch (err) {
       res.status(500).json({ 
         error: "Erro ao buscar solicitações de saque", 
-        message: error instanceof Error ? error.message : "Erro desconhecido" 
+        message: err instanceof Error ? err.message : "Erro desconhecido" 
       });
     }
   });
