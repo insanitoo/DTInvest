@@ -1487,7 +1487,7 @@ export class DatabaseStorage implements IStorage {
         userId: withdrawalRequest.userId,
         type: 'withdrawal',
         amount: withdrawalRequest.amount,
-        status: 'processing', // Inicial como 'processing', depois atualizado para 'completed'
+        status: 'completed', // Status definido diretamente como 'completed'
         bankAccount: withdrawalRequest.bankAccount,
         bankName: withdrawalRequest.bankName
       })
