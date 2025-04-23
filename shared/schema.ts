@@ -51,9 +51,10 @@ export const withdrawalRequests = pgTable("withdrawal_requests", {
   userId: integer("user_id").notNull().references(() => users.id),
   amount: doublePrecision("amount").notNull(),
   status: text("status").notNull().default("requested"), // requested, approved, rejected
-  bankAccount: text("bank_account"),
-  bankName: text("bank_name"),
-  ownerName: text("owner_name"),
+  bankAccount: text("bank_account").notNull(),
+  bankName: text("bank_name").notNull(),
+  ownerName: text("owner_name").notNull(),
+  iban: text("iban"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
   processedBy: integer("processed_by").references(() => users.id),
@@ -66,6 +67,7 @@ export const bankInfo = pgTable("bank_info", {
   bank: text("bank").notNull(),
   ownerName: text("owner_name").notNull(),
   accountNumber: text("account_number").notNull(),
+  iban: text("iban"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -269,6 +271,7 @@ export interface BankInfo {
   bank: string;
   ownerName: string;
   accountNumber: string;
+  iban?: string;
 }
 
 // Interface para Investimentos do Usuário (baseado em Purchase + dados do produto)
