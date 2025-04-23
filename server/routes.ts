@@ -976,7 +976,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (todayWithdrawals.length > 0) {
         return res.status(400).json({
-          message: "Apenas um saque por dia é permitido"
+          success: false,
+          message: "Apenas um saque por dia é permitido. Tente novamente amanhã."
         });
       }
 
@@ -987,7 +988,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (user.balance < amount) {
-        return res.status(400).json({ message: "Saldo insuficiente" });
+        return res.status(400).json({ 
+          success: false,
+          message: `Saldo insuficiente. Seu saldo atual é ${formatCurrency(user.balance)}, e você está tentando sacar ${formatCurrency(amount)}.` 
+        });
       }
 
       // Check if user has products (VERIFICAÇÃO CRÍTICA)
@@ -995,7 +999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasProduct = purchases && purchases.length > 0;
       
       if (!hasProduct) {
-        return res.status(400).json({ message: "É necessário comprar um produto antes de fazer saques" });
+        return res.status(400).json({ 
+          success: false,
+          message: "É necessário comprar um produto antes de fazer saques. Visite a seção de produtos na página inicial." 
+        });
       }
 
       // Check if user has deposited before (VERIFICAÇÃO CRÍTICA)
@@ -1004,7 +1011,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         t.type === 'deposit' && t.status === 'completed');
       
       if (!hasDeposit) {
-        return res.status(400).json({ message: "É necessário fazer um depósito antes de fazer saques" });
+        return res.status(400).json({ 
+          success: false,
+          message: "É necessário fazer um depósito antes de fazer saques. Por favor, faça um depósito na página inicial." 
+        });
       }
       
       // Verificação de saque diário já é feita anteriormente no código
@@ -1012,7 +1022,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get bank info
       const bankInfo = await storage.getBankInfoByUserId(userId);
       if (!bankInfo) {
-        return res.status(400).json({ message: "Configure suas informações bancárias antes de fazer saques" });
+        return res.status(400).json({ 
+          success: false,
+          message: "Configure suas informações bancárias antes de fazer saques. Vá para a página de perfil para configurar." 
+        });
       }
 
       // Create withdrawal request

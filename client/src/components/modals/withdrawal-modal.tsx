@@ -90,25 +90,38 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
 
       const result = await createWithdrawal({
         amount: Number(amount),
-        bankName: bankInfo.bank, // Usando nomes de propriedades corretos
-        bankAccount: bankInfo.accountNumber, // Usando nomes de propriedades corretos
-        ownerName: bankInfo.ownerName // Nome do proprietário já está correto
+        bankName: bankInfo.bank,
+        bankAccount: bankInfo.accountNumber,
+        ownerName: bankInfo.ownerName
       });
 
       if (result.success) {
         setWithdrawalSuccess(true);
         setAmount('');
       } else {
+        // Apresenta a mensagem específica retornada pela API
         toast({
-          title: 'Erro no saque',
-          description: 'Não foi possível processar sua solicitação de saque.',
+          title: 'Solicitação Negada',
+          description: result.message || 'Não foi possível processar sua solicitação de saque.',
           variant: 'destructive'
         });
       }
     } catch (error) {
+      console.error("Erro ao criar saque:", error);
+      // Exibe a mensagem detalhada do erro de API
+      let errorMessage = 'Erro desconhecido ao processar o saque';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error instanceof Response) {
+        errorMessage = `Erro ${error.status}: ${error.statusText}`;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
       toast({
-        title: 'Erro no saque',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        title: 'Erro na Solicitação',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
