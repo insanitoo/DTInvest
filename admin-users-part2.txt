@@ -1,0 +1,30 @@
+          
+          <DialogFooter>
+            <Button
+              variant={selectedUser?.isBlocked ? 'primary' : 'destructive'}
+              onClick={handleBlockToggle}
+              disabled={blockUserMutation.isPending}
+            >
+              {blockUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processando...
+                </>
+              ) : selectedUser?.isBlocked ? (
+                <>
+                  <Unlock className="h-4 w-4 mr-2" />
+                  Desbloquear Usuário
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4 mr-2" />
+                  Bloquear Usuário
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

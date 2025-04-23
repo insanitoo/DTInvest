@@ -108,105 +108,69 @@ export default function AdminUsers() {
           <h1 className="text-3xl font-bold">Gerenciar Usuários</h1>
           
           <div className="flex w-full md:w-96 gap-2">
-            <div className="relative flex-1">
-              <Input
-                placeholder="Buscar por Telefone, ID, Código ou Referral"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-dark-tertiary text-white pr-10"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-                  }
-                }}
-              />
-              <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-            </div>
-            <Button 
-              variant="default" 
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => {
-                // Reimplementa a busca (refresh)
-                if (searchQuery.trim()) {
-                  queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-                }
-              }}
-            >
-              Buscar
+            <Input
+              placeholder="Buscar por ID, telefone, ou código"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-dark-tertiary border-gray-700"
+            />
+            <Button variant="outline" size="icon">
+              <Search className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
-        ) : filteredUsers && filteredUsers.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="px-4 py-3 text-left">ID</th>
-                  <th className="px-4 py-3 text-left">Telefone</th>
-                  <th className="px-4 py-3 text-left">Saldo</th>
-                  <th className="px-4 py-3 text-left">Referrals</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Criado em</th>
-                  <th className="px-4 py-3 text-left">Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr 
-                    key={user.id} 
-                    className="border-b border-gray-800 hover:bg-dark-tertiary/30 transition-colors"
-                  >
-                    <td className="px-4 py-3">{user.id}</td>
-                    <td className="px-4 py-3">{formatPhoneNumber(user.phoneNumber)}</td>
-                    <td className="px-4 py-3">{formatCurrency(user.balance)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center space-x-1">
-                        <span className="font-medium">
-                          {(user.level1Referrals || 0) + (user.level2Referrals || 0) + (user.level3Referrals || 0)}
-                        </span>
-                        {user.level1Referrals && user.level1Referrals > 0 ? (
-                          <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
-                            Nv1: {user.level1Referrals}
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {user.isBlocked ? (
-                        <span className="px-2 py-1 rounded-full text-xs bg-red-500 bg-opacity-20 text-white">
-                          Bloqueado
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
-                          Ativo
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatDate(user.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <Button 
-                        variant="primary" 
-                        size="sm"
-                        onClick={() => handleUserClick(user)}
-                      >
-                        Detalhes
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        ) : !filteredUsers || filteredUsers.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-gray-400">
+              {searchQuery ? 'Nenhum usuário encontrado para esta busca.' : 'Nenhum usuário cadastrado.'}
+            </p>
           </div>
         ) : (
-          <CyberneticBox className="py-12 text-center">
-            <AlertCircle className="mx-auto h-10 w-10 text-gray-400 mb-4" />
-            <p className="text-gray-400">Nenhum usuário encontrado.</p>
-          </CyberneticBox>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredUsers.map((user) => (
+              <CyberneticBox 
+                key={user.id} 
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => handleUserClick(user)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="font-semibold">{formatPhoneNumber(user.phoneNumber)}</h3>
+                    <p className="text-sm text-gray-400">ID: {user.id}</p>
+                  </div>
+                  {user.isBlocked && (
+                    <div className="px-2 py-1 bg-red-900/30 border border-red-800 rounded text-red-400 text-xs font-medium">
+                      Bloqueado
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <p className="text-gray-400">Saldo</p>
+                    <p>{formatCurrency(user.balance || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Referidos</p>
+                    <p>{user.totalReferrals || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Depósito</p>
+                    <p>{user.hasDeposited ? 'Sim' : 'Não'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Produto</p>
+                    <p>{user.hasProduct ? 'Sim' : 'Não'}</p>
+                  </div>
+                </div>
+              </CyberneticBox>
+            ))}
+          </div>
         )}
       </div>
       
@@ -239,104 +203,39 @@ export default function AdminUsers() {
                   <p>{userDetailsQuery.data.referralCode}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Referido por</p>
-                  <p>{userDetailsQuery.data.referredBy || 'N/A'}</p>
+                  <p className="text-sm text-gray-400">Total de Referidos</p>
+                  <p>{userDetailsQuery.data.totalReferrals || 0}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Saldo</p>
-                  <p>{formatCurrency(userDetailsQuery.data.balance)}</p>
+                  <p className="text-sm text-gray-400">Saldo Disponível</p>
+                  <p>{formatCurrency(userDetailsQuery.data.balance || 0)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Renda Diária</p>
-                  <p>{formatCurrency(userDetailsQuery.data.dailyIncome || 0)}</p>
+                  <p className="text-sm text-gray-400">Total de Comissões</p>
+                  <p>{formatCurrency(userDetailsQuery.data.totalCommission || 0)}</p>
                 </div>
               </div>
               
               <div className="border-t border-gray-700 pt-4">
-                <h3 className="font-medium mb-2">Referrals e Comissões</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <h3 className="font-medium mb-2">Referidos</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-400">Nível 1</p>
-                    <p>{userDetailsQuery.data.referrals?.counts?.level1 || 0} referrals</p>
-                    <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(userDetailsQuery.data.level1Commission || 0)}</p>
+                    <p className="text-sm text-gray-400">Nível 1 (25%)</p>
+                    <p>{userDetailsQuery.data.level1ReferralCount || 0}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">Nível 2</p>
-                    <p>{userDetailsQuery.data.referrals?.counts?.level2 || 0} referrals</p>
-                    <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(userDetailsQuery.data.level2Commission || 0)}</p>
+                    <p className="text-sm text-gray-400">Nível 2 (5%)</p>
+                    <p>{userDetailsQuery.data.level2ReferralCount || 0}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">Nível 3</p>
-                    <p>{userDetailsQuery.data.referrals?.counts?.level3 || 0} referrals</p>
-                    <p className="text-sm text-gray-400 mt-1">Comissão</p>
-                    <p>{formatCurrency(userDetailsQuery.data.level3Commission || 0)}</p>
+                    <p className="text-sm text-gray-400">Nível 3 (3%)</p>
+                    <p>{userDetailsQuery.data.level3ReferralCount || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Cadastro</p>
+                    <p>{formatDate(userDetailsQuery.data.createdAt)}</p>
                   </div>
                 </div>
-                
-                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level1 && userDetailsQuery.data.referrals.level1.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 1</h4>
-                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
-                      {userDetailsQuery.data.referrals.level1.map(ref => (
-                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
-                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
-                          {ref.hasProduct && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
-                              Produto
-                            </span>
-                          )}
-                          <span className="ml-2 text-gray-400">
-                            Saldo: {formatCurrency(ref.balance)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level2 && userDetailsQuery.data.referrals.level2.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 2</h4>
-                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
-                      {userDetailsQuery.data.referrals.level2.map(ref => (
-                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
-                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
-                          {ref.hasProduct && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
-                              Produto
-                            </span>
-                          )}
-                          <span className="ml-2 text-gray-400">
-                            Saldo: {formatCurrency(ref.balance)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {userDetailsQuery.data.referrals && userDetailsQuery.data.referrals.level3 && userDetailsQuery.data.referrals.level3.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">Lista de Referrals Nível 3</h4>
-                    <div className="bg-dark-tertiary/30 rounded-md p-2 max-h-32 overflow-y-auto">
-                      {userDetailsQuery.data.referrals.level3.map(ref => (
-                        <div key={ref.id} className="text-sm py-1 border-b border-gray-800">
-                          <span className="font-medium">ID {ref.id}</span> - {formatPhoneNumber(ref.phoneNumber)}
-                          {ref.hasProduct && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-green-500 bg-opacity-20 text-white">
-                              Produto
-                            </span>
-                          )}
-                          <span className="ml-2 text-gray-400">
-                            Saldo: {formatCurrency(ref.balance)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               
               {selectedUser && (
@@ -382,6 +281,10 @@ export default function AdminUsers() {
                   </div>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-400">Sem dados disponíveis</p>
             </div>
           )}
           
