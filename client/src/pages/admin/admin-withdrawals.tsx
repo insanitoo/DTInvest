@@ -71,7 +71,7 @@ export default function AdminWithdrawals() {
     mutationFn: async () => {
       if (!selectedWithdrawal) return;
       
-      const res = await apiRequest('PUT', `/api/admin/withdrawal/${selectedWithdrawal.id}/approve`, {});
+      const res = await apiRequest('POST', `/api/admin/withdrawal-requests/${selectedWithdrawal.id}/approve`, {});
       return await res.json();
     },
     onSuccess: () => {
@@ -101,7 +101,7 @@ export default function AdminWithdrawals() {
     mutationFn: async () => {
       if (!selectedWithdrawal) return;
       
-      const res = await apiRequest('PUT', `/api/admin/withdrawal/${selectedWithdrawal.id}/reject`, {});
+      const res = await apiRequest('POST', `/api/admin/withdrawal-requests/${selectedWithdrawal.id}/reject`, {});
       return await res.json();
     },
     onSuccess: () => {
