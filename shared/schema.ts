@@ -54,7 +54,7 @@ export const withdrawalRequests = pgTable("withdrawal_requests", {
   bankAccount: text("bank_account").notNull(),
   bankName: text("bank_name").notNull(),
   ownerName: text("owner_name").notNull(),
-  iban: text("iban"),
+  // iban: text("iban"), // Campo removido para compatibilidade com banco de dados existente
   createdAt: timestamp("created_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
   processedBy: integer("processed_by").references(() => users.id),
