@@ -265,15 +265,41 @@ export function setupAuth(app: Express) {
 
       // Adicionar informações bancárias, se existirem
       const bankInfo = await storage.getBankInfoByUserId(userId);
-      const freshUserWithBank = bankInfo 
-        ? { ...freshUserData, bankInfo } 
-        : freshUserData;
+      
+      // Calcular total de comissões a partir das transações
+      const transactions = await storage.getTransactions(userId);
+      const commissionTransactions = transactions.filter(t => t.type === 'commission' && t.status === 'completed');
+      const totalCommission = commissionTransactions.reduce((total, tx) => total + tx.amount, 0);
+      
+      // Obter dados dos referidos para calculer estatísticas
+      const allUsers = await storage.getAllUsers();
+      
+      // Contar referidos diretos (nível 1)
+      const level1Referrals = allUsers.filter(user => user.referredBy === freshUserData.referralCode);
+      
+      // Contar referidos nível 2
+      const level2ReferralCodes = level1Referrals.map(user => user.referralCode);
+      const level2Referrals = allUsers.filter(user => level2ReferralCodes.includes(user.referredBy || ''));
+      
+      // Contar referidos nível 3
+      const level3ReferralCodes = level2Referrals.map(user => user.referralCode);
+      const level3Referrals = allUsers.filter(user => level3ReferralCodes.includes(user.referredBy || ''));
+      
+      // Adicionar as estatísticas ao objeto do usuário
+      const freshUserWithExtras = {
+        ...freshUserData,
+        bankInfo: bankInfo || null,
+        totalCommission,
+        level1ReferralCount: level1Referrals.length,
+        level2ReferralCount: level2Referrals.length,
+        level3ReferralCount: level3Referrals.length
+      };
 
       // Atualizar a sessão com os dados mais recentes
-      req.user = freshUserWithBank;
+      req.user = freshUserWithExtras;
 
       console.log(`Enviando dados atualizados do usuário ${userId}. Saldo atual: ${freshUserData.balance}`);
-      return res.json(freshUserWithBank);
+      return res.json(freshUserWithExtras);
     } catch (error) {
       console.error('Erro ao buscar dados atualizados do usuário:', error);
       // Em caso de erro, retornar os dados da sessão como fallback

@@ -174,11 +174,19 @@ export default function UserPage() {
                     <div>
                       <p className="text-sm text-gray-400">Total de Comissões</p>
                       <p className="text-base">
-                        {user ? formatCurrency(
-                          (user.level1Commission || 0) + 
-                          (user.level2Commission || 0) + 
-                          (user.level3Commission || 0)
-                        ) : 'KZ 0.00'}
+                        {user ? formatCurrency(user.totalCommission || 0) : 'KZ 0.00'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Referidos</p>
+                      <p className="text-base">
+                        {user ? (
+                          <>
+                            {(user.level1ReferralCount || 0) + 
+                             (user.level2ReferralCount || 0) + 
+                             (user.level3ReferralCount || 0)} pessoas
+                          </>
+                        ) : '0 pessoas'}
                       </p>
                     </div>
                   </div>
