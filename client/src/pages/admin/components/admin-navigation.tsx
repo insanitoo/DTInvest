@@ -11,7 +11,8 @@ import {
   Menu, 
   X,
   LogOut,
-  Bug
+  Bug,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -31,6 +32,11 @@ export function AdminNavigation() {
       title: 'Transações',
       href: '/admin/transacoes',
       icon: <Receipt className="h-5 w-5" />,
+    },
+    {
+      title: 'Saques',
+      href: '/admin/saques',
+      icon: <DollarSign className="h-5 w-5" />,
     },
     {
       title: 'Usuários',
