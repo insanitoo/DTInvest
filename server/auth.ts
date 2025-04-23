@@ -6,6 +6,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -297,10 +299,9 @@ export function setupAuth(app: Express) {
       // Buscamos na view de referidos
       let referralCounts = null;
       try {
-        const result = await storage.execute(
-          `SELECT * FROM referral_counts WHERE user_id = $1`,
-          [userId]
-        );
+        const result = await db.execute(sql`
+          SELECT * FROM referral_counts WHERE user_id = ${userId}
+        `);
         if (result.rows.length > 0) {
           referralCounts = result.rows[0];
         }

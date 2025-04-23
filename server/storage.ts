@@ -1126,6 +1126,11 @@ export class MemStorage implements IStorage {
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
+  
+  // Método para executar consultas SQL diretas
+  async execute(query: string, params?: any[]): Promise<any> {
+    return pool.query(query, params);
+  }
 
   constructor() {
     const PostgresSessionStore = connectPg(session);
