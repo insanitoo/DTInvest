@@ -299,11 +299,15 @@ export function setupAuth(app: Express) {
       // Buscamos na view de referidos
       let referralCounts = null;
       try {
-        const result = await db.execute(sql`
-          SELECT * FROM referral_counts WHERE user_id = ${userId}
-        `);
-        if (result.rows.length > 0) {
-          referralCounts = result.rows[0];
+        // Convertemos explicitamente o userId para number para garantir que a comparação seja válida
+        const userIdNumber = Number(userId);
+        if (!isNaN(userIdNumber)) {
+          const result = await db.execute(sql`
+            SELECT * FROM referral_counts WHERE user_id = ${userIdNumber}
+          `);
+          if (result.rows && result.rows.length > 0) {
+            referralCounts = result.rows[0];
+          }
         }
       } catch (e) {
         console.error('Erro ao buscar contagem de referidos:', e);
