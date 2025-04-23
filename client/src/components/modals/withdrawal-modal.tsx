@@ -104,8 +104,10 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
           queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
         ]);
 
+        // Armazenar o valor atual para exibir na mensagem de sucesso
+        const requestedAmount = Number(amount);
         setWithdrawalSuccess(true);
-        setAmount('');
+        // Não limpar o amount aqui, para permitir mostrar o valor na tela de sucesso
       } else {
         // Apresenta a mensagem específica retornada pela API
         toast({
