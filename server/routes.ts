@@ -625,11 +625,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`Transação de renda diária registrada: ID=${dailyIncomeTransaction.id}`);
       
-      // Verificar se o usuário realmente está marcado como tendo produtos
-      if (!updatedUser.hasProduct) {
-        console.log(`Garantindo que o usuário está marcado como tendo produtos...`);
-        await storage.updateUser(userId, { hasProduct: true });
-      }
+      // Sempre garantir que o usuário está marcado como tendo produtos
+      console.log(`Garantindo que o usuário está marcado como tendo produtos...`);
+      await storage.updateUser(userId, { hasProduct: true });
       
       // PROCESSAMENTO DE COMISSÕES DOS REFERRALS
       console.log(`Processando comissões de referral...`);
@@ -829,13 +827,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
       const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
       
-      // Calcular base média para comissões (simulação)
-      const baseAmount = 50000; // KZ 50,000 como base média de compra
+      // Obter as comissões reais do usuário a partir das transações
+      const transactions = await storage.getTransactions(req.user.id);
+      const commissionTransactions = transactions.filter(t => t.type === 'commission');
       
-      // Calcular comissões usando as taxas configuradas
-      const level1Commission = level1Referrals.length > 0 ? level1Referrals.length * baseAmount * level1CommissionRate : 0;
-      const level2Commission = level2Referrals.length > 0 ? level2Referrals.length * baseAmount * level2CommissionRate : 0;
-      const level3Commission = level3Referrals.length > 0 ? level3Referrals.length * baseAmount * level3CommissionRate : 0;
+      // Calcular comissões reais
+      const level1Commission = commissionTransactions.reduce((total, tx) => total + tx.amount, 0);
+      const level2Commission = 0; // Usar 0 para nível 2 e 3, pois comissões estão todas no nível 1
+      const level3Commission = 0;
       
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
