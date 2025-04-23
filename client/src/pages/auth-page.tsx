@@ -251,7 +251,7 @@ export default function AuthPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -263,9 +263,6 @@ export default function AuthPage() {
                     Lembrar-me
                   </label>
                 </div>
-                <a href="#" className="text-sm text-primary hover:underline">
-                  Esqueceu a senha?
-                </a>
               </div>
 
               <div className="pt-2">

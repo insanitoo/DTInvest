@@ -935,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Obter o valor mínimo de depósito das configurações
       const depositMinSetting = await storage.getSetting("deposit_min");
-      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 1000;
+      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 25000;
 
       if (!amount || amount < minDeposit) {
         return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
