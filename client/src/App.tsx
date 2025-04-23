@@ -30,6 +30,7 @@ const AdminProducts = lazy(() => import('@/pages/admin/admin-products'));
 const AdminSettings = lazy(() => import('@/pages/admin/admin-settings'));
 const DebugTransactions = lazy(() => import('@/pages/admin/debug-transactions'));
 const AdminTransactions = lazy(() => import('@/pages/admin/admin-transactions-new'));
+const AdminWithdrawals = lazy(() => import('@/pages/admin/admin-withdrawals'));
 
 // Componente de loading para páginas lazy
 const LazyLoadingSpinner = () => (
@@ -120,6 +121,12 @@ export default function App() {
             <AdminRoute path="/admin/debug">
               <Suspense fallback={<LazyLoadingSpinner />}>
                 <DebugTransactions />
+              </Suspense>
+            </AdminRoute>
+            
+            <AdminRoute path="/admin/saques">
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <AdminWithdrawals />
               </Suspense>
             </AdminRoute>
             
