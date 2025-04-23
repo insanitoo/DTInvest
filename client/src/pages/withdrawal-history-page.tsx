@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Navbar } from '@/components/navbar';
+import { Navbar } from '../components/navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
