@@ -285,14 +285,39 @@ export function setupAuth(app: Express) {
       const level3ReferralCodes = level2Referrals.map(user => user.referralCode);
       const level3Referrals = allUsers.filter(user => level3ReferralCodes.includes(user.referredBy || ''));
       
+      // Formatamos a data de criação como string para "membro desde"
+      const memberSince = freshUserData.createdAt 
+        ? new Date(freshUserData.createdAt).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        : 'N/A';
+
+      // Buscamos na view de referidos
+      let referralCounts = null;
+      try {
+        const result = await storage.execute(
+          `SELECT * FROM referral_counts WHERE user_id = $1`,
+          [userId]
+        );
+        if (result.rows.length > 0) {
+          referralCounts = result.rows[0];
+        }
+      } catch (e) {
+        console.error('Erro ao buscar contagem de referidos:', e);
+      }
+      
       // Adicionar as estatísticas ao objeto do usuário
       const freshUserWithExtras = {
         ...freshUserData,
         bankInfo: bankInfo || null,
         totalCommission,
-        level1ReferralCount: level1Referrals.length,
-        level2ReferralCount: level2Referrals.length,
-        level3ReferralCount: level3Referrals.length
+        memberSince,
+        invitationCode: freshUserData.referralCode,
+        level1ReferralCount: referralCounts?.level1_count || level1Referrals.length,
+        level2ReferralCount: referralCounts?.level2_count || level2Referrals.length,
+        level3ReferralCount: referralCounts?.level3_count || level3Referrals.length
       };
 
       // Atualizar a sessão com os dados mais recentes

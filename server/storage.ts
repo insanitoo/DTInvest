@@ -19,6 +19,9 @@ import { eq, desc, and, isNull, or, not } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
+  // SQL direto
+  execute(query: string, params?: any[]): Promise<any>;
+  
   // Usuários
   getUser(id: number): Promise<User | undefined>;
   getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
@@ -104,6 +107,13 @@ export interface IStorage {
 
 // In-memory storage implementation
 export class MemStorage implements IStorage {
+  // Método para executar consultas SQL diretas
+  async execute(query: string, params?: any[]): Promise<any> {
+    // Para a implementação MemStorage, vamos delegar para o pool do postgres
+    // Isso garante que as chamadas diretas com SQL funcionem quando necessário
+    return pool.query(query, params);
+  }
+  
   async getBankAccountDetails(): Promise<BankAccountDetail[]> {
     return Array.from(this.bankAccountDetails.values());
   }
