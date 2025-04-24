@@ -288,7 +288,7 @@ export async function setupDatabase() {
             rt.level + 1
           FROM users u
           JOIN referral_tree rt ON 
-            u.referred_by = rt.referral_code
+            CAST(u.referred_by AS TEXT) = CAST(rt.referral_code AS TEXT)
           WHERE rt.level < 3 -- Limit to 3 levels
         )
 
@@ -302,7 +302,7 @@ export async function setupDatabase() {
           SUM(CASE WHEN r.level = 3 AND r.has_product = true THEN 1 ELSE 0 END) AS level3_active
         FROM users u
         LEFT JOIN referral_tree r ON 
-          r.referred_by = u.referral_code
+          CAST(r.referred_by AS TEXT) = CAST(u.referral_code AS TEXT)
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");

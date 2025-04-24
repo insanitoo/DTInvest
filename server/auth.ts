@@ -368,13 +368,10 @@ export function setupAuth(app: Express) {
         const phoneStr = formattedPhoneNumber.toString();
         const referralStr = referralCode.toString();
         
-        // NOVA LÓGICA: Usar o número de telefone do referenciador em vez do código de referral
-        // Se tivermos o número de telefone do referenciador, usamos ele
-        // Caso contrário, mantemos a lógica anterior usando o código de referral
-        // Correção crítica: verificar se referralCodeToUse existe antes de usar
-        const referredByStr = req.body.referrerPhoneNumber ? 
-                              req.body.referrerPhoneNumber.toString() : 
-                              (referralCodeToUse ? referralCodeToUse.toString() : '');
+        // LÓGICA CORRIGIDA: Usar o código de referral do referenciador
+        // A coluna referred_by em users está configurada como referência para a coluna referral_code
+        // Então precisamos usar o código de referral, não o número de telefone
+        const referredByStr = referralCodeToUse.toString();
         
         console.log(`DIAGNÓSTICO COMPLETO - Inserindo usuário com valores:
           - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
