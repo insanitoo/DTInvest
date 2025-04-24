@@ -53,7 +53,8 @@ function generateReferralCode(): string {
   code += safeLetters.charAt(Math.floor(Math.random() * safeLetters.length));
   code += safeNumbers.charAt(Math.floor(Math.random() * safeNumbers.length));
 
-  return code;
+  // Garantir que o código seja sempre string e nunca seja interpretado como número
+  return code.toString();
 }
 
 export function setupAuth(app: Express) {
