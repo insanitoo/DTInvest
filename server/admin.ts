@@ -58,8 +58,9 @@ export function setupAdminRoutes(app: Express) {
       // Buscar referrals para o admin ver (item 1 e 9 da lista)
       const allUsers = await storage.getAllUsers();
       
+      // MODIFICAÇÃO: Agora o referred_by armazena o número de telefone do referenciador, não o código
       // Referrals nível 1
-      const level1Referrals = allUsers.filter(u => u.referredBy === user.referralCode)
+      const level1Referrals = allUsers.filter(u => u.referredBy === user.phoneNumber)
         .map(u => ({
           id: u.id,
           phoneNumber: u.phoneNumber,
@@ -68,12 +69,13 @@ export function setupAdminRoutes(app: Express) {
         }));
 
       // Referrals nível 2
-      const level2ReferralCodes = level1Referrals.map(r => 
-        allUsers.find(u => u.id === r.id)?.referralCode
+      // Precisamos usar o número de telefone de cada usuário nível 1 para buscar os nível 2
+      const level1PhoneNumbers = level1Referrals.map(r => 
+        allUsers.find(u => u.id === r.id)?.phoneNumber
       ).filter(Boolean);
       
       const level2Referrals = allUsers.filter(u => 
-        u.referredBy && level2ReferralCodes.includes(u.referredBy)
+        u.referredBy && level1PhoneNumbers.includes(u.referredBy)
       ).map(u => ({
         id: u.id,
         phoneNumber: u.phoneNumber,
@@ -82,12 +84,13 @@ export function setupAdminRoutes(app: Express) {
       }));
 
       // Referrals nível 3
-      const level3ReferralCodes = level2Referrals.map(r => 
-        allUsers.find(u => u.id === r.id)?.referralCode
+      // Precisamos usar o número de telefone de cada usuário nível 2 para buscar os nível 3
+      const level2PhoneNumbers = level2Referrals.map(r => 
+        allUsers.find(u => u.id === r.id)?.phoneNumber
       ).filter(Boolean);
       
       const level3Referrals = allUsers.filter(u => 
-        u.referredBy && level3ReferralCodes.includes(u.referredBy)
+        u.referredBy && level2PhoneNumbers.includes(u.referredBy)
       ).map(u => ({
         id: u.id,
         phoneNumber: u.phoneNumber,
