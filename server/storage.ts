@@ -525,6 +525,10 @@ export class MemStorage implements IStorage {
     return requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
   
+  async getDepositRequest(id: number): Promise<DepositRequest | undefined> {
+    return this.depositRequests.get(id);
+  }
+  
   async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
     return Array.from(this.depositRequests.values())
       .find(request => request.transactionId === transactionId);

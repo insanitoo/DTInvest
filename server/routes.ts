@@ -408,19 +408,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ error: "ID inválido" });
+        return res.status(400).json({ 
+          success: false,
+          error: "ID inválido", 
+          message: "O ID fornecido é inválido. Por favor, tente novamente."
+        });
       }
 
+      // Verificar se a solicitação de depósito existe
+      const depositRequest = await storage.getDepositRequest(id);
+      if (!depositRequest) {
+        return res.status(404).json({
+          success: false, 
+          error: "Depósito não encontrado",
+          message: "A solicitação de depósito não foi encontrada. Ela pode já ter sido processada."
+        });
+      }
+
+      // Verificar se já existe uma transação com o mesmo ID 
+      // (segurança extra além da que já existe em storage.approveDepositRequest)
+      if (depositRequest.transactionId) {
+        const existingTransaction = await storage.getTransactionByTransactionId(depositRequest.transactionId);
+        if (existingTransaction) {
+          console.log(`ENDPOINT >>> Transação duplicada detectada: ${depositRequest.transactionId}`);
+          
+          return res.status(200).json({
+            success: true,
+            message: "Depósito já foi processado anteriormente",
+            transaction: existingTransaction,
+            duplicated: true
+          });
+        }
+      }
+
+      // Se tudo estiver certo, processar o depósito
       const transaction = await storage.approveDepositRequest(id);
-      res.json({
+      
+      return res.json({
         success: true,
         message: "Depósito aprovado com sucesso",
         transaction
       });
     } catch (error) {
-      res.status(500).json({ 
+      console.error('Erro ao aprovar depósito:', error);
+      
+      // Tratar erros específicos
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      
+      // Verificar se é um erro de duplicação
+      if (errorMessage.includes("já existe") || 
+          errorMessage.includes("duplicado") || 
+          errorMessage.includes("duplicação") ||
+          errorMessage.includes("único") ||
+          errorMessage.includes("UNIQUE")) {
+        
+        return res.status(409).json({
+          success: false,
+          error: "Depósito duplicado",
+          message: "Este depósito já foi processado anteriormente."
+        });
+      }
+
+      // Erro genérico (com mensagem sanitizada para o usuário)
+      return res.status(500).json({ 
+        success: false,
         error: "Erro ao aprovar depósito", 
-        message: error instanceof Error ? error.message : "Erro desconhecido" 
+        message: "Ocorreu um erro ao processar o depósito. Por favor, tente novamente ou contate o suporte."
       });
     }
   });
