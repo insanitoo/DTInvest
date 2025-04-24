@@ -302,14 +302,21 @@ export function setupAuth(app: Express) {
             console.log("Resultado da busca de admin fallback:", adminFallback);
             
             if (adminFallback && adminFallback.rows && adminFallback.rows.length > 0) {
-              // Usa o admin como fallback, mas retorna erro ao usuário
-              console.log("Admin encontrado como fallback, mas retornando erro ao usuário");
-              return res.status(400).json({ 
-                message: "Código de convite inválido. Por favor, entre em contato com quem o convidou para obter um código válido."
-              });
+              // MODIFICAÇÃO: Usando o admin como referência padrão quando o código não é encontrado
+              console.log("Admin encontrado como fallback. Usando o admin como referência padrão.");
+              // Guardar número do admin para usar como referred_by
+              const adminPhoneNumber = String(adminFallback.rows[0].phone_number);
+              // Guardar o formato do código para usar na geração do código do novo usuário
+              referralCodeToUse = String(adminFallback.rows[0].referral_code);
+              
+              console.log(`Usando número do admin (${adminPhoneNumber}) como referência padrão`);
+              
+              // Armazenar o telefone do admin em uma variável para uso posterior
+              req.body.referrerPhoneNumber = adminPhoneNumber;
             } else {
-              // Nenhum admin encontrado, retorna erro simples
-              return res.status(400).json({ message: "Código de convite inválido" });
+              // Nenhum admin encontrado, ainda assim continuar o registro
+              console.log("Nenhum admin encontrado. Continuando sem referência.");
+              req.body.referrerPhoneNumber = null;
             }
           }
         } catch (referrerError) {
@@ -405,9 +412,10 @@ export function setupAuth(app: Express) {
         // NOVA LÓGICA: Usar o número de telefone do referenciador em vez do código de referral
         // Se tivermos o número de telefone do referenciador, usamos ele
         // Caso contrário, mantemos a lógica anterior usando o código de referral
+        // Correção crítica: verificar se referralCodeToUse existe antes de usar
         const referredByStr = req.body.referrerPhoneNumber ? 
                               req.body.referrerPhoneNumber.toString() : 
-                              referralCodeToUse.toString();
+                              (referralCodeToUse ? referralCodeToUse.toString() : '');
         
         console.log(`DIAGNÓSTICO COMPLETO - Inserindo usuário com valores:
           - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
