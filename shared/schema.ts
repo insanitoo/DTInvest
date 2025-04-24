@@ -264,6 +264,8 @@ export interface RegistrationData {
   phoneNumber: string;
   password: string;
   referralCode?: string;
+  originalReferralCode?: string;
+  userProvidedReferralCode?: string;
 }
 
 // Bank info type
