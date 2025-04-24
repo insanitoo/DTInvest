@@ -874,6 +874,12 @@ export class MemStorage implements IStorage {
 
     this.products.delete(id);
   }
+  
+  async clearAllProducts(): Promise<void> {
+    console.log("Removendo todos os produtos do armazenamento em memória...");
+    this.products.clear();
+    console.log("Produtos removidos com sucesso!");
+  }
 
   // Purchase methods
   async getUserPurchases(userId: number): Promise<Purchase[]> {
@@ -1643,12 +1649,6 @@ export class DatabaseStorage implements IStorage {
   async clearAllProducts(): Promise<void> {
     console.log("Removendo todos os produtos do banco de dados...");
     await db.delete(products);
-    console.log("Produtos removidos com sucesso!");
-  }
-  
-  async clearAllProducts(): Promise<void> {
-    console.log("Removendo todos os produtos do banco de dados...");
-    await db.delete(products).execute();
     console.log("Produtos removidos com sucesso!");
   }
 
