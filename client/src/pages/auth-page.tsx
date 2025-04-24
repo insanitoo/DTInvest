@@ -16,10 +16,18 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  phoneNumber: z.string().min(9, 'Número de telefone deve ter 9 dígitos'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
-  confirmPassword: z.string(),
-  referralCode: z.string().optional(),
+  phoneNumber: z.string()
+    .min(9, 'Número de telefone deve ter 9 dígitos')
+    .regex(/^[0-9 ]+$/, 'Número de telefone deve conter apenas números')
+    .transform(val => val.replace(/\s+/g, '')),
+  password: z.string()
+    .min(6, 'Senha deve ter no mínimo 6 caracteres')
+    .max(50, 'Senha muito longa'),
+  confirmPassword: z.string()
+    .min(1, 'Confirme sua senha'),
+  referralCode: z.string()
+    .min(1, 'Código de convite é obrigatório')
+    .max(50, 'Código de convite muito longo'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Senhas não coincidem',
   path: ['confirmPassword'],
