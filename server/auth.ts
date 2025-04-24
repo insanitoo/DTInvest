@@ -229,13 +229,16 @@ export function setupAuth(app: Express) {
               referralCodeToUse = anyUser.rows[0].referral_code;
               console.log("Usando código de usuário alternativo:", referralCodeToUse);
             } else {
-              console.log("Nenhum usuário encontrado, mantendo ADMIN01");
-              // Neste caso, vamos usar ADMIN01 mesmo como fallback final
+              console.log("Nenhum usuário encontrado, gerando um código válido");
+              // Não podemos usar ADMIN01 como referral code (erro de tipo)
+              // Vamos gerar um código válido como último recurso
+              referralCodeToUse = generateReferralCode() + '00';
             }
           }
         } catch (adminError) {
           console.error("Erro ao buscar admin:", adminError);
-          // Se ocorrer erro, continuamos com ADMIN01 como código
+          // Se ocorrer erro, geramos um código válido alternativo
+          referralCodeToUse = generateReferralCode() + '00';
         }
       } else {
         // 2. Aqui verificamos se o código de convite existe, ignorando case

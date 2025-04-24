@@ -433,6 +433,11 @@ export default function AuthPage() {
                     {registerForm.formState.errors.referralCode.message}
                   </p>
                 )}
+                
+                {/* Dica para códigos de convite */}
+                <p className="text-blue-300 text-xs mt-1.5">
+                  Se não tiver um código, use <span className="font-semibold text-white">ADMIN01</span>
+                </p>
               </div>
 
               <div className="pt-2">
