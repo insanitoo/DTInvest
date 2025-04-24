@@ -43,6 +43,9 @@ app.use((req, res, next) => {
   await initializeDatabase();
   
   const server = await registerRoutes(app);
+  
+  // Inicializa o sistema de tarefas agendadas
+  initScheduledTasks();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     // Capturar e sanitizar qualquer erro que possa ocorrer

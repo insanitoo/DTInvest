@@ -6,7 +6,7 @@
 
 import { db } from "./db";
 import { storage } from "./storage";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, not, isNull } from "drizzle-orm";
 import { purchases, products, users, transactions } from "@shared/schema";
 
 /**
@@ -27,7 +27,7 @@ function scheduleForMidnight(callback: () => void) {
   // Calcula a diferença em milissegundos até a meia-noite
   const msToMidnight = night.getTime() - now.getTime();
   
-  console.log(`Agendando tarefa para executar em ${msToMidnight / (1000 * 60 * 60)} horas (meia-noite)`);
+  console.log(`Agendando tarefa para executar em ${Math.round(msToMidnight / (1000 * 60 * 60) * 100) / 100} horas (meia-noite)`);
   
   // Agenda a execução para a meia-noite
   setTimeout(() => {
@@ -46,28 +46,39 @@ async function processDailyIncome() {
   console.log("🔄 Iniciando processamento de rendimentos diários");
   
   try {
-    // Obtém todas as compras ativas com produtos válidos
-    const activePurchases = await db.select({
+    // Obtém todos os produtos ativos
+    const activeProducts = await db.select().from(products).where(eq(products.active, true));
+    console.log(`Encontrados ${activeProducts.length} produtos ativos`);
+    
+    if (activeProducts.length === 0) {
+      console.log("Nenhum produto ativo encontrado. Pulando processamento de rendimentos.");
+      return;
+    }
+    
+    // Obtém todas as compras
+    const allPurchases = await db.select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
-      dailyIncome: products.dailyIncome,
-      productName: products.name
-    })
-    .from(purchases)
-    .innerJoin(products, eq(purchases.productId, products.id))
-    .where(
-      and(
-        eq(purchases.active, true),
-        eq(products.active, true)
-      )
-    );
+      productId: purchases.productId
+    }).from(purchases);
+    
+    console.log(`Encontradas ${allPurchases.length} compras para processamento`);
+    
+    if (allPurchases.length === 0) {
+      console.log("Nenhuma compra encontrada. Pulando processamento de rendimentos.");
+      return;
+    }
 
-    console.log(`Encontradas ${activePurchases.length} compras ativas para processamento de rendimento`);
-
-    // Para cada compra ativa, processa o rendimento diário
-    for (const purchase of activePurchases) {
+    // Para cada compra, processa o rendimento diário
+    for (const purchase of allPurchases) {
       try {
+        // Encontra o produto correspondente a esta compra
+        const product = activeProducts.find(p => p.id === purchase.productId);
+        if (!product) {
+          console.log(`Produto ${purchase.productId} não encontrado para compra ${purchase.id}, pulando`);
+          continue;
+        }
+
         // Obtém os dados atuais do usuário
         const user = await storage.getUser(purchase.userId);
         if (!user) {
@@ -76,20 +87,25 @@ async function processDailyIncome() {
         }
 
         // Atualiza o saldo do usuário
-        const updatedBalance = user.balance + purchase.dailyIncome;
+        const updatedBalance = user.balance + product.dailyIncome;
         await storage.updateUserBalance(user.id, updatedBalance);
 
+        // Gera um ID único para a transação
+        const uniqueId = `INC${Date.now().toString(36).toUpperCase()}-${purchase.id}`;
+        
         // Registra a transação
-        await storage.createTransaction({
+        const transaction = await db.insert(transactions).values({
           userId: user.id,
-          amount: purchase.dailyIncome,
+          amount: product.dailyIncome,
           type: "income",
           status: "completed",
-          description: `Rendimento diário do produto ${purchase.productName}`,
-          transactionId: `INC${Date.now().toString(36).toUpperCase()}-${purchase.id}`
-        });
+          bankAccount: null,
+          bankName: null, 
+          receipt: null,
+          transactionId: uniqueId
+        }).returning();
 
-        console.log(`Rendimento processado para usuário ${user.id}: +${purchase.dailyIncome} KZ do produto ${purchase.productName}`);
+        console.log(`Rendimento processado para usuário ${user.id}: +${product.dailyIncome} KZ do produto ${product.name}`);
       } catch (error) {
         console.error(`Erro ao processar rendimento para compra ${purchase.id}:`, error);
       }
