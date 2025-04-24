@@ -67,6 +67,7 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
   deleteProduct(id: number): Promise<void>;
+  clearAllProducts(): Promise<void>;
   getActiveProducts(): Promise<Product[]>;
 
   // Compras
@@ -1637,6 +1638,18 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(products)
       .where(eq(products.id, id));
+  }
+  
+  async clearAllProducts(): Promise<void> {
+    console.log("Removendo todos os produtos do banco de dados...");
+    await db.delete(products);
+    console.log("Produtos removidos com sucesso!");
+  }
+  
+  async clearAllProducts(): Promise<void> {
+    console.log("Removendo todos os produtos do banco de dados...");
+    await db.delete(products).execute();
+    console.log("Produtos removidos com sucesso!");
   }
 
   // Purchase methods
