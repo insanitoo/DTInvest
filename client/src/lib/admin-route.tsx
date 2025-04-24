@@ -29,9 +29,8 @@ export function AdminRoute({
         return;
       }
       
-      // Verificar se o usuário é admin - com verificação adicional 
-      // e mensagem detalhada para debug
-      if (!user.isAdmin) {
+      // Verificar se o usuário é admin ou se é o admin padrão (999999999)
+      if (!user.isAdmin && user.phoneNumber !== "999999999") {
         console.log(`Admin route: User ${user.phoneNumber} is not admin (isAdmin=${user.isAdmin}), redirecting to /`);
         setTimeout(() => {
           setLocation("/");

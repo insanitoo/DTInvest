@@ -27,7 +27,7 @@ export default function ServicePage() {
             <Button 
               variant="default" 
               className="w-full py-6 flex items-center justify-center space-x-2 cyber-element bg-primary text-white"
-              onClick={() => window.open("#", "_blank")}
+              onClick={() => window.open("https://wa.me/244973251310", "_blank")}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
               <span>Suporte Online WhatsApp</span>
@@ -36,7 +36,7 @@ export default function ServicePage() {
             <Button 
               variant="default" 
               className="w-full py-6 flex items-center justify-center space-x-2 cyber-element bg-blue-500 text-white"
-              onClick={() => window.open("#", "_blank")}
+              onClick={() => window.open("https://t.me/DTI_Maneger", "_blank")}
             >
               <Phone className="h-5 w-5 mr-2" />
               <span>Gerente de Contas Telegram</span>
@@ -45,7 +45,7 @@ export default function ServicePage() {
             <Button 
               variant="default" 
               className="w-full py-6 flex items-center justify-center space-x-2 cyber-element bg-blue-600 text-white"
-              onClick={() => window.open("#", "_blank")}
+              onClick={() => window.open("https://t.me/+LZaJIb07QrRkODA0", "_blank")}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
               <span>Canal Telegram</span>

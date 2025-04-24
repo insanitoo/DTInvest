@@ -48,6 +48,7 @@ export async function setupDatabase() {
         is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
         has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
         has_purchased BOOLEAN NOT NULL DEFAULT FALSE,
+        has_product BOOLEAN NOT NULL DEFAULT FALSE,
         level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
         level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
         level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -72,6 +73,10 @@ export async function setupDatabase() {
 
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level3_commission') THEN
             ALTER TABLE users ADD COLUMN level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+          END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'has_product') THEN
+            ALTER TABLE users ADD COLUMN has_product BOOLEAN NOT NULL DEFAULT FALSE;
           END IF;
         END
         $$;
