@@ -262,10 +262,13 @@ export function setupAuth(app: Express) {
         // 2. Aqui verificamos se o código de convite existe, ignorando case
         try {
           // Consulta case-insensitive para encontrar o código
-          const [referrerResult] = await db.execute(sql`
+          // CORREÇÃO CRÍTICA: Não desestruturar o resultado diretamente
+          const referrerResult = await db.execute(sql`
             SELECT referral_code FROM users 
             WHERE LOWER(referral_code) = LOWER(${referralCodeToUse})
           `);
+          
+          console.log("Resultado da busca de código de referral:", referrerResult);
           
           if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
             // Encontrou o código - vamos usar o formato exato que está no banco e garantir que seja string
@@ -275,11 +278,14 @@ export function setupAuth(app: Express) {
             // Código não encontrado - tenta encontrar admin como último recurso
             console.log("Código não encontrado, tentando usar admin como fallback");
             
-            const [adminFallback] = await db.execute(sql`
+            // CORREÇÃO CRÍTICA: Não desestruturar o resultado diretamente
+            const adminFallback = await db.execute(sql`
               SELECT referral_code FROM users 
               WHERE is_admin = true 
               LIMIT 1
             `);
+            
+            console.log("Resultado da busca de admin fallback:", adminFallback);
             
             if (adminFallback && adminFallback.rows && adminFallback.rows.length > 0) {
               // Usa o admin como fallback, mas retorna erro ao usuário
