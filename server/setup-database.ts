@@ -263,16 +263,46 @@ export async function setupDatabase() {
     try {
       await db.execute(sql`
         CREATE OR REPLACE VIEW referral_counts AS
+        WITH RECURSIVE referral_tree AS (
+          -- Base case: all users
+          SELECT 
+            id, 
+            phone_number, 
+            referral_code, 
+            referred_by, 
+            balance,
+            has_product,
+            0 AS level
+          FROM users
+
+          UNION ALL
+
+          -- Recursive case: all users referred by users in the previous level
+          SELECT 
+            u.id, 
+            u.phone_number, 
+            u.referral_code, 
+            u.referred_by, 
+            u.balance,
+            u.has_product,
+            rt.level + 1
+          FROM users u
+          JOIN referral_tree rt ON 
+            u.referred_by = rt.id
+          WHERE rt.level < 3 -- Limit to 3 levels
+        )
+
         SELECT 
           u.id AS user_id,
-          COUNT(CASE WHEN r.referred_by = u.referral_code THEN 1 ELSE NULL END) AS level1_count,
-          0 AS level2_count,
-          0 AS level3_count,
-          SUM(CASE WHEN r.referred_by = u.referral_code AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
-          0 AS level2_active,
-          0 AS level3_active
+          COUNT(CASE WHEN r.level = 1 THEN 1 ELSE NULL END) AS level1_count,
+          COUNT(CASE WHEN r.level = 2 THEN 1 ELSE NULL END) AS level2_count,
+          COUNT(CASE WHEN r.level = 3 THEN 1 ELSE NULL END) AS level3_count,
+          SUM(CASE WHEN r.level = 1 AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
+          SUM(CASE WHEN r.level = 2 AND r.has_product = true THEN 1 ELSE 0 END) AS level2_active,
+          SUM(CASE WHEN r.level = 3 AND r.has_product = true THEN 1 ELSE 0 END) AS level3_active
         FROM users u
-        LEFT JOIN users r ON r.referred_by = u.referral_code
+        LEFT JOIN referral_tree r ON 
+          r.referred_by = u.id
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
