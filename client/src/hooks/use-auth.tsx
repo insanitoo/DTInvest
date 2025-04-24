@@ -172,31 +172,50 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: RegistrationData) => {
-      // First register call to create the user and get session cookie
-      const res = await apiRequest("POST", "/api/register", credentials);
-      const userData = await res.json();
-
-      // Immediately verify the session with explicit credentials option
-      console.log("Forcing call to /api/user after successful registration...");
+      // Adicionando melhor log para debugging antes da chamada
+      console.log(`Tentando registro com número: ${credentials.phoneNumber}, código: ${credentials.referralCode}`);
+      console.log(`Enviando requisição POST para /api/register, corpo:`, JSON.stringify(credentials));
+      
       try {
-        const userCheckRes = await fetch("/api/user", { 
-          credentials: "include",
-          headers: {
-            'Cache-Control': 'no-cache, no-store',
-            'Pragma': 'no-cache'
-          }
-        });
-
-        if (!userCheckRes.ok) {
-          console.error("Session verification failed after registration with status:", userCheckRes.status);
-          throw new Error("A sessão não pôde ser estabelecida após o registro. Tente fazer login.");
+        // First register call to create the user and get session cookie
+        const res = await apiRequest("POST", "/api/register", credentials);
+        
+        // Verificar se a resposta foi bem-sucedida
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.log("Falha no registro:", errorData);
+          throw new Error(errorData.message || "Erro ao registrar usuário");
         }
-      } catch (error) {
-        console.error("Error verifying session after registration:", error);
-        throw new Error("Erro ao verificar a sessão após o registro.");
-      }
+        
+        const userData = await res.json();
+        console.log("Registro bem-sucedido! Dados do usuário:", userData);
 
-      return userData;
+        // Immediately verify the session with explicit credentials option
+        console.log("Forcing call to /api/user after successful registration...");
+        try {
+          const userCheckRes = await fetch("/api/user", { 
+            credentials: "include",
+            headers: {
+              'Cache-Control': 'no-cache, no-store',
+              'Pragma': 'no-cache'
+            }
+          });
+
+          if (!userCheckRes.ok) {
+            console.error("Session verification failed after registration with status:", userCheckRes.status);
+            throw new Error("A sessão não pôde ser estabelecida após o registro. Tente fazer login.");
+          }
+        } catch (error) {
+          console.error("Error verifying session after registration:", error);
+          throw new Error("Erro ao verificar a sessão após o registro.");
+        }
+
+        return userData;
+      } catch (error) {
+        // Garantir que o erro seja capturado e registrado antes de repassar
+        console.log("Falha no registro:", error);
+        throw error;
+      }
     },
     onSuccess: (user: User) => {
       console.log("Registration successful, saving user data to cache...");
