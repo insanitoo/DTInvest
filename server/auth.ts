@@ -575,16 +575,19 @@ export function setupAuth(app: Express) {
       // Obter dados dos referidos para calculer estatísticas
       const allUsers = await storage.getAllUsers();
       
+      // MODIFICAÇÃO: Agora o referred_by armazena o número de telefone do referenciador, não o código
       // Contar referidos diretos (nível 1)
-      const level1Referrals = allUsers.filter(user => user.referredBy === freshUserData.referralCode);
+      const level1Referrals = allUsers.filter(user => user.referredBy === freshUserData.phoneNumber);
       
       // Contar referidos nível 2
-      const level2ReferralCodes = level1Referrals.map(user => user.referralCode);
-      const level2Referrals = allUsers.filter(user => level2ReferralCodes.includes(user.referredBy || ''));
+      // Precisamos usar o número de telefone de cada usuário nível 1
+      const level1PhoneNumbers = level1Referrals.map(user => user.phoneNumber);
+      const level2Referrals = allUsers.filter(user => user.referredBy && level1PhoneNumbers.includes(user.referredBy));
       
       // Contar referidos nível 3
-      const level3ReferralCodes = level2Referrals.map(user => user.referralCode);
-      const level3Referrals = allUsers.filter(user => level3ReferralCodes.includes(user.referredBy || ''));
+      // Precisamos usar o número de telefone de cada usuário nível 2
+      const level2PhoneNumbers = level2Referrals.map(user => user.phoneNumber);
+      const level3Referrals = allUsers.filter(user => user.referredBy && level2PhoneNumbers.includes(user.referredBy));
       
       // Formatamos a data de criação como string para "membro desde"
       const memberSince = freshUserData.createdAt 

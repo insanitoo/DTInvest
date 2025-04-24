@@ -873,21 +873,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await storage.getAllUsers();
 
+      // MODIFICAÇÃO: Agora o referred_by armazena o número de telefone do referenciador, não o código
       // Obter referidos diretos (nível 1)
       const level1Referrals = users.filter(
-        user => user.referredBy === req.user.referralCode
+        user => user.referredBy === req.user.phoneNumber
       );
 
       // Obter referidos de nível 2
-      const level2ReferralCodes = level1Referrals.map(user => user.referralCode);
+      // Precisamos usar o número de telefone de cada usuário nível 1 como referred_by para encontrar os nível 2
+      const level1PhoneNumbers = level1Referrals.map(user => user.phoneNumber);
       const level2Referrals = users.filter(
-        user => level2ReferralCodes.includes(user.referredBy || '')
+        user => user.referredBy && level1PhoneNumbers.includes(user.referredBy)
       );
 
       // Obter referidos de nível 3
-      const level3ReferralCodes = level2Referrals.map(user => user.referralCode);
+      // Usar os números de telefone dos usuários nível 2
+      const level2PhoneNumbers = level2Referrals.map(user => user.phoneNumber);
       const level3Referrals = users.filter(
-        user => level3ReferralCodes.includes(user.referredBy || '')
+        user => user.referredBy && level2PhoneNumbers.includes(user.referredBy)
       );
 
       // Obter as configurações de comissão atualizadas
