@@ -301,9 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(tx => tx.type === 'deposit')
         .reduce((sum, tx) => sum + tx.amount, 0);
 
-      // Contabilizar saques (incluindo os rejeitados que tem status 'failed')
+      // Contabilizar apenas saques aprovados (status 'completed'), excluindo os rejeitados
       const withdrawals = allTransactions
-        .filter(tx => tx.type === 'withdrawal' && (tx.status === 'completed' || tx.status === 'failed'))
+        .filter(tx => tx.type === 'withdrawal' && tx.status === 'completed')
         .reduce((sum, tx) => sum + tx.amount, 0);
 
       // Dados de produtos (ainda fixos até implementarmos o armazenamento de produtos)
