@@ -16,9 +16,10 @@ console.log("Conectando ao banco de dados PostgreSQL...");
 // Criar pool de conexões com o banco de dados
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  max: 10, // Reduzido o número máximo de conexões
-  idleTimeoutMillis: 30000, // Tempo máximo de inatividade
-  connectionTimeoutMillis: 5000 // Tempo máximo de tentativa de conexão
+  max: 10,
+  ssl: true, // Habilitando SSL para o Neon
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000
 });
 
 // Adicionar handler para erros no pool
