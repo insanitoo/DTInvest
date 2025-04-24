@@ -643,20 +643,6 @@ export function setupAuth(app: Express) {
       
       // CORREÇÃO: Priorizar a contagem manual (level1Referrals.length) e usar o referralCounts como fallback
       // Isso garante que os números são os mesmos na página de equipe e na página de perfil
-      // Calcular ganhos diários totais (valor do banco + ganhos de hoje)
-      const todayEarnings = freshUserData.dailyEarnings || 0;
-      
-      // Formatar a data do último reset de ganhos para exibição
-      const lastEarningsResetDate = freshUserData.lastEarningsReset 
-        ? new Date(freshUserData.lastEarningsReset).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        : 'Nunca';
-        
       const freshUserWithExtras = {
         ...freshUserData,
         bankInfo: bankInfo || null,
@@ -665,15 +651,13 @@ export function setupAuth(app: Express) {
         invitationCode: freshUserData.referralCode,
         level1ReferralCount: level1Referrals.length,
         level2ReferralCount: level2Referrals.length,
-        level3ReferralCount: level3Referrals.length,
-        todayEarnings: todayEarnings,
-        lastEarningsReset: lastEarningsResetDate
+        level3ReferralCount: level3Referrals.length
       };
 
       // Atualizar a sessão com os dados mais recentes
       req.user = freshUserWithExtras;
 
-      console.log(`Enviando dados atualizados do usuário ${userId}. Saldo atual: ${freshUserData.balance}, Ganhos do dia: ${todayEarnings}`);
+      console.log(`Enviando dados atualizados do usuário ${userId}. Saldo atual: ${freshUserData.balance}`);
       return res.json(freshUserWithExtras);
     } catch (error) {
       console.error('Erro ao buscar dados atualizados do usuário:', error);

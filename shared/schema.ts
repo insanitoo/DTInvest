@@ -14,8 +14,6 @@ export const users = pgTable("users", {
   level1Commission: doublePrecision("level1_commission").default(0).notNull(),
   level2Commission: doublePrecision("level2_commission").default(0).notNull(),
   level3Commission: doublePrecision("level3_commission").default(0).notNull(),
-  dailyEarnings: doublePrecision("daily_earnings").default(0).notNull(), // Rendimento diário acumulado
-  lastEarningsReset: timestamp("last_earnings_reset").defaultNow().notNull(), // Última vez que o rendimento diário foi zerado
   hasProduct: boolean("has_product").default(false).notNull(),
   hasDeposited: boolean("has_deposited").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -322,8 +320,6 @@ export type User = typeof users.$inferSelect & {
   isBlocked?: boolean;
   lastOnline?: Date;
   dailyIncome?: number;
-  dailyEarnings?: number; // Ganhos diários acumulados
-  lastEarningsReset?: Date; // Última vez que os ganhos diários foram zerados
   
   // Dados de referral calculados
   level1Referrals?: number;
