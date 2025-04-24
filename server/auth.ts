@@ -110,18 +110,26 @@ export function setupAuth(app: Express) {
             return done(null, user);
           }
 
-          // Verificação normal da senha para todos os usuários
-          if (user.password === password) {
-            // Senha está correta, permitir login
-            if (req.body.rememberMe && req.session.cookie) {
-              req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+          // Verificação da senha com comparação criptográfica segura
+          // Para o formato de hash da senha
+          try {
+            const isPasswordValid = await comparePasswords(password, user.password);
+            
+            if (isPasswordValid) {
+              // Senha está correta, permitir login
+              if (req.body.rememberMe && req.session.cookie) {
+                req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+              }
+  
+              console.log("Login bem-sucedido para usuário:", formattedPhoneNumber);
+              return done(null, user);
+            } else {
+              console.log("Senha incorreta para usuário:", formattedPhoneNumber);
+              return done(null, false, { message: 'Número de telefone ou senha incorretos' });
             }
-
-            console.log("Login bem-sucedido para usuário:", formattedPhoneNumber);
-            return done(null, user);
-          } else {
-            console.log("Senha incorreta para usuário:", formattedPhoneNumber);
-            return done(null, false, { message: 'Número de telefone ou senha incorretos' });
+          } catch (error) {
+            console.error("Erro ao verificar senha:", error);
+            return done(null, false, { message: 'Erro ao validar a senha' });
           }
         } catch (error) {
           console.error("Erro na autenticação:", error);
