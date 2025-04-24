@@ -322,6 +322,8 @@ export type User = typeof users.$inferSelect & {
   isBlocked?: boolean;
   lastOnline?: Date;
   dailyIncome?: number;
+  dailyEarnings?: number; // Ganhos diários acumulados
+  lastEarningsReset?: Date; // Última vez que os ganhos diários foram zerados
   
   // Dados de referral calculados
   level1Referrals?: number;
