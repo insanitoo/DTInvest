@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, AlertCircle, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Pencil, Trash2, AlarmClock } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,6 +46,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   
   // Get all products
   const { data: products, isLoading } = useQuery<Product[]>({
@@ -149,6 +150,31 @@ export default function AdminProducts() {
     },
   });
   
+  // Clear all products mutation
+  const clearAllProductsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/products/clear-all');
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      
+      toast({
+        title: 'Produtos removidos',
+        description: 'Todos os produtos foram removidos com sucesso.',
+      });
+      
+      setShowClearAllDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao limpar produtos',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
   // Open create dialog
   const handleOpenCreateDialog = () => {
     form.reset({
@@ -183,6 +209,11 @@ export default function AdminProducts() {
   const handleOpenDeleteDialog = (product: Product) => {
     setEditingProduct(product);
     setShowDeleteDialog(true);
+  };
+  
+  // Open clear all dialog
+  const handleOpenClearAllDialog = () => {
+    setShowClearAllDialog(true);
   };
   
   // Form submit handler
@@ -224,13 +255,23 @@ export default function AdminProducts() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Gerenciar Produtos</h1>
-          <Button 
-            variant="primary" 
-            onClick={handleOpenCreateDialog}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
-          </Button>
+          <div className="flex space-x-3">
+            <Button 
+              variant="outline"
+              onClick={handleOpenClearAllDialog}
+              className="border-red-600 text-red-500 hover:bg-red-900/20"
+            >
+              <AlarmClock className="h-4 w-4 mr-2" />
+              Limpar Todos
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleOpenCreateDialog}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
+            </Button>
+          </div>
         </div>
         
         {isLoading ? (
@@ -245,7 +286,7 @@ export default function AdminProducts() {
                   <h3 className="text-lg font-semibold">{product.name}</h3>
                   <div className="flex space-x-2">
                     <Button 
-                      variant="cybernetic" 
+                      variant="outline" 
                       size="sm"
                       onClick={() => handleOpenEditDialog(product)}
                     >
@@ -513,6 +554,44 @@ export default function AdminProducts() {
                 </>
               ) : (
                 "Excluir"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Clear All Products Confirmation Dialog */}
+      <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+        <DialogContent className="bg-dark-secondary border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle>Limpar Todos os Produtos</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-red-500 font-semibold">Atenção! Esta é uma ação perigosa.</p>
+            <p className="mt-2">Tem certeza que deseja remover <strong>TODOS os produtos</strong> do sistema?</p>
+            <p className="text-sm text-gray-400 mt-2">Esta ação não pode ser desfeita e afetará todos os investimentos existentes.</p>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowClearAllDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => clearAllProductsMutation.mutate()}
+              disabled={clearAllProductsMutation.isPending}
+            >
+              {clearAllProductsMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Removendo...
+                </>
+              ) : (
+                "Sim, Remover Todos"
               )}
             </Button>
           </DialogFooter>
