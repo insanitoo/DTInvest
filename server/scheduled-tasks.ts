@@ -86,9 +86,17 @@ async function processDailyIncome() {
           continue;
         }
 
-        // Atualiza o saldo do usuário
+        // Calcula novos valores
         const updatedBalance = user.balance + product.dailyIncome;
-        await storage.updateUserBalance(user.id, updatedBalance);
+        const updatedDailyEarnings = (user.dailyEarnings || 0) + product.dailyIncome;
+        
+        // Atualiza o saldo e os ganhos diários do usuário
+        await db.update(users)
+          .set({ 
+            balance: updatedBalance,
+            dailyEarnings: updatedDailyEarnings
+          })
+          .where(eq(users.id, user.id));
 
         // Gera um ID único para a transação
         const uniqueId = `INC${Date.now().toString(36).toUpperCase()}-${purchase.id}`;
@@ -118,13 +126,50 @@ async function processDailyIncome() {
 }
 
 /**
+ * Reseta os ganhos diários de todos os usuários para zero
+ * Esta função é executada à meia-noite
+ */
+async function resetDailyEarnings() {
+  console.log("🔄 Iniciando reset de rendimentos diários");
+  
+  try {
+    // Reseta os rendimentos diários de todos os usuários para zero
+    await db.update(users)
+      .set({ 
+        dailyEarnings: 0,
+        lastEarningsReset: new Date()
+      })
+      .where(not(eq(users.id, 0))); // Condição para afetar todos os usuários
+    
+    console.log("✅ Reset de rendimentos diários concluído com sucesso");
+  } catch (error) {
+    console.error("❌ Erro ao resetar rendimentos diários:", error);
+  }
+}
+
+/**
+ * Função que executa todas as tarefas agendadas para meia-noite
+ */
+async function midnightTasks() {
+  try {
+    // Primeiro reseta os ganhos diários
+    await resetDailyEarnings();
+    
+    // Depois processa os novos rendimentos
+    await processDailyIncome();
+  } catch (error) {
+    console.error("❌ Erro ao executar tarefas agendadas da meia-noite:", error);
+  }
+}
+
+/**
  * Inicializa as tarefas agendadas
  */
 export function initScheduledTasks() {
   console.log("🔄 Inicializando sistema de tarefas agendadas");
   
-  // Agenda a tarefa de processamento de rendimentos para executar à meia-noite
-  scheduleForMidnight(processDailyIncome);
+  // Agenda a tarefa de processamento para executar à meia-noite
+  scheduleForMidnight(midnightTasks);
   
   console.log("✅ Sistema de tarefas agendadas inicializado com sucesso");
 }

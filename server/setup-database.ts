@@ -78,6 +78,14 @@ export async function setupDatabase() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'has_product') THEN
             ALTER TABLE users ADD COLUMN has_product BOOLEAN NOT NULL DEFAULT FALSE;
           END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'daily_earnings') THEN
+            ALTER TABLE users ADD COLUMN daily_earnings DOUBLE PRECISION NOT NULL DEFAULT 0;
+          END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_earnings_reset') THEN
+            ALTER TABLE users ADD COLUMN last_earnings_reset TIMESTAMP NOT NULL DEFAULT NOW();
+          END IF;
         END
         $$;
       `);
