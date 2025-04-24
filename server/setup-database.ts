@@ -286,7 +286,7 @@ export async function setupDatabase() {
             rt.level + 1
           FROM users u
           JOIN referral_tree rt ON 
-            u.referred_by = rt.referral_code
+            COALESCE(u.referred_by, '') = COALESCE(rt.referral_code, '')
           WHERE rt.level < 3 -- Limit to 3 levels
         )
 
@@ -300,7 +300,7 @@ export async function setupDatabase() {
           SUM(CASE WHEN r.level = 3 THEN 1 ELSE 0 END) AS level3_active
         FROM users u
         LEFT JOIN referral_tree r ON 
-          r.referred_by = u.referral_code
+          COALESCE(r.referred_by, '') = COALESCE(u.referral_code, '')
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
@@ -334,12 +334,21 @@ export async function setupDatabase() {
       console.log("Criando bancos padrão...");
 
       await db.execute(
-        sql`INSERT INTO banks (name, active) VALUES ('BAI', true), ('Banco Atlântico', true)`
+        sql`INSERT INTO banks (name, active) VALUES ('BAI', true), ('Banco Atlântico', true), ('BIC', true)`
       );
 
       console.log("✅ Bancos padrão criados com sucesso!");
     } else {
-      console.log("✅ Bancos já existem, pulando criação");
+      console.log("✅ Bancos já existem, verificando BIC...");
+      
+      // Verificar se o banco BIC existe
+      const bicExists = existingBanks.rows.some(bank => bank.name === 'BIC');
+      
+      if (!bicExists) {
+        console.log("Adicionando banco BIC...");
+        await db.execute(sql`INSERT INTO banks (name, active) VALUES ('BIC', true)`);
+        console.log("✅ Banco BIC adicionado com sucesso!");
+      }
     }
 
     // Criar detalhes das contas bancárias para os bancos
@@ -353,13 +362,15 @@ export async function setupDatabase() {
       const banks = await db.execute(sql`SELECT id, name FROM banks`);
       const baiBank = banks.rows.find(bank => bank.name === 'BAI');
       const atlanticoBank = banks.rows.find(bank => bank.name === 'Banco Atlântico');
+      const bicBank = banks.rows.find(bank => bank.name === 'BIC');
 
-      if (baiBank && atlanticoBank) {
+      if (baiBank && atlanticoBank && bicBank) {
         await db.execute(
           sql`INSERT INTO bank_account_details (bank_id, account_holder, iban) 
                VALUES 
                (${baiBank.id}, 'Mario Tchicassa', '004000009614317310133'),
-               (${atlanticoBank.id}, 'Mario Tchicassa', '005500004514753710102')`
+               (${atlanticoBank.id}, 'Mario Tchicassa', '005500004514753710102'),
+               (${bicBank.id}, 'Emanuel António', '0051 0000 83515613101 79')`
         );
 
         console.log("✅ Detalhes das contas bancárias criados com sucesso!");
@@ -367,7 +378,31 @@ export async function setupDatabase() {
         console.log("⚠️ Não foi possível criar detalhes das contas bancárias: bancos não encontrados");
       }
     } else {
-      console.log("✅ Detalhes das contas bancárias já existem, pulando criação");
+      console.log("✅ Detalhes das contas bancárias já existem, verificando conta BIC...");
+      
+      // Verificar se existe detalhes da conta do BIC
+      const bicBankAccount = await db.execute(sql`
+        SELECT bd.* FROM bank_account_details bd
+        JOIN banks b ON bd.bank_id = b.id
+        WHERE b.name = 'BIC'
+      `);
+      
+      if (bicBankAccount.rows.length === 0) {
+        // Obter ID do banco BIC
+        const bicBankResult = await db.execute(sql`SELECT id FROM banks WHERE name = 'BIC'`);
+        
+        if (bicBankResult.rows.length > 0) {
+          const bicBankId = bicBankResult.rows[0].id;
+          console.log("Adicionando detalhes da conta do BIC...");
+          
+          await db.execute(sql`
+            INSERT INTO bank_account_details (bank_id, account_holder, iban)
+            VALUES (${bicBankId}, 'Emanuel António', '0051 0000 83515613101 79')
+          `);
+          
+          console.log("✅ Detalhes da conta do BIC adicionados com sucesso!");
+        }
+      }
     }
 
     // Criar produtos padrão se não existirem
