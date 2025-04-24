@@ -713,7 +713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verificar se o usuário foi indicado por alguém (nível 1)
       if (user.referredBy) {
-        const level1Referrer = (await storage.getAllUsers()).find(u => u.referralCode === user.referredBy);
+        // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
+        const level1Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === user.referredBy);
 
         if (level1Referrer) {
           const level1Commission = product.price * level1CommissionRate;
@@ -736,7 +737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Verificar nível 2 (quem indicou o referenciador nível 1)
           if (level1Referrer.referredBy) {
-            const level2Referrer = (await storage.getAllUsers()).find(u => u.referralCode === level1Referrer.referredBy);
+            // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
+            const level2Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === level1Referrer.referredBy);
 
             if (level2Referrer) {
               const level2Commission = product.price * level2CommissionRate;
@@ -759,7 +761,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               // Verificar nível 3 (quem indicou o referenciador nível 2)
               if (level2Referrer.referredBy) {
-                const level3Referrer = (await storage.getAllUsers()).find(u => u.referralCode === level2Referrer.referredBy);
+                // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
+                const level3Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === level2Referrer.referredBy);
 
                 if (level3Referrer) {
                   const level3Commission = product.price * level3CommissionRate;
