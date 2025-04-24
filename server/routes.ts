@@ -301,9 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(tx => tx.type === 'deposit')
         .reduce((sum, tx) => sum + tx.amount, 0);
 
-      // Contabilizar apenas saques completados
+      // Contabilizar saques (incluindo os rejeitados que tem status 'failed')
       const withdrawals = allTransactions
-        .filter(tx => tx.type === 'withdrawal' && tx.status === 'completed')
+        .filter(tx => tx.type === 'withdrawal' && (tx.status === 'completed' || tx.status === 'failed'))
         .reduce((sum, tx) => sum + tx.amount, 0);
 
       // Dados de produtos (ainda fixos até implementarmos o armazenamento de produtos)
@@ -499,16 +499,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Erro ao buscar produtos" });
-    }
-  });
-
-  // Endpoint TEMPORÁRIO para limpar todos os produtos (será removido após uso)
-  app.post("/api/admin/products/clear-all", isAdmin, async (req, res) => {
-    try {
-      await storage.clearAllProducts();
-      res.json({ success: true, message: "Todos os produtos foram removidos com sucesso" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro ao limpar produtos" });
     }
   });
 
