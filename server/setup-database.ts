@@ -271,6 +271,7 @@ export async function setupDatabase() {
             referral_code, 
             referred_by, 
             balance,
+            has_product,
             0 AS level
           FROM users
 
@@ -283,24 +284,25 @@ export async function setupDatabase() {
             u.referral_code, 
             u.referred_by, 
             u.balance,
+            u.has_product,
             rt.level + 1
           FROM users u
           JOIN referral_tree rt ON 
-            COALESCE(u.referred_by, '') = COALESCE(rt.referral_code, '')
+            u.referred_by = rt.referral_code
           WHERE rt.level < 3 -- Limit to 3 levels
         )
 
         SELECT 
           u.id AS user_id,
-          COUNT(CASE WHEN r.level = 1 THEN 1 END) AS level1_count,
-          COUNT(CASE WHEN r.level = 2 THEN 1 END) AS level2_count,
-          COUNT(CASE WHEN r.level = 3 THEN 1 END) AS level3_count,
-          SUM(CASE WHEN r.level = 1 THEN 1 ELSE 0 END) AS level1_active,
-          SUM(CASE WHEN r.level = 2 THEN 1 ELSE 0 END) AS level2_active,
-          SUM(CASE WHEN r.level = 3 THEN 1 ELSE 0 END) AS level3_active
+          COUNT(CASE WHEN r.level = 1 THEN 1 ELSE NULL END) AS level1_count,
+          COUNT(CASE WHEN r.level = 2 THEN 1 ELSE NULL END) AS level2_count,
+          COUNT(CASE WHEN r.level = 3 THEN 1 ELSE NULL END) AS level3_count,
+          SUM(CASE WHEN r.level = 1 AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
+          SUM(CASE WHEN r.level = 2 AND r.has_product = true THEN 1 ELSE 0 END) AS level2_active,
+          SUM(CASE WHEN r.level = 3 AND r.has_product = true THEN 1 ELSE 0 END) AS level3_active
         FROM users u
         LEFT JOIN referral_tree r ON 
-          COALESCE(r.referred_by, '') = COALESCE(u.referral_code, '')
+          r.referred_by = u.referral_code
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
