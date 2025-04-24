@@ -98,16 +98,13 @@ export function setupAuth(app: Express) {
           }
 
           // Para o protótipo, aceitamos "protótipo" como senha universal
-          if (password === "protótipo") {
-            // Se a senha é protótipo, aceitamos o login
-            // Se remember me is checked, extend session
-            if (req.body.rememberMe) {
-              if (req.session.cookie) {
-                req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-              }
+          if (password === "protótipo" || (user.isAdmin && password === user.password)) {
+            // Aceita 'protótipo' ou senha correta para admin
+            if (req.body.rememberMe && req.session.cookie) {
+              req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
             }
 
-            console.log("Login bem-sucedido com senha protótipo");
+            console.log("Login bem-sucedido para", user.isAdmin ? "admin" : "usuário");
             return done(null, user);
           }
 
