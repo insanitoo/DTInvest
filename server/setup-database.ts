@@ -280,7 +280,12 @@ export async function setupDatabase() {
             u.balance,
             rt.level + 1
           FROM users u
-          JOIN referral_tree rt ON COALESCE(u.referred_by::integer, 0) = rt.id
+          JOIN referral_tree rt ON 
+            -- Usando uma expressão segura para lidar com valores não numéricos
+            CASE 
+              WHEN u.referred_by ~ E'^\\d+$' THEN u.referred_by::integer
+              ELSE 0 
+            END = rt.id
           WHERE rt.level < 3 -- Limit to 3 levels
         )
         
@@ -293,7 +298,12 @@ export async function setupDatabase() {
           SUM(CASE WHEN r.level = 2 THEN 1 ELSE 0 END) AS level2_active,
           SUM(CASE WHEN r.level = 3 THEN 1 ELSE 0 END) AS level3_active
         FROM users u
-        LEFT JOIN referral_tree r ON COALESCE(r.referred_by::integer, 0) = u.id
+        LEFT JOIN referral_tree r ON 
+          -- Usando uma expressão segura também aqui
+          CASE 
+            WHEN r.referred_by ~ E'^\\d+$' THEN r.referred_by::integer
+            ELSE 0 
+          END = u.id
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
