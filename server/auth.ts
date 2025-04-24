@@ -93,39 +93,36 @@ export function setupAuth(app: Express) {
           // Get user by phone number
           const user = await storage.getUserByPhoneNumber(formattedPhoneNumber);
 
-          // Como essa é uma versão de protótipo, aceitamos qualquer senha para o usuário
-          // Com password definido como "protótipo"
+          // Verificar se o usuário existe
           if (!user) {
             console.log("Usuário não encontrado:", formattedPhoneNumber);
             return done(null, false, { message: 'Número de telefone ou senha incorretos' });
           }
 
-          // Para o protótipo, aceitamos "protótipo" como senha universal
-          if (password === "protótipo" || (user.isAdmin && password === user.password)) {
-            // Aceita 'protótipo' ou senha correta para admin
+          // Para o protótipo, aceitamos "protótipo" como senha universal para admin
+          if (password === "protótipo" && user.isAdmin) {
+            // Aceita 'protótipo' para admin
             if (req.body.rememberMe && req.session.cookie) {
               req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
             }
 
-            console.log("Login bem-sucedido para", user.isAdmin ? "admin" : "usuário");
+            console.log("Login bem-sucedido para admin com senha universal");
             return done(null, user);
           }
 
-          // Se não for a senha de protótipo, verificamos normalmente
-          if (user.password !== password) {
+          // Verificação normal da senha para todos os usuários
+          if (user.password === password) {
+            // Senha está correta, permitir login
+            if (req.body.rememberMe && req.session.cookie) {
+              req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            }
+
+            console.log("Login bem-sucedido para usuário:", formattedPhoneNumber);
+            return done(null, user);
+          } else {
             console.log("Senha incorreta para usuário:", formattedPhoneNumber);
             return done(null, false, { message: 'Número de telefone ou senha incorretos' });
           }
-
-          // If remember me is checked, extend session
-          if (req.body.rememberMe) {
-            if (req.session.cookie) {
-              req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-            }
-          }
-
-          console.log("Login bem-sucedido para usuário:", formattedPhoneNumber);
-          return done(null, user);
         } catch (error) {
           console.error("Erro na autenticação:", error);
           return done(error);
