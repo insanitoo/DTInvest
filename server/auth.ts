@@ -327,33 +327,38 @@ export function setupAuth(app: Express) {
       // Hash password
       const hashedPassword = await hashPassword(req.body.password);
 
-      console.log("Tentando inserir usuário via SQL direto");
+      console.log("Tentando inserir usuário via SQL direto - SOLUÇÃO DE EMERGÊNCIA");
       try {
-        // Use SQL direto para criar o usuário - mais robusto para produção
+        // Use SQL direto para criar o usuário - abordagem com máximo de segurança
         // Garantir que todos os códigos sejam tratados como strings para evitar erro de tipo
         const phoneStr = formattedPhoneNumber.toString();
         const referralStr = referralCode.toString();
         const referredByStr = referralCodeToUse.toString();
         
-        console.log(`Inserindo usuário com valores:
+        console.log(`DIAGNÓSTICO COMPLETO - Inserindo usuário com valores:
           - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
           - Código de referral: ${referralStr} (tipo: ${typeof referralStr})
           - Referido por: ${referredByStr} (tipo: ${typeof referredByStr})
         `);
         
-        const result = await db.execute(sql`
+        // Abordagem alternativa - uso de string templates SQL pura para evitar qualquer conversão automática
+        const sqlQuery = `
           INSERT INTO users (
             phone_number, password, referral_code, referred_by, is_admin, 
             balance, level1_commission, level2_commission, level3_commission,
             has_product, has_deposited
           ) 
           VALUES (
-            ${phoneStr}, ${hashedPassword}, ${referralStr}, ${referredByStr}, false, 
+            '${phoneStr}', '${hashedPassword}', '${referralStr}', '${referredByStr}', false, 
             0, 0, 0, 0, 
             false, false
           )
           RETURNING *
-        `);
+        `;
+        
+        console.log("SQL Query a ser executada:", sqlQuery);
+        
+        const result = await db.execute(sql.raw(sqlQuery));
         
         if (result.rows && result.rows.length > 0) {
           const user = result.rows[0];
