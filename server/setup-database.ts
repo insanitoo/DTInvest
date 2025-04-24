@@ -426,8 +426,7 @@ export async function setupDatabase() {
     } else {
       console.log("✅ Produtos já existem, verificando o produto Premium de 25.000 KZ...");
       
-      // Verificar se existe o produto problemático (Plano Premium de 25.000 KZ)
-      // Mas agora só vamos desativá-lo em vez de remover, para evitar violação de chave estrangeira
+      // Verificar se existe o produto problemático (Plano Premium de 25.000 KZ) e remover
       const premiumProduct = await db.execute(sql`
         SELECT * FROM products 
         WHERE name = 'Plano Premium' AND price = 25000 
@@ -435,23 +434,11 @@ export async function setupDatabase() {
       `);
       
       if (premiumProduct.rows.length > 0) {
-        console.log("⚠️ Encontrado produto problemático (Plano Premium de 25.000 KZ), desativando...");
+        console.log("⚠️ Encontrado produto problemático (Plano Premium de 25.000 KZ), removendo...");
         
         for (const product of premiumProduct.rows) {
-          try {
-            // Em vez de deletar, apenas marcamos como inativo
-            await db.execute(sql`
-              UPDATE products 
-              SET 
-                active = false, 
-                name = 'Plano Desativado',
-                description = 'Este produto foi desativado'
-              WHERE id = ${product.id}
-            `);
-            console.log(`✅ Produto problemático com ID ${product.id} desativado com sucesso!`);
-          } catch (err) {
-            console.error(`⚠️ Erro ao desativar produto com ID ${product.id}:`, err);
-          }
+          await db.execute(sql`DELETE FROM products WHERE id = ${product.id}`);
+          console.log(`✅ Produto problemático com ID ${product.id} removido com sucesso!`);
         }
       } else {
         console.log("✅ Produto problemático não encontrado, nada a fazer");
