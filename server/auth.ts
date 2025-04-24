@@ -291,7 +291,7 @@ export function setupAuth(app: Express) {
               // Usa o admin como fallback, mas retorna erro ao usuário
               console.log("Admin encontrado como fallback, mas retornando erro ao usuário");
               return res.status(400).json({ 
-                message: "Código de convite inválido. Por favor, use o código ADMIN01 ou peça um código válido a quem o convidou."
+                message: "Código de convite inválido. Por favor, entre em contato com quem o convidou para obter um código válido."
               });
             } else {
               // Nenhum admin encontrado, retorna erro simples
@@ -302,7 +302,7 @@ export function setupAuth(app: Express) {
           console.error("Erro ao verificar código de referência:", referrerError);
           // Em caso de erro, damos uma mensagem mais descritiva
           return res.status(400).json({ 
-            message: "Não foi possível verificar o código de convite. Tente novamente com o código ADMIN01."
+            message: "Não foi possível verificar o código de convite. Por favor, tente novamente mais tarde."
           });
         }
       }

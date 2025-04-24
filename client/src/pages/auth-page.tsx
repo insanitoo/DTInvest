@@ -40,6 +40,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const referralCode = new URLSearchParams(window.location.search).get('ref');
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(() => {
     const tabParam = new URLSearchParams(window.location.search).get('tab');
@@ -161,11 +162,11 @@ export default function AuthPage() {
         // Tentar extrair mensagem de erro da API
         if (error.message) {
           if (error.message.includes("Código de convite inválido")) {
-            errorMessage = "O código de convite informado não é válido. Tente usar 'ADMIN01' ou peça um código a quem te convidou.";
+            errorMessage = "O código de convite informado não é válido. Por favor, verifique o código e tente novamente.";
           } else if (error.message.includes("Número de telefone já está em uso")) {
             errorMessage = "Este número de telefone já está registrado. Tente fazer login ou use outro número.";
           } else if (error.message.includes("500")) {
-            errorMessage = "Erro no servidor. Por favor, tente novamente mais tarde ou use o código 'ADMIN01'.";
+            errorMessage = "Erro no servidor. Por favor, tente novamente mais tarde.";
           } else {
             // Usa a mensagem da API
             errorMessage = error.message;
@@ -434,10 +435,6 @@ export default function AuthPage() {
                   </p>
                 )}
                 
-                {/* Dica para códigos de convite */}
-                <p className="text-blue-300 text-xs mt-1.5">
-                  Se não tiver um código, use <span className="font-semibold text-white">ADMIN01</span>
-                </p>
               </div>
 
               <div className="pt-2">
@@ -461,7 +458,7 @@ export default function AuthPage() {
                 <div className="bg-red-900/30 border border-red-500/50 rounded-md p-3 mt-2 text-sm text-red-200 flex items-start">
                   <p>
                     {registerMutation.error.message.includes("Código de convite inválido")
-                      ? "O código de convite informado não é válido. Tente usar 'ADMIN01' ou peça um código a quem te convidou."
+                      ? "O código de convite informado não é válido. Por favor, verifique o código e tente novamente."
                       : registerMutation.error.message.includes("Número de telefone já está em uso") 
                       ? "Este número de telefone já está registrado. Tente fazer login ou use outro número."
                       : registerMutation.error.message
