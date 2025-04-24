@@ -308,6 +308,28 @@ export async function setupDatabase() {
       console.log("✅ View 'referral_counts' criada/atualizada");
     } catch (error) {
       console.error("⚠️ Erro ao criar view de referidos:", error);
+      
+      // Tentativa alternativa sem recursão para evitar problemas de compatibilidade
+      console.log("Tentando criar view de referidos de forma simplificada...");
+      try {
+        await db.execute(sql`
+          CREATE OR REPLACE VIEW referral_counts AS
+          SELECT 
+            u.id AS user_id,
+            COUNT(CASE WHEN r.referred_by = u.id THEN 1 ELSE NULL END) AS level1_count,
+            0 AS level2_count,
+            0 AS level3_count,
+            SUM(CASE WHEN r.referred_by = u.id AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
+            0 AS level2_active,
+            0 AS level3_active
+          FROM users u
+          LEFT JOIN users r ON r.referred_by = u.id
+          GROUP BY u.id;
+        `);
+        console.log("✅ View simplificada 'referral_counts' criada com sucesso!");
+      } catch (fallbackError) {
+        console.error("⚠️ Erro na criação da view simplificada:", fallbackError);
+      }
     }
 
     // Criar usuário admin se não existir
