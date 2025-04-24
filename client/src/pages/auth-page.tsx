@@ -470,13 +470,7 @@ export default function AuthPage() {
                 </div>
               )}
               
-              {/* Dica para usuários novos */}
-              <div className="mt-4 border border-blue-500/30 rounded-md p-3 bg-blue-900/20">
-                <p className="text-sm text-blue-200">
-                  <span className="font-medium">Dica:</span> Se você não tiver um código de convite, 
-                  pode usar o código <strong className="text-white">ADMIN01</strong> para se registrar.
-                </p>
-              </div>
+              {/* Removemos a dica duplicada pois já temos uma logo abaixo do campo de código */}
             </form>
           </div>
         </div>

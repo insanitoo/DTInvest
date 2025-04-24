@@ -237,8 +237,25 @@ export function setupAuth(app: Express) {
           }
         } catch (adminError) {
           console.error("Erro ao buscar admin:", adminError);
-          // Se ocorrer erro, geramos um código válido alternativo
-          referralCodeToUse = generateReferralCode() + '00';
+          // Se ocorrer erro, buscamos o primeiro usuário disponível ou geramos um código
+          try {
+            const [anyUserAsBackup] = await db.execute(sql`
+              SELECT referral_code FROM users LIMIT 1
+            `);
+            
+            if (anyUserAsBackup && anyUserAsBackup.rows && anyUserAsBackup.rows.length > 0) {
+              referralCodeToUse = anyUserAsBackup.rows[0].referral_code;
+              console.log("Usando código de backup final:", referralCodeToUse);
+            } else {
+              // Último recurso - gerar um código novo
+              referralCodeToUse = generateReferralCode() + '00';
+              console.log("Gerando código final:", referralCodeToUse);
+            }
+          } catch (finalError) {
+            // Se tudo falhar, geramos um código
+            referralCodeToUse = generateReferralCode() + '00';
+            console.log("Gerando código final após erro:", referralCodeToUse);
+          }
         }
       } else {
         // 2. Aqui verificamos se o código de convite existe, ignorando case
