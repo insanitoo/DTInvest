@@ -1374,7 +1374,28 @@ export class DatabaseStorage implements IStorage {
     return transaction;
   }
 
+  async getTransactionByTransactionId(transactionId: string): Promise<Transaction | undefined> {
+    if (!transactionId) return undefined;
+    
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.transactionId, transactionId));
+
+    return transaction;
+  }
+
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    // VERIFICAÇÃO IMPORTANTE: Checar se já existe uma transação com esse transactionId
+    // para evitar duplicações durante processamento paralelo ou repetido
+    if (transaction.transactionId) {
+      const existingTransaction = await this.getTransactionByTransactionId(transaction.transactionId);
+      if (existingTransaction) {
+        console.log(`DB >>> Transação com ID ${transaction.transactionId} já existe, retornando existente`);
+        return existingTransaction;
+      }
+    }
+    
     const [newTransaction] = await db
       .insert(transactions)
       .values(transaction)
@@ -1423,6 +1444,15 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(depositRequests.createdAt));
   }
 
+  async getDepositRequest(id: number): Promise<DepositRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(depositRequests)
+      .where(eq(depositRequests.id, id));
+
+    return request;
+  }
+
   async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
     const [request] = await db
       .select()
@@ -1433,6 +1463,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async approveDepositRequest(id: number): Promise<Transaction> {
+    console.log(`\n=== DB_DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
+    
     // Buscar o depósito
     const [depositRequest] = await db
       .select()
@@ -1440,7 +1472,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(depositRequests.id, id));
 
     if (!depositRequest) {
+      console.log(`DB_DEPOSIT >>> Solicitação de depósito ${id} não encontrada`);
       throw new Error('Solicitação de depósito não encontrada');
+    }
+
+    // VERIFICAÇÃO CRÍTICA: Verificar se já existe uma transação com esse transactionId
+    if (depositRequest.transactionId) {
+      console.log(`DB_DEPOSIT >>> Verificando duplicação para transactionId=${depositRequest.transactionId}`);
+      const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
+      
+      if (existingTransaction) {
+        console.log(`DB_DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
+        console.log(`DB_DEPOSIT >>> Evitando duplicação de crédito`);
+        console.log(`DB_DEPOSIT >>> ID da transação existente: ${existingTransaction.id}`);
+        console.log(`DB_DEPOSIT >>> Status: ${existingTransaction.status}`);
+        console.log(`DB_DEPOSIT >>> Valor: ${existingTransaction.amount}`);
+        console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO) ===\n`);
+        
+        return existingTransaction;
+      }
     }
 
     // Buscar o usuário
@@ -1450,36 +1500,83 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, depositRequest.userId));
 
     if (!user) {
+      console.log(`DB_DEPOSIT >>> Usuário ${depositRequest.userId} não encontrado`);
       throw new Error('Usuário não encontrado');
     }
 
-    // Criar uma transação para registrar o depósito
-    const [transaction] = await db
-      .insert(transactions)
-      .values({
-        userId: depositRequest.userId,
-        type: 'deposit',
-        amount: depositRequest.amount,
-        status: 'completed',
-        bankName: depositRequest.bankName,
-        bankAccount: null,
-        transactionId: depositRequest.transactionId,
-        receipt: depositRequest.receipt
-      })
-      .returning();
+    console.log(`DB_DEPOSIT >>> Usuário: ${user.phoneNumber}, Valor: ${depositRequest.amount} KZ`);
+    console.log(`DB_DEPOSIT >>> Saldo antes: ${user.balance}`);
 
-    // Atualizar o saldo do usuário
-    const newBalance = user.balance + depositRequest.amount;
-    await db
-      .update(users)
-      .set({ 
-        balance: newBalance, 
-        hasDeposited: true,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, user.id));
+    try {
+      // Verificar novamente se já existe uma transação (verificação de concorrência)
+      if (depositRequest.transactionId) {
+        const recentlyCreatedTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
+        if (recentlyCreatedTransaction) {
+          console.log(`DB_DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} foi criada durante o processamento`);
+          console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO CONCORRENTE) ===\n`);
+          
+          return recentlyCreatedTransaction;
+        }
+      }
 
-    return transaction;
+      // Criar uma transação para registrar o depósito
+      const [transaction] = await db
+        .insert(transactions)
+        .values({
+          userId: depositRequest.userId,
+          type: 'deposit',
+          amount: depositRequest.amount,
+          status: 'completed',
+          bankName: depositRequest.bankName,
+          bankAccount: null,
+          transactionId: depositRequest.transactionId,
+          receipt: depositRequest.receipt
+        })
+        .returning();
+
+      // Atualizar o saldo do usuário
+      const newBalance = user.balance + depositRequest.amount;
+      await db
+        .update(users)
+        .set({ 
+          balance: newBalance, 
+          hasDeposited: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, user.id));
+
+      console.log(`DB_DEPOSIT >>> Depósito processado com sucesso`);
+      console.log(`DB_DEPOSIT >>> Novo saldo: ${newBalance}`);
+      console.log(`DB_DEPOSIT >>> Transação registrada: ID=${transaction.id}`);
+      console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO ===\n`);
+
+      return transaction;
+    } catch (error) {
+      // Se ocorrer um erro do tipo UniqueConstraintViolation, pode ser devido a tentativa 
+      // de inserir uma transação com o mesmo transactionId
+      console.error(`DB_DEPOSIT >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Verificar se o erro é de violação de unicidade
+      if (error instanceof Error && 
+         (error.message.includes('unique') || 
+          error.message.includes('UNIQUE') || 
+          error.message.includes('duplicate key'))) {
+        
+        console.log(`DB_DEPOSIT >>> Erro de duplicação detectado, buscando transação existente`);
+        // Tentar recuperar a transação existente
+        if (depositRequest.transactionId) {
+          const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
+          if (existingTransaction) {
+            console.log(`DB_DEPOSIT >>> Transação existente encontrada, ID=${existingTransaction.id}`);
+            console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO (RECUPERAÇÃO DE DUPLICAÇÃO) ===\n`);
+            return existingTransaction;
+          }
+        }
+      }
+      
+      // Se não conseguir recuperar, propagar o erro
+      throw error;
+    }
   }
 
   // Withdrawal request methods

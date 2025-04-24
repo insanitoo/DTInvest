@@ -1571,10 +1571,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`\n=== CREDITAR EMERGÊNCIA >>> Iniciando para transação ${transactionId} ===\n`);
+      
+      // SEGURANÇA CRÍTICA: Verificar se já existe uma transação com esse ID
+      // para evitar créditos duplicados
+      const existingTransaction = await storage.getTransactionByTransactionId(transactionId);
+      if (existingTransaction) {
+        console.log(`CREDITAR EMERGÊNCIA >>> ALERTA DE SEGURANÇA - TENTATIVA DE CRÉDITO DUPLICADO`);
+        console.log(`CREDITAR EMERGÊNCIA >>> Transação ${transactionId} já existe com ID ${existingTransaction.id}`);
+        console.log(`CREDITAR EMERGÊNCIA >>> Status: ${existingTransaction.status}, Valor: ${existingTransaction.amount}`);
+        
+        // Retornar mensagem de sucesso, mas informando que é duplicado
+        return res.status(200).json({
+          success: true,
+          message: "Depósito já foi processado anteriormente",
+          data: {
+            transaction: {
+              id: existingTransaction.id,
+              transactionId: existingTransaction.transactionId,
+              type: existingTransaction.type,
+              amount: existingTransaction.amount,
+              status: existingTransaction.status
+            }
+          },
+          duplicated: true
+        });
+      }
 
       // Buscar depósito pendente
       const depositRequest = await storage.getDepositRequestByTransactionId(transactionId);
-
       if (!depositRequest) {
         return res.status(404).json({
           success: false,
@@ -1592,6 +1616,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`CREDITAR EMERGÊNCIA >>> Usuário: ${user.phoneNumber}, Saldo atual: ${user.balance}`);
+      
+      // Verificar novamente em caso de operações concorrentes
+      const verifyAgain = await storage.getTransactionByTransactionId(transactionId);
+      if (verifyAgain) {
+        console.log(`CREDITAR EMERGÊNCIA >>> ALERTA: Transação ${transactionId} foi criada durante o processamento`);
+        return res.status(200).json({
+          success: true,
+          message: "Depósito já foi processado (durante a verificação)",
+          data: {
+            transaction: {
+              id: verifyAgain.id,
+              transactionId: verifyAgain.transactionId,
+              type: verifyAgain.type,
+              amount: verifyAgain.amount,
+              status: verifyAgain.status
+            }
+          },
+          duplicated: true
+        });
+      }
 
       // Atualizar saldo diretamente
       const novoSaldo = user.balance + depositRequest.amount;
@@ -1611,42 +1655,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`CREDITAR EMERGÊNCIA >>> Saldo atualizado: ${user.balance} -> ${novoSaldo}`);
 
-      // Criar transação completada
-      const transaction = await storage.createTransaction({
-        userId: depositRequest.userId,
-        type: 'deposit',
-        amount: depositRequest.amount,
-        status: 'completed',
-        bankName: depositRequest.bankName,
-        receipt: depositRequest.receipt,
-        bankAccount: null,
-        transactionId: depositRequest.transactionId
-      });
-
-      // Remover solicitação de depósito (opcional)
-      // storage.depositRequests.delete(depositRequest.id);
-
-      // Resposta com informações detalhadas
-      return res.status(200).json({
-        success: true,
-        message: "Depósito creditado com sucesso (modo emergência)",
-        data: {
-          user: {
-            id: userAtualizado.id,
-            phoneNumber: userAtualizado.phoneNumber,
-            saldoAnterior: user.balance,
-            saldoAtual: userAtualizado.balance,
-            valorCreditado: depositRequest.amount
-          },
-          transaction: {
-            id: transaction.id,
-            transactionId: transaction.transactionId,
-            type: transaction.type,
-            amount: transaction.amount,
-            status: transaction.status
+      try {
+        // Criar transação completada
+        const transaction = await storage.createTransaction({
+          userId: depositRequest.userId,
+          type: 'deposit',
+          amount: depositRequest.amount,
+          status: 'completed',
+          bankName: depositRequest.bankName,
+          receipt: depositRequest.receipt,
+          bankAccount: null,
+          transactionId: depositRequest.transactionId
+        });
+        
+        // Resposta com informações detalhadas
+        return res.status(200).json({
+          success: true,
+          message: "Depósito creditado com sucesso (modo emergência)",
+          data: {
+            user: {
+              id: userAtualizado.id,
+              phoneNumber: userAtualizado.phoneNumber,
+              saldoAnterior: user.balance,
+              saldoAtual: userAtualizado.balance,
+              valorCreditado: depositRequest.amount
+            },
+            transaction: {
+              id: transaction.id,
+              transactionId: transaction.transactionId,
+              type: transaction.type,
+              amount: transaction.amount,
+              status: transaction.status
+            }
           }
+        });
+      } catch (error) {
+        // Se houver erro na criação da transação, pode ser por duplicação
+        // Verificar novamente se a transação foi criada
+        const finalCheck = await storage.getTransactionByTransactionId(transactionId);
+        if (finalCheck) {
+          console.log(`CREDITAR EMERGÊNCIA >>> Recuperada transação após erro: ${finalCheck.id}`);
+          
+          return res.status(200).json({
+            success: true,
+            message: "Depósito processado, mas houve um conflito de concorrência",
+            data: {
+              user: {
+                id: userAtualizado.id,
+                phoneNumber: userAtualizado.phoneNumber,
+                saldoAtual: userAtualizado.balance
+              },
+              transaction: {
+                id: finalCheck.id,
+                transactionId: finalCheck.transactionId,
+                type: finalCheck.type,
+                amount: finalCheck.amount,
+                status: finalCheck.status
+              }
+            },
+            conflict: true
+          });
         }
-      });
+        
+        // Se realmente for um erro diferente, relançar
+        throw error;
+      }
     } catch (error) {
       console.error("CREDITAR EMERGÊNCIA >>> ERRO:", error);
       return res.status(500).json({
