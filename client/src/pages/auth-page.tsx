@@ -140,6 +140,8 @@ export default function AuthPage() {
       phoneNumber: formattedPhoneNumber,
       password: data.password,
       referralCode: formattedReferralCode,
+      originalReferralCode: data.referralCode.trim(),
+      userProvidedReferralCode: formattedReferralCode, // Passando o mesmo código para ser usado também como código do novo usuário
     }, {
       onSuccess: (userData) => {
         console.log("Registro bem-sucedido:", userData);

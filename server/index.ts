@@ -44,11 +44,31 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Capturar e sanitizar qualquer erro que possa ocorrer
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Erro interno do servidor";
+    
+    // Evitar expor detalhes técnicos no erro original
+    let originalMessage = "Erro interno do servidor";
+    try {
+      // Sanitizar a mensagem original para remover detalhes técnicos, como paths, stacktraces, etc.
+      if (err.message) {
+        // Remover caminhos de arquivo, stacktraces e informações sensíveis
+        originalMessage = err.message
+          .replace(/\/[\/\w\.-]+/g, '[caminho]') // Remove caminhos de arquivo
+          .replace(/at\s+[\w\.<>\s]+\s+\([^\)]*\)/g, '[stack]') // Remove stack traces
+          .replace(/Error:/g, '') // Remove prefixo "Error:"
+          .replace(/SQL|PostgreSQL/gi, 'Banco de dados') // Substitui menções ao SQL/PostgreSQL
+          .replace(/\s{2,}/g, ' ') // Remove múltiplos espaços
+          .trim();
+      }
+    } catch (sanitizeError) {
+      console.error("Erro ao sanitizar mensagem de erro:", sanitizeError);
+      // Fallback para mensagem genérica em caso de erro na sanitização
+      originalMessage = "Erro interno do servidor";
+    }
     
     // Mensagens de erro mais amigáveis para o usuário
-    let userFriendlyMessage = message;
+    let userFriendlyMessage;
     
     if (status === 400) {
       userFriendlyMessage = "Pedido inválido. Por favor verifique os dados informados.";
@@ -60,19 +80,27 @@ app.use((req, res, next) => {
       userFriendlyMessage = "Acesso negado. Você não tem permissão para esta ação.";
     } else if (status === 404) {
       userFriendlyMessage = "Recurso não encontrado. Verifique o endereço e tente novamente.";
-    } else if (status === 500) {
+    } else if (status >= 500) {
       userFriendlyMessage = "Erro interno no servidor. Por favor tente novamente mais tarde.";
+    } else {
+      // Para erros não categorizados, usar a mensagem sanitizada
+      userFriendlyMessage = originalMessage;
     }
     
-    // Adicionamos o erro original para debugging em ambientes de desenvolvimento
-    const response: any = { message: userFriendlyMessage };
+    // Adicionamos o erro original sanitizado apenas em ambiente de desenvolvimento
+    const response: any = { 
+      success: false,
+      message: userFriendlyMessage 
+    };
+    
     if (process.env.NODE_ENV !== 'production') {
-      response.originalError = message;
+      response.originalError = originalMessage;
     }
 
-    res.status(200).json(response); // Sempre retornar 200 para o cliente, mas com mensagem de erro apropriada
+    // Sempre retornar 200 para o cliente para manter consistência na interface
+    res.status(200).json(response);
     
-    // Registrar o erro para debugging, mas não quebrar o app
+    // Registrar o erro completo para debugging interno, apenas no console do servidor
     console.error(`[ERRO ${status}]`, err);
   });
 

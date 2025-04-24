@@ -307,27 +307,60 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Generate referral code
-      let referralCode = generateReferralCode();
-      let isUniqueCode = false;
-      let attempts = 0;
-      const maxAttempts = 5;
+      // Verificar se o usuário forneceu explicitamente um código personalizado
+      let referralCode;
+      
+      // Verificar se o código fornecido é o mesmo que ADMIN01 ou uma variação dele
+      if (req.body.originalReferralCode && req.body.originalReferralCode.toUpperCase() === 'ADMIN01') {
+        // Gerar um novo código para o usuário
+        referralCode = generateReferralCode();
+        let isUniqueCode = false;
+        let attempts = 0;
+        const maxAttempts = 5;
 
-      // Ensure referral code is unique
-      while (!isUniqueCode && attempts < maxAttempts) {
-        try {
-          const existingCode = await storage.getUserByReferralCode(referralCode);
-          if (!existingCode) {
+        // Ensure referral code is unique
+        while (!isUniqueCode && attempts < maxAttempts) {
+          try {
+            const existingCode = await storage.getUserByReferralCode(referralCode);
+            if (!existingCode) {
+              isUniqueCode = true;
+            } else {
+              referralCode = generateReferralCode();
+            }
+          } catch (codeError) {
+            console.error("Erro ao verificar unicidade do código:", codeError);
+            // Se ocorrer erro na verificação, continuamos
             isUniqueCode = true;
-          } else {
-            referralCode = generateReferralCode();
           }
-        } catch (codeError) {
-          console.error("Erro ao verificar unicidade do código:", codeError);
-          // Se ocorrer erro na verificação, continuamos
-          isUniqueCode = true;
+          attempts++;
         }
-        attempts++;
+      } else if (req.body.userProvidedReferralCode) {
+        // Usar o código fornecido diretamente pelo usuário
+        referralCode = req.body.userProvidedReferralCode;
+        console.log(`Usando código personalizado fornecido pelo usuário: ${referralCode}`);
+      } else {
+        // Comportamento padrão - gerar um novo código
+        referralCode = generateReferralCode();
+        let isUniqueCode = false;
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        // Ensure referral code is unique
+        while (!isUniqueCode && attempts < maxAttempts) {
+          try {
+            const existingCode = await storage.getUserByReferralCode(referralCode);
+            if (!existingCode) {
+              isUniqueCode = true;
+            } else {
+              referralCode = generateReferralCode();
+            }
+          } catch (codeError) {
+            console.error("Erro ao verificar unicidade do código:", codeError);
+            // Se ocorrer erro na verificação, continuamos
+            isUniqueCode = true;
+          }
+          attempts++;
+        }
       }
 
       // Hash password
