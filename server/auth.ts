@@ -180,6 +180,18 @@ export function setupAuth(app: Express) {
       }
 
       // Validate referral code
+      // Código especial ADMIN01 é sempre aceito (para manter compatibilidade com documentação)
+      if (req.body.referralCode === 'ADMIN01') {
+        console.log("Usando código especial ADMIN01");
+        // Verificar se existe pelo menos um admin no sistema
+        const adminUsers = await storage.getAllUsers().then(users => users.filter(u => u.isAdmin));
+        if (adminUsers.length === 0) {
+          return res.status(400).json({ message: "Código de convite inválido" });
+        }
+        // Se existe admin, continua normalmente usando o código do primeiro admin encontrado
+        req.body.referralCode = adminUsers[0].referralCode;
+      }
+      
       const referrer = await storage.getUserByReferralCode(req.body.referralCode);
       if (!referrer) {
         return res.status(400).json({ message: "Código de convite inválido" });
