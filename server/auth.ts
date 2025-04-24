@@ -350,16 +350,17 @@ export function setupAuth(app: Express) {
         console.error('Erro ao buscar contagem de referidos:', e);
       }
       
-      // Adicionar as estatísticas ao objeto do usuário
+      // CORREÇÃO: Priorizar a contagem manual (level1Referrals.length) e usar o referralCounts como fallback
+      // Isso garante que os números são os mesmos na página de equipe e na página de perfil
       const freshUserWithExtras = {
         ...freshUserData,
         bankInfo: bankInfo || null,
         totalCommission,
         memberSince,
         invitationCode: freshUserData.referralCode,
-        level1ReferralCount: referralCounts?.level1_count || level1Referrals.length,
-        level2ReferralCount: referralCounts?.level2_count || level2Referrals.length,
-        level3ReferralCount: referralCounts?.level3_count || level3Referrals.length
+        level1ReferralCount: level1Referrals.length,
+        level2ReferralCount: level2Referrals.length,
+        level3ReferralCount: level3Referrals.length
       };
 
       // Atualizar a sessão com os dados mais recentes
