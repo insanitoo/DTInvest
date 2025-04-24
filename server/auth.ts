@@ -210,7 +210,7 @@ export function setupAuth(app: Express) {
         // Continuamos mesmo se houver erro na verificação (para evitar bloqueio)
       }
 
-      // SOLUÇÃO SIMPLIFICADA, CONFORME SUGERIDO
+      // SOLUÇÃO CORRIGIDA PARA USAR ID COMO REFERÊNCIA
       let referralCodeToUse = (req.body.referralCode || '').trim();
       console.log("Código de convite recebido:", referralCodeToUse);
       
@@ -227,12 +227,12 @@ export function setupAuth(app: Express) {
         
         // Verificar se encontrou o referenciador
         if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
-          // Código encontrado, usar o telefone deste usuário como referenciador
-          const referrerPhoneNumber = String(referrerResult.rows[0].phone_number);
-          console.log(`Código encontrado, pertence ao usuário com telefone ${referrerPhoneNumber}`);
+          // Código encontrado, usar o ID deste usuário como referenciador
+          const referrerId = Number(referrerResult.rows[0].id);
+          console.log(`Código encontrado, pertence ao usuário com ID ${referrerId}`);
           
-          // Armazenar o telefone do referenciador
-          req.body.referrerPhoneNumber = referrerPhoneNumber;
+          // Armazenar o ID do referenciador
+          req.body.referrerId = referrerId;
         } else {
           // FALLBACK: Se não for encontrado, tentar identificar "Admin01" manualmente
           if (referralCodeToUse.toUpperCase() === 'ADMIN01') {
@@ -240,15 +240,15 @@ export function setupAuth(app: Express) {
             
             // Buscar admin diretamente por flag is_admin
             const adminResult = await db.execute(sql`
-              SELECT id, phone_number FROM users 
+              SELECT id FROM users 
               WHERE is_admin = true 
               LIMIT 1
             `);
             
             if (adminResult && adminResult.rows && adminResult.rows.length > 0) {
-              const adminPhoneNumber = String(adminResult.rows[0].phone_number);
-              console.log(`Admin encontrado, usando número ${adminPhoneNumber}`);
-              req.body.referrerPhoneNumber = adminPhoneNumber;
+              const adminId = Number(adminResult.rows[0].id);
+              console.log(`Admin encontrado, usando ID ${adminId}`);
+              req.body.referrerId = adminId;
             } else {
               // Se não encontrou nem com Admin01, retornar erro
               return res.status(400).json({ 
@@ -368,15 +368,15 @@ export function setupAuth(app: Express) {
         const phoneStr = formattedPhoneNumber.toString();
         const referralStr = referralCode.toString();
         
-        // LÓGICA CORRIGIDA: Usar o código de referral do referenciador
-        // A coluna referred_by em users está configurada como referência para a coluna referral_code
-        // Então precisamos usar o código de referral, não o número de telefone
-        const referredByStr = referralCodeToUse.toString();
+        // LÓGICA CORRIGIDA PARA USAR ID: 
+        // A coluna referred_by agora é INTEGER e faz referência a users(id)
+        // Usamos o ID do referenciador que foi armazenado anteriormente
+        const referrerId = req.body.referrerId || null;
         
         console.log(`DIAGNÓSTICO COMPLETO - Inserindo usuário com valores:
           - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
           - Código de referral: ${referralStr} (tipo: ${typeof referralStr})
-          - Referido por: ${referredByStr} (tipo: ${typeof referredByStr}) - [Número de telefone do referenciador]
+          - Referido por: ${referrerId} (tipo: ${typeof referrerId}) - [ID do referenciador]
         `);
         
         // ******************* SOLUÇÃO DE EMERGÊNCIA ******************
@@ -401,12 +401,12 @@ export function setupAuth(app: Express) {
           
           try {
             console.log("Usando parâmetros:", [
-              phoneStr, hashedPassword, referralStr, referredByStr, false, 
+              phoneStr, hashedPassword, referralStr, referrerId, false, 
               0, 0, 0, 0, false, false
             ]);
             
             const res = await client.query(queryText, [
-              phoneStr, hashedPassword, referralStr, referredByStr, false, 
+              phoneStr, hashedPassword, referralStr, referrerId, false, 
               0, 0, 0, 0, false, false
             ]);
             
@@ -433,7 +433,7 @@ export function setupAuth(app: Express) {
               has_product, has_deposited
             ) 
             VALUES (
-              '${phoneStr}', '${hashedPassword}', '${referralStr}', '${referredByStr}', false, 
+              '${phoneStr}', '${hashedPassword}', '${referralStr}', ${referrerId}, false, 
               0, 0, 0, 0, 
               false, false
             )

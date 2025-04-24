@@ -43,7 +43,7 @@ export async function setupDatabase() {
         password TEXT NOT NULL,
         balance DOUBLE PRECISION NOT NULL DEFAULT 0,
         referral_code TEXT NOT NULL UNIQUE,
-        referred_by TEXT REFERENCES users(referral_code),
+        referred_by INTEGER REFERENCES users(id),
         is_admin BOOLEAN NOT NULL DEFAULT FALSE,
         is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
         has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
@@ -288,7 +288,7 @@ export async function setupDatabase() {
             rt.level + 1
           FROM users u
           JOIN referral_tree rt ON 
-            CAST(u.referred_by AS TEXT) = CAST(rt.referral_code AS TEXT)
+            u.referred_by = rt.id
           WHERE rt.level < 3 -- Limit to 3 levels
         )
 
@@ -302,7 +302,7 @@ export async function setupDatabase() {
           SUM(CASE WHEN r.level = 3 AND r.has_product = true THEN 1 ELSE 0 END) AS level3_active
         FROM users u
         LEFT JOIN referral_tree r ON 
-          CAST(r.referred_by AS TEXT) = CAST(u.referral_code AS TEXT)
+          r.referred_by = u.id
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
