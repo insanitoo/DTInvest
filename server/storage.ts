@@ -548,21 +548,31 @@ export class MemStorage implements IStorage {
     console.log(`DEPOSIT >>> Saldo antes: ${user.balance}`);
     
     try {
-      // VERIFICAÇÃO IMPORTANTE: Checar se já existe uma transação com esse transactionId
-      let existingTransaction = null;
-      if (depositRequest.transactionId) {
-        existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
-      }
-      
-      // Se já existe uma transação, atualizar o saldo apenas uma vez
-      if (existingTransaction) {
-        console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
-        console.log(`DEPOSIT >>> Evitando duplicação de crédito`);
+      // SEGURANÇA: Verificar se o ID da transação está presente
+      if (!depositRequest.transactionId) {
+        console.warn(`DEPOSIT >>> ALERTA: Depósito sem ID de transação`);
+      } else {
+        console.log(`DEPOSIT >>> ID da transação: ${depositRequest.transactionId}`);
         
-        // Remover a solicitação de depósito pendente para evitar reprocessamento
-        this.depositRequests.delete(id);
+        // VERIFICAÇÃO 1: Checar se já existe uma transação com esse ID
+        const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
         
-        return existingTransaction;
+        // Se já existe uma transação, evitar processamento duplicado
+        if (existingTransaction) {
+          console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
+          console.log(`DEPOSIT >>> Evitando duplicação de crédito`);
+          console.log(`DEPOSIT >>> ID da transação existente: ${existingTransaction.id}`);
+          console.log(`DEPOSIT >>> Status: ${existingTransaction.status}`);
+          console.log(`DEPOSIT >>> Valor: ${existingTransaction.amount}`);
+          
+          // Remover a solicitação de depósito pendente para evitar reprocessamento
+          this.depositRequests.delete(id);
+          
+          console.log(`DEPOSIT >>> Solicitação removida para evitar duplicação`);
+          console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO) ===\n`);
+          
+          return existingTransaction;
+        }
       }
     
       // DIAGNÓSTICO: Obter saldo do usuário mais recente
@@ -594,6 +604,20 @@ export class MemStorage implements IStorage {
       if (!userAfter.hasDeposited) {
         console.log(`DEPOSIT >>> Marcando usuário como tendo realizado depósito`);
         await this.updateUser(userAfter.id, { hasDeposited: true });
+      }
+      
+      // VERIFICAÇÃO 2: Verificar novamente se já foi criada uma transação
+      // (segurança adicional para casos de concorrência durante o processamento)
+      if (depositRequest.transactionId) {
+        const recentlyCreatedTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
+        if (recentlyCreatedTransaction) {
+          console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} foi criada durante o processamento`);
+          
+          // Remover a solicitação de depósito pendente
+          this.depositRequests.delete(id);
+          
+          return recentlyCreatedTransaction;
+        }
       }
       
       // Registrar uma transação completada no histórico
