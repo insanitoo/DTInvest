@@ -307,57 +307,67 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Verificar se o usuário forneceu explicitamente um código personalizado
+      // Verificar se o usuário vai usar o seu próprio código ou um gerado pelo sistema
       let referralCode;
       
-      // Verificar se o código fornecido é o mesmo que ADMIN01 ou uma variação dele
-      if (req.body.originalReferralCode && req.body.originalReferralCode.toUpperCase() === 'ADMIN01') {
-        // Gerar um novo código para o usuário
-        referralCode = generateReferralCode();
-        let isUniqueCode = false;
-        let attempts = 0;
-        const maxAttempts = 5;
+      // Usar o mesmo código que foi fornecido como código de convite
+      if (referralCodeToUse) {
+        // IMPORTANTE: Vamos usar o mesmo código fornecido como referralCode, evitando qualquer ambiguidade
+        referralCode = referralCodeToUse;
+        console.log(`SOLUÇÃO SIMPLIFICADA: Usando código de referral informado pelo usuário: ${referralCode}`);
 
-        // Ensure referral code is unique
-        while (!isUniqueCode && attempts < maxAttempts) {
-          try {
-            const existingCode = await storage.getUserByReferralCode(referralCode);
-            if (!existingCode) {
-              isUniqueCode = true;
-            } else {
-              referralCode = generateReferralCode();
+        // Verificar se este código já existe como código de referral de outro usuário
+        try {
+          const checkResult = await db.execute(sql`
+            SELECT COUNT(*) FROM users WHERE referral_code = ${referralCode}
+          `);
+          
+          if (checkResult.rows && checkResult.rows.length > 0 && parseInt(checkResult.rows[0].count) > 0) {
+            console.log(`Código ${referralCode} já existe como código de referral de outro usuário`);
+            // Se existir, gerar um código diferente com prefixo igual
+            // Tenta manter os 4 primeiros caracteres e adicionar um sufixo numérico único
+            let prefix = referralCode.slice(0, 4);
+            if (prefix.length < 4) {
+              // Se o prefixo for muito curto, complementar com letras aleatórias
+              while (prefix.length < 4) {
+                const safeLetters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+                prefix += safeLetters.charAt(Math.floor(Math.random() * safeLetters.length));
+              }
             }
-          } catch (codeError) {
-            console.error("Erro ao verificar unicidade do código:", codeError);
-            // Se ocorrer erro na verificação, continuamos
-            isUniqueCode = true;
+            
+            // Adicionar um sufixo numérico de 4 dígitos
+            const randomSuffix = Math.floor(1000 + Math.random() * 9000); // número entre 1000 e 9999
+            referralCode = `${prefix}${randomSuffix}`;
+            console.log(`Gerado código alternativo baseado no mesmo prefixo: ${referralCode}`);
           }
-          attempts++;
+        } catch (checkError) {
+          console.error("Erro ao verificar duplicidade de código:", checkError);
+          // Em caso de erro, continuar com o código original
         }
-      } else if (req.body.userProvidedReferralCode) {
-        // Usar o código fornecido diretamente pelo usuário
-        referralCode = req.body.userProvidedReferralCode;
-        console.log(`Usando código personalizado fornecido pelo usuário: ${referralCode}`);
       } else {
-        // Comportamento padrão - gerar um novo código
+        // Se não tiver um código de referência, gerar um código novo
+        console.log("Nenhum código informado, gerando novo código");
         referralCode = generateReferralCode();
+        
+        // Garantir que o código gerado é único
         let isUniqueCode = false;
         let attempts = 0;
         const maxAttempts = 5;
 
-        // Ensure referral code is unique
         while (!isUniqueCode && attempts < maxAttempts) {
           try {
-            const existingCode = await storage.getUserByReferralCode(referralCode);
-            if (!existingCode) {
+            const checkResult = await db.execute(sql`
+              SELECT COUNT(*) FROM users WHERE referral_code = ${referralCode}
+            `);
+            
+            if (checkResult.rows && checkResult.rows.length > 0 && parseInt(checkResult.rows[0].count) === 0) {
               isUniqueCode = true;
             } else {
               referralCode = generateReferralCode();
             }
           } catch (codeError) {
             console.error("Erro ao verificar unicidade do código:", codeError);
-            // Se ocorrer erro na verificação, continuamos
-            isUniqueCode = true;
+            isUniqueCode = true; // Continuar mesmo com erro
           }
           attempts++;
         }
