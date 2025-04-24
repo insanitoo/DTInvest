@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatPhoneNumber } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
   phoneNumber: z.string().min(9, 'Número de telefone deve ter 9 dígitos'),
@@ -123,26 +124,59 @@ export default function AuthPage() {
     });
   };
 
-  // Handle register submission
+  // Handle register submission - Versão melhorada com mais feedback
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
+    
+    // Normalizar o código de convite (trim e uppercase)
+    const formattedReferralCode = data.referralCode.trim();
 
-    console.log(`Attempting registration with phone number: ${formattedPhoneNumber}`);
+    console.log(`Tentando registro com número: ${formattedPhoneNumber}, código: ${formattedReferralCode}`);
     setSessionStatus('checking');
 
     registerMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
-      referralCode: data.referralCode,
+      referralCode: formattedReferralCode,
     }, {
-      onSuccess: () => {
-        console.log("Registration successful, setting status to authenticated");
+      onSuccess: (userData) => {
+        console.log("Registro bem-sucedido:", userData);
         setSessionStatus('authenticated');
+        
+        // Exibir mensagem de sucesso
+        toast({
+          title: "Registro realizado com sucesso!",
+          description: "Seja bem-vindo ao DTI Invest.",
+          variant: "default",
+        });
       },
-      onError: () => {
-        console.log("Registration failed, setting status to not-authenticated");
+      onError: (error: any) => {
+        console.log("Falha no registro:", error);
         setSessionStatus('not-authenticated');
+        
+        // Mensagem de erro mais amigável
+        let errorMessage = "Não foi possível completar o registro.";
+        
+        // Tentar extrair mensagem de erro da API
+        if (error.message) {
+          if (error.message.includes("Código de convite inválido")) {
+            errorMessage = "O código de convite informado não é válido. Tente usar 'ADMIN01' ou peça um código a quem te convidou.";
+          } else if (error.message.includes("Número de telefone já está em uso")) {
+            errorMessage = "Este número de telefone já está registrado. Tente fazer login ou use outro número.";
+          } else if (error.message.includes("500")) {
+            errorMessage = "Erro no servidor. Por favor, tente novamente mais tarde ou use o código 'ADMIN01'.";
+          } else {
+            // Usa a mensagem da API
+            errorMessage = error.message;
+          }
+        }
+        
+        toast({
+          title: "Erro no registro",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
     });
   };
@@ -420,9 +454,24 @@ export default function AuthPage() {
 
               {registerMutation.isError && (
                 <div className="bg-red-900/30 border border-red-500/50 rounded-md p-3 mt-2 text-sm text-red-200 flex items-start">
-                  <p>{registerMutation.error.message}</p>
+                  <p>
+                    {registerMutation.error.message.includes("Código de convite inválido")
+                      ? "O código de convite informado não é válido. Tente usar 'ADMIN01' ou peça um código a quem te convidou."
+                      : registerMutation.error.message.includes("Número de telefone já está em uso") 
+                      ? "Este número de telefone já está registrado. Tente fazer login ou use outro número."
+                      : registerMutation.error.message
+                    }
+                  </p>
                 </div>
               )}
+              
+              {/* Dica para usuários novos */}
+              <div className="mt-4 border border-blue-500/30 rounded-md p-3 bg-blue-900/20">
+                <p className="text-sm text-blue-200">
+                  <span className="font-medium">Dica:</span> Se você não tiver um código de convite, 
+                  pode usar o código <strong className="text-white">ADMIN01</strong> para se registrar.
+                </p>
+              </div>
             </form>
           </div>
         </div>

@@ -38,18 +38,20 @@ async function comparePasswords(supplied: string, stored: string) {
 
 // Generate a random referral code
 function generateReferralCode(): string {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const numbers = '0123456789';
+  // Usamos um conjunto de caracteres mais amigável, evitando caracteres confusos:
+  // - Sem O e 0 (zero) que são confundidos
+  // - Sem I e 1 (um) que são confundidos
+  // - Sem letras pouco comuns em Angola/português
+  const safeLetters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';  // sem I, O
+  const safeNumbers = '23456789';  // sem 0, 1
   let code = '';
 
-  // Generate a code like AB1234
-  for (let i = 0; i < 2; i++) {
-    code += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-
-  for (let i = 0; i < 4; i++) {
-    code += numbers.charAt(Math.floor(Math.random() * numbers.length));
-  }
+  // Gerar um código como "A2B3" - mais curto e fácil de memorizar
+  // Alternamos letra e número para facilitar a leitura
+  code += safeLetters.charAt(Math.floor(Math.random() * safeLetters.length));
+  code += safeNumbers.charAt(Math.floor(Math.random() * safeNumbers.length));
+  code += safeLetters.charAt(Math.floor(Math.random() * safeLetters.length));
+  code += safeNumbers.charAt(Math.floor(Math.random() * safeNumbers.length));
 
   return code;
 }
@@ -195,37 +197,86 @@ export function setupAuth(app: Express) {
         // Continuamos mesmo se houver erro na verificação (para evitar bloqueio)
       }
 
-      // Validate referral code - Sempre aceitamos ADMIN01 como código especial
-      let referralCodeToUse = req.body.referralCode;
+      // Validate referral code - Sistema melhorado de códigos de convite
+      // Normaliza o código (trim e uppercase) para evitar problemas de formato
+      let referralCodeToUse = (req.body.referralCode || '').trim().toUpperCase();
+      console.log("Código de convite recebido:", referralCodeToUse);
       
-      if (req.body.referralCode === 'ADMIN01') {
+      // 1. Verifica se é o código especial ADMIN01 (ou admin01, Admin01, etc.)
+      if (referralCodeToUse.toUpperCase() === 'ADMIN01') {
         console.log("Usando código especial ADMIN01");
         try {
-          // Verificar se existe pelo menos um admin no sistema
-          const adminUsers = await storage.getAllUsers().then(users => users.filter(u => u.isAdmin));
-          if (adminUsers.length > 0) {
-            // Se existe admin, usa o código do primeiro admin encontrado
-            referralCodeToUse = adminUsers[0].referralCode;
-            console.log("Usando código de admin:", referralCodeToUse);
+          // Tenta buscar qualquer usuário admin para usar seu código
+          const [adminUser] = await db.execute(sql`
+            SELECT referral_code FROM users 
+            WHERE is_admin = true 
+            LIMIT 1
+          `);
+          
+          if (adminUser && adminUser.rows && adminUser.rows.length > 0) {
+            // Se encontrar o admin, usa o código dele
+            referralCodeToUse = adminUser.rows[0].referral_code;
+            console.log("Usando código do admin encontrado:", referralCodeToUse);
           } else {
-            console.log("Nenhum admin encontrado, continuando com ADMIN01");
-            // Usamos ADMIN01 mesmo que não exista referência
+            // Se não encontrar admin, busca qualquer usuário ativo como alternativa
+            const [anyUser] = await db.execute(sql`
+              SELECT referral_code FROM users 
+              WHERE is_blocked = false 
+              LIMIT 1
+            `);
+            
+            if (anyUser && anyUser.rows && anyUser.rows.length > 0) {
+              referralCodeToUse = anyUser.rows[0].referral_code;
+              console.log("Usando código de usuário alternativo:", referralCodeToUse);
+            } else {
+              console.log("Nenhum usuário encontrado, mantendo ADMIN01");
+              // Neste caso, vamos usar ADMIN01 mesmo como fallback final
+            }
           }
         } catch (adminError) {
           console.error("Erro ao buscar admin:", adminError);
-          // Continuamos com ADMIN01 mesmo se der erro
+          // Se ocorrer erro, continuamos com ADMIN01 como código
         }
       } else {
-        // Verificar se o código referral existe
+        // 2. Aqui verificamos se o código de convite existe, ignorando case
         try {
-          const referrer = await storage.getUserByReferralCode(referralCodeToUse);
-          if (!referrer) {
-            console.log("Código de referência não encontrado:", referralCodeToUse);
-            return res.status(400).json({ message: "Código de convite inválido" });
+          // Consulta case-insensitive para encontrar o código
+          const [referrerResult] = await db.execute(sql`
+            SELECT referral_code FROM users 
+            WHERE LOWER(referral_code) = LOWER(${referralCodeToUse})
+          `);
+          
+          if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
+            // Encontrou o código - vamos usar o formato exato que está no banco
+            referralCodeToUse = referrerResult.rows[0].referral_code;
+            console.log("Código de convite encontrado:", referralCodeToUse);
+          } else {
+            // Código não encontrado - tenta encontrar admin como último recurso
+            console.log("Código não encontrado, tentando usar admin como fallback");
+            
+            const [adminFallback] = await db.execute(sql`
+              SELECT referral_code FROM users 
+              WHERE is_admin = true 
+              LIMIT 1
+            `);
+            
+            if (adminFallback && adminFallback.rows && adminFallback.rows.length > 0) {
+              // Usa o admin como fallback, mas retorna erro ao usuário
+              console.log("Admin encontrado como fallback, mas retornando erro ao usuário");
+              return res.status(400).json({ 
+                message: "Código de convite inválido. Por favor, use o código ADMIN01 ou peça um código válido a quem o convidou."
+              });
+            } else {
+              // Nenhum admin encontrado, retorna erro simples
+              return res.status(400).json({ message: "Código de convite inválido" });
+            }
           }
         } catch (referrerError) {
           console.error("Erro ao verificar código de referência:", referrerError);
-          // Continuamos mesmo se houver erro na verificação
+          // Em caso de erro, damos uma mensagem mais descritiva
+          return res.status(400).json({ 
+            message: "Não foi possível verificar o código de convite. Tente novamente com o código ADMIN01."
+          });
         }
       }
 
