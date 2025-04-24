@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { User, depositRequests } from "../shared/schema";
+import { User } from "../shared/schema";
 import { db } from "./db";
-import { sql, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 // Função para formatar valores em moeda (KZ)
 function formatCurrency(value: number): string {
@@ -1519,26 +1519,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`\n=== CREDITAR EMERGÊNCIA >>> Iniciando para transação ${transactionId} ===\n`);
 
-      // NOVA VERIFICAÇÃO: Checar se já existe uma transação com este ID
-      const existingTransaction = await storage.getTransactionByTransactionId(transactionId);
-      if (existingTransaction) {
-        console.log(`CREDITAR EMERGÊNCIA >>> ALERTA! TransactionID ${transactionId} já existe no sistema`);
-        console.log(`CREDITAR EMERGÊNCIA >>> Transação existente: ID=${existingTransaction.id}, Status=${existingTransaction.status}`);
-        
-        return res.status(400).json({
-          success: false,
-          message: `Este ID de transação (${transactionId}) já foi processado anteriormente. Para evitar duplicação de créditos, a operação foi cancelada.`,
-          transaction: {
-            id: existingTransaction.id,
-            transactionId: existingTransaction.transactionId,
-            type: existingTransaction.type,
-            amount: existingTransaction.amount,
-            status: existingTransaction.status,
-            createdAt: existingTransaction.createdAt
-          }
-        });
-      }
-
       // Buscar depósito pendente
       const depositRequest = await storage.getDepositRequestByTransactionId(transactionId);
 
@@ -1590,15 +1570,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactionId: depositRequest.transactionId
       });
 
-      // Remover solicitação de depósito para evitar processamento duplicado
-      // Usando uma abordagem segura para remover a solicitação de depósito
-      try {
-        await storage.deleteDepositRequest(depositRequest.id);
-        console.log(`CREDITAR EMERGÊNCIA >>> Solicitação de depósito ${depositRequest.id} removida`);
-      } catch (removeError) {
-        console.error(`CREDITAR EMERGÊNCIA >>> Erro ao remover solicitação: ${removeError}`);
-        // Continuamos mesmo se falhar para não bloquear a operação principal
-      }
+      // Remover solicitação de depósito (opcional)
+      // storage.depositRequests.delete(depositRequest.id);
 
       // Resposta com informações detalhadas
       return res.status(200).json({

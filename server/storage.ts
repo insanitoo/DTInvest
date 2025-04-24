@@ -1345,28 +1345,6 @@ export class DatabaseStorage implements IStorage {
     return transaction;
   }
 
-  async getTransactionByTransactionId(transactionId: string): Promise<Transaction | undefined> {
-    // Verificar se o transactionId não é null ou undefined
-    if (!transactionId) {
-      return undefined;
-    }
-
-    console.log(`STORAGE >>> Buscando transação com transactionId: ${transactionId}`);
-    
-    const [transaction] = await db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.transactionId, transactionId));
-
-    if (transaction) {
-      console.log(`STORAGE >>> Encontrada transação: ID=${transaction.id}, Valor=${transaction.amount}`);
-    } else {
-      console.log(`STORAGE >>> Nenhuma transação encontrada com transactionId: ${transactionId}`);
-    }
-
-    return transaction;
-  }
-
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db
       .insert(transactions)
@@ -1424,21 +1402,6 @@ export class DatabaseStorage implements IStorage {
 
     return request;
   }
-  
-  async deleteDepositRequest(id: number): Promise<boolean> {
-    try {
-      console.log(`STORAGE >>> Removendo solicitação de depósito: ID=${id}`);
-      await db
-        .delete(depositRequests)
-        .where(eq(depositRequests.id, id));
-      
-      console.log(`STORAGE >>> Solicitação de depósito removida com sucesso`);
-      return true;
-    } catch (error) {
-      console.error(`STORAGE >>> Erro ao remover solicitação de depósito: ${error}`);
-      throw new Error(`Falha ao remover solicitação de depósito: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 
   async approveDepositRequest(id: number): Promise<Transaction> {
     // Buscar o depósito
@@ -1451,26 +1414,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Solicitação de depósito não encontrada');
     }
 
-    console.log(`\n=== DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
-    console.log(`DEPOSIT >>> Valor: ${depositRequest.amount} KZ, TransactionID: ${depositRequest.transactionId}`);
-
-    // Verificação de segurança: checar se já existe uma transação com este transaction ID
-    if (depositRequest.transactionId) {
-      const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
-      
-      if (existingTransaction) {
-        console.log(`DEPOSIT >>> ALERTA! TransactionID ${depositRequest.transactionId} já existe no sistema!`);
-        console.log(`DEPOSIT >>> Transação existente: ID=${existingTransaction.id}, Valor=${existingTransaction.amount} KZ`);
-        console.log(`DEPOSIT >>> Evitando creditação duplicada`);
-        
-        // Remover a solicitação de depósito para evitar processamentos duplicados
-        await this.deleteDepositRequest(id);
-        
-        // Retornar a transação existente para evitar duplicação
-        return existingTransaction;
-      }
-    }
-
     // Buscar o usuário
     const [user] = await db
       .select()
@@ -1480,8 +1423,6 @@ export class DatabaseStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-
-    console.log(`DEPOSIT >>> Usuário: ${user.phoneNumber}, Saldo antes: ${user.balance}`);
 
     // Criar uma transação para registrar o depósito
     const [transaction] = await db
@@ -1498,8 +1439,6 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
 
-    console.log(`DEPOSIT >>> Transação criada: ID=${transaction.id}`);
-
     // Atualizar o saldo do usuário
     const newBalance = user.balance + depositRequest.amount;
     await db
@@ -1510,12 +1449,6 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(users.id, user.id));
-
-    console.log(`DEPOSIT >>> Saldo atualizado: ${user.balance} -> ${newBalance}`);
-    console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO ===\n`);
-
-    // Remover a solicitação de depósito para evitar processamentos duplicados
-    await this.deleteDepositRequest(id);
 
     return transaction;
   }
