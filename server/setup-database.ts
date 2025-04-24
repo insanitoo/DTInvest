@@ -414,17 +414,35 @@ export async function setupDatabase() {
     if (existingProducts.rows.length === 0) {
       console.log("Criando produtos padrão...");
 
+      // IMPORTANTE: Produtos atualizados (sem o Plano Premium de 25.000 KZ que não pode ser excluído)
       await db.execute(
         sql`INSERT INTO products (name, description, price, return_rate, cycle_days, daily_income, total_return, active) 
              VALUES 
-             ('Plano Básico', 'Investimento inicial para novos usuários', 5000, 0.7, 7, 500, 3500, true),
-             ('Plano Standard', 'Plano intermediário com retorno moderado', 10000, 1.0, 7, 1000, 7000, true),
-             ('Plano Premium', 'Melhor opção de retorno para investidores', 25000, 1.2, 7, 3000, 21000, true)`
+             ('Produto Básico', 'Produto para iniciantes com retorno moderado', 2000, 2, 30, 133, 4000, true),
+             ('Produto VIP', 'Produto exclusivo com alto retorno garantido', 10000, 3.5, 30, 1167, 35000, true)`
       );
 
       console.log("✅ Produtos padrão criados com sucesso!");
     } else {
-      console.log("✅ Produtos já existem, pulando criação");
+      console.log("✅ Produtos já existem, verificando o produto Premium de 25.000 KZ...");
+      
+      // Verificar se existe o produto problemático (Plano Premium de 25.000 KZ) e remover
+      const premiumProduct = await db.execute(sql`
+        SELECT * FROM products 
+        WHERE name = 'Plano Premium' AND price = 25000 
+        OR description LIKE '%Melhor opção de retorno para investidores%'
+      `);
+      
+      if (premiumProduct.rows.length > 0) {
+        console.log("⚠️ Encontrado produto problemático (Plano Premium de 25.000 KZ), removendo...");
+        
+        for (const product of premiumProduct.rows) {
+          await db.execute(sql`DELETE FROM products WHERE id = ${product.id}`);
+          console.log(`✅ Produto problemático com ID ${product.id} removido com sucesso!`);
+        }
+      } else {
+        console.log("✅ Produto problemático não encontrado, nada a fazer");
+      }
     }
 
     console.log("🎉 Configuração do banco de dados concluída com sucesso!");

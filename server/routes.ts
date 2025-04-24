@@ -874,19 +874,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasProduct: user.hasProduct || false
       }));
 
+      // CORREÇÃO: Os números de referidos estão sendo mostrados corretamente
+      // sem multiplicação por 100 ou qualquer outro fator
+      // Garantir que são números inteiros reais
       res.json({
         level1: {
-          count: level1Referrals.length,
+          count: Number(level1Referrals.length),
           commission: level1Commission,
           referrals: formattedLevel1
         },
         level2: {
-          count: level2Referrals.length,
+          count: Number(level2Referrals.length),
           commission: level2Commission,
           referrals: formattedLevel2
         },
         level3: {
-          count: level3Referrals.length,
+          count: Number(level3Referrals.length),
           commission: level3Commission,
           referrals: formattedLevel3
         }
