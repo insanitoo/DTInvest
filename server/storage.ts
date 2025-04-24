@@ -1424,6 +1424,21 @@ export class DatabaseStorage implements IStorage {
 
     return request;
   }
+  
+  async deleteDepositRequest(id: number): Promise<boolean> {
+    try {
+      console.log(`STORAGE >>> Removendo solicitação de depósito: ID=${id}`);
+      await db
+        .delete(depositRequests)
+        .where(eq(depositRequests.id, id));
+      
+      console.log(`STORAGE >>> Solicitação de depósito removida com sucesso`);
+      return true;
+    } catch (error) {
+      console.error(`STORAGE >>> Erro ao remover solicitação de depósito: ${error}`);
+      throw new Error(`Falha ao remover solicitação de depósito: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   async approveDepositRequest(id: number): Promise<Transaction> {
     // Buscar o depósito
@@ -1449,7 +1464,7 @@ export class DatabaseStorage implements IStorage {
         console.log(`DEPOSIT >>> Evitando creditação duplicada`);
         
         // Remover a solicitação de depósito para evitar processamentos duplicados
-        await db.delete(depositRequests).where(eq(depositRequests.id, id));
+        await this.deleteDepositRequest(id);
         
         // Retornar a transação existente para evitar duplicação
         return existingTransaction;
@@ -1500,7 +1515,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO ===\n`);
 
     // Remover a solicitação de depósito para evitar processamentos duplicados
-    await db.delete(depositRequests).where(eq(depositRequests.id, id));
+    await this.deleteDepositRequest(id);
 
     return transaction;
   }

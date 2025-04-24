@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { User } from "../shared/schema";
+import { User, depositRequests } from "../shared/schema";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 // Função para formatar valores em moeda (KZ)
 function formatCurrency(value: number): string {
@@ -1591,7 +1591,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Remover solicitação de depósito para evitar processamento duplicado
-      await db.delete(depositRequests).where(eq(depositRequests.id, depositRequest.id));
+      // Usando uma abordagem segura para remover a solicitação de depósito
+      try {
+        await storage.deleteDepositRequest(depositRequest.id);
+        console.log(`CREDITAR EMERGÊNCIA >>> Solicitação de depósito ${depositRequest.id} removida`);
+      } catch (removeError) {
+        console.error(`CREDITAR EMERGÊNCIA >>> Erro ao remover solicitação: ${removeError}`);
+        // Continuamos mesmo se falhar para não bloquear a operação principal
+      }
 
       // Resposta com informações detalhadas
       return res.status(200).json({
