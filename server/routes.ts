@@ -301,8 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(tx => tx.type === 'deposit')
         .reduce((sum, tx) => sum + tx.amount, 0);
 
+      // Contabilizar saques (incluindo os rejeitados que tem status 'failed')
       const withdrawals = allTransactions
-        .filter(tx => tx.type === 'withdrawal')
+        .filter(tx => tx.type === 'withdrawal' && (tx.status === 'completed' || tx.status === 'failed'))
         .reduce((sum, tx) => sum + tx.amount, 0);
 
       // Dados de produtos (ainda fixos até implementarmos o armazenamento de produtos)
@@ -557,16 +558,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Usuário encontrado: ${user.phoneNumber}, saldo atual: ${user.balance}`);
 
       // NOVA VERIFICAÇÃO: Checar se o usuário já tem este produto
-      const userPurchases = await storage.getUserPurchases(userId);
-      const alreadyPurchased = userPurchases.some(purchase => 
-        purchase.productId === productId
-      );
+      try {
+        const userPurchases = await storage.getUserPurchases(userId);
+        const alreadyPurchased = userPurchases.some(purchase => 
+          purchase.productId === productId
+        );
 
-      if (alreadyPurchased) {
-        console.log(`Usuário já comprou este produto anteriormente: ${product.name}`);
-        return res.status(400).json({ 
-          message: `Você já possui o produto ${product.name}. Cada usuário pode comprar apenas 1 de cada produto.`
-        });
+        if (alreadyPurchased) {
+          console.log(`Usuário já comprou este produto anteriormente: ${product.name}`);
+          return res.status(400).json({ 
+            message: `Você já possui o produto ${product.name}. Cada usuário pode comprar apenas 1 de cada produto.`
+          });
+        }
+      } catch (purchaseError) {
+        console.error("Erro ao verificar compras do usuário:", purchaseError);
+        // Continuar mesmo com erro (fail safe) para não bloquear compras novas por falha na verificação
       }
 
       if (user.balance < product.price) {
