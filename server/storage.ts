@@ -51,6 +51,7 @@ export interface IStorage {
   // Solicitações de depósito
   createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest>;
   getDepositRequests(): Promise<DepositRequest[]>;
+  getDepositRequest(id: number): Promise<DepositRequest | undefined>;
   getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined>;
   approveDepositRequest(id: number): Promise<Transaction>;
   
