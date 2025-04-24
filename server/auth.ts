@@ -166,10 +166,17 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Register route - Versão melhorada com mais tratamento de erros
+  // Register route - VERSÃO FINAL com tratamento simplificado
   app.post("/api/register", async (req, res, next) => {
     try {
-      console.log("Recebendo solicitação de registro:", req.body);
+      // Vamos simplificar o código e torná-lo mais transparente
+      console.log("Recebendo solicitação de registro com dados:", {
+        phoneNumber: req.body.phoneNumber,
+        referralCode: req.body.referralCode,
+        // Novos campos enviados pelo cliente
+        originalReferralCode: req.body.originalReferralCode,
+        userProvidedReferralCode: req.body.userProvidedReferralCode
+      });
       
       if (!req.body.referralCode) {
         return res.status(400).json({ message: "Código de convite é obrigatório" });
@@ -198,9 +205,10 @@ export function setupAuth(app: Express) {
         // Continuamos mesmo se houver erro na verificação (para evitar bloqueio)
       }
 
-      // Validate referral code - Sistema melhorado de códigos de convite
-      // Normaliza o código (trim e uppercase) para evitar problemas de formato
-      let referralCodeToUse = (req.body.referralCode || '').trim().toUpperCase();
+      // SOLUÇÃO FINAL SIMPLIFICADA:
+      // Vamos usar o código exatamente como o usuário digitou, apenas removendo espaços
+      // sem forçar uppercase, para manter compatibilidade com códigos existentes
+      let referralCodeToUse = (req.body.referralCode || '').trim();
       console.log("Código de convite recebido:", referralCodeToUse);
       
       // 1. Verifica se é o código especial ADMIN01 (ou admin01, Admin01, etc.)
@@ -307,14 +315,19 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Verificar se o usuário vai usar o seu próprio código ou um gerado pelo sistema
+      // SOLUÇÃO FINAL SIMPLIFICADA:
+      // Se o usuário forneceu um código específico para ser seu próprio código, dar prioridade a ele
       let referralCode;
       
-      // Usar o mesmo código que foi fornecido como código de convite
-      if (referralCodeToUse) {
-        // IMPORTANTE: Vamos usar o mesmo código fornecido como referralCode, evitando qualquer ambiguidade
+      // Primeiro verificar se o frontend enviou userProvidedReferralCode
+      if (req.body.userProvidedReferralCode) {
+        referralCode = req.body.userProvidedReferralCode.trim();
+        console.log(`PRIORIDADE: Usando código específico fornecido pelo usuário: ${referralCode}`);
+      }
+      // Caso contrário, usar o mesmo código de referência como código do novo usuário
+      else if (referralCodeToUse) {
         referralCode = referralCodeToUse;
-        console.log(`SOLUÇÃO SIMPLIFICADA: Usando código de referral informado pelo usuário: ${referralCode}`);
+        console.log(`SOLUÇÃO SIMPLIFICADA: Usando código de referência como código do próprio usuário: ${referralCode}`);
 
         // Verificar se este código já existe como código de referral de outro usuário
         try {

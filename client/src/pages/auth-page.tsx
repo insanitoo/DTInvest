@@ -130,18 +130,22 @@ export default function AuthPage() {
     // Remove spaces from phone number before submitting
     const formattedPhoneNumber = data.phoneNumber.replace(/\s+/g, '');
     
-    // Normalizar o código de convite (trim e uppercase)
+    // Normalizar o código de convite (trim)
     const formattedReferralCode = data.referralCode.trim();
 
     console.log(`Tentando registro com número: ${formattedPhoneNumber}, código: ${formattedReferralCode}`);
     setSessionStatus('checking');
 
+    // SOLUÇÃO SIMPLIFICADA:
+    // Agora vamos enviar o código exatamente como o usuário forneceu,
+    // sem forçar uppercase, para manter a compatibilidade com códigos existentes
     registerMutation.mutate({
       phoneNumber: formattedPhoneNumber,
       password: data.password,
       referralCode: formattedReferralCode,
-      originalReferralCode: data.referralCode.trim(),
-      userProvidedReferralCode: formattedReferralCode, // Passando o mesmo código para ser usado também como código do novo usuário
+      // Preservamos os campos extras para compatibilidade com o backend atual
+      originalReferralCode: formattedReferralCode,
+      userProvidedReferralCode: formattedReferralCode, 
     }, {
       onSuccess: (userData) => {
         console.log("Registro bem-sucedido:", userData);
