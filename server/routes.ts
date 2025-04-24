@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { User } from "../shared/schema";
+import { User, users, transactions } from "../shared/schema";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 // Função para formatar valores em moeda (KZ)
 function formatCurrency(value: number): string {
@@ -731,8 +731,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'completed' // Concluído automaticamente
           });
 
-          // Atualizar o saldo do referenciador nível 1
-          await storage.updateUserBalance(level1Referrer.id, level1Referrer.balance + level1Commission);
+          // Obter dados atuais do usuário para garantir dados atualizados
+          const currentL1User = await storage.getUser(level1Referrer.id);
+          if (!currentL1User) {
+            console.error(`Erro ao buscar dados atualizados do usuário ${level1Referrer.id}`);
+            // Continuar mesmo com erro, usando dados antigos
+          } else {
+            // Atualizar o saldo e os ganhos diários do referenciador nível 1
+            const updatedDailyEarnings = (currentL1User.dailyEarnings || 0) + level1Commission;
+            
+            await db.update(users)
+              .set({ 
+                balance: currentL1User.balance + level1Commission,
+                dailyEarnings: updatedDailyEarnings
+              })
+              .where(eq(users.id, level1Referrer.id));
+              
+            console.log(`Ganhos diários atualizados para usuário ${level1Referrer.id}: ${updatedDailyEarnings} KZ`);
+          }
 
           // Verificar nível 2 (quem indicou o referenciador nível 1)
           if (level1Referrer.referredBy) {
@@ -754,8 +770,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: 'completed' // Concluído automaticamente
               });
 
-              // Atualizar o saldo do referenciador nível 2
-              await storage.updateUserBalance(level2Referrer.id, level2Referrer.balance + level2Commission);
+              // Obter dados atuais do usuário para garantir dados atualizados
+              const currentL2User = await storage.getUser(level2Referrer.id);
+              if (!currentL2User) {
+                console.error(`Erro ao buscar dados atualizados do usuário ${level2Referrer.id}`);
+                // Continuar mesmo com erro, usando dados antigos
+              } else {
+                // Atualizar o saldo e os ganhos diários do referenciador nível 2
+                const updatedDailyEarnings = (currentL2User.dailyEarnings || 0) + level2Commission;
+                
+                await db.update(users)
+                  .set({ 
+                    balance: currentL2User.balance + level2Commission,
+                    dailyEarnings: updatedDailyEarnings
+                  })
+                  .where(eq(users.id, level2Referrer.id));
+                  
+                console.log(`Ganhos diários atualizados para usuário ${level2Referrer.id}: ${updatedDailyEarnings} KZ`);
+              }
 
               // Verificar nível 3 (quem indicou o referenciador nível 2)
               if (level2Referrer.referredBy) {
@@ -777,8 +809,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     status: 'completed' // Concluído automaticamente
                   });
 
-                  // Atualizar o saldo do referenciador nível 3
-                  await storage.updateUserBalance(level3Referrer.id, level3Referrer.balance + level3Commission);
+                  // Obter dados atuais do usuário para garantir dados atualizados
+                  const currentL3User = await storage.getUser(level3Referrer.id);
+                  if (!currentL3User) {
+                    console.error(`Erro ao buscar dados atualizados do usuário ${level3Referrer.id}`);
+                    // Continuar mesmo com erro, usando dados antigos
+                  } else {
+                    // Atualizar o saldo e os ganhos diários do referenciador nível 3
+                    const updatedDailyEarnings = (currentL3User.dailyEarnings || 0) + level3Commission;
+                    
+                    await db.update(users)
+                      .set({ 
+                        balance: currentL3User.balance + level3Commission,
+                        dailyEarnings: updatedDailyEarnings
+                      })
+                      .where(eq(users.id, level3Referrer.id));
+                      
+                    console.log(`Ganhos diários atualizados para usuário ${level3Referrer.id}: ${updatedDailyEarnings} KZ`);
+                  }
                 }
               }
             }
