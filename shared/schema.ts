@@ -180,7 +180,7 @@ export const insertTransactionSchema = createInsertSchema(transactions).extend({
 // Schema para solicitar depósito
 export const insertDepositRequestSchema = createInsertSchema(depositRequests).extend({
   userId: z.number(),
-  amount: z.number().positive().min(1000, "Valor mínimo para depósito é KZ 1000"),
+  amount: z.number().positive().min(25000, "Valor mínimo para depósito é KZ 25000"),
   bankName: z.string().nullable(),
   receipt: z.string().nullable(),
   transactionId: z.string()
