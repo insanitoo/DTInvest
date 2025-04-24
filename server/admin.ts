@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { storage } from "./storage";
 import { insertProductSchema, insertBankSchema, insertSettingSchema, insertCarouselImageSchema, updateTransactionSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { hashPassword } from "./auth";
 
 // Middleware to check if user is an admin
 function isAdmin(req: Request, res: Response, next: NextFunction) {
@@ -16,6 +17,49 @@ function isAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 export function setupAdminRoutes(app: Express) {
+  // Rota para redefinir senha de usuário (apenas admin)
+  app.post("/api/admin/reset-password", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { phoneNumber, newPassword } = req.body;
+      
+      if (!phoneNumber || !newPassword) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Número de telefone e nova senha são obrigatórios" 
+        });
+      }
+
+      // Verificar se o usuário existe
+      const user = await storage.getUserByPhoneNumber(phoneNumber);
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Usuário não encontrado" 
+        });
+      }
+
+      // Gerar hash da nova senha
+      const hashedPassword = await hashPassword(newPassword);
+      
+      // Atualizar o usuário com a nova senha
+      const updatedUser = await storage.updateUser(user.id, {
+        password: hashedPassword
+      });
+
+      // Responder com sucesso
+      res.status(200).json({ 
+        success: true, 
+        message: `Senha redefinida com sucesso para o usuário ${phoneNumber}` 
+      });
+    } catch (error: any) {
+      console.error("Erro ao redefinir senha:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro ao redefinir senha do usuário", 
+        error: error.message 
+      });
+    }
+  });
   // Get admin dashboard stats
   app.get("/api/admin/stats", isAdmin, async (req: Request, res: Response) => {
     try {
