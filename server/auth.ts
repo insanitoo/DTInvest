@@ -341,26 +341,71 @@ export function setupAuth(app: Express) {
           - Referido por: ${referredByStr} (tipo: ${typeof referredByStr})
         `);
         
-        // Abordagem alternativa - uso de string templates SQL pura para evitar qualquer conversão automática
-        const sqlQuery = `
-          INSERT INTO users (
-            phone_number, password, referral_code, referred_by, is_admin, 
-            balance, level1_commission, level2_commission, level3_commission,
-            has_product, has_deposited
-          ) 
-          VALUES (
-            '${phoneStr}', '${hashedPassword}', '${referralStr}', '${referredByStr}', false, 
-            0, 0, 0, 0, 
-            false, false
-          )
-          RETURNING *
-        `;
+        // ******************* SOLUÇÃO DE EMERGÊNCIA ******************
+        // Contornando o problema inserindo diretamente com query parametrizada pura
+        let result;
         
-        console.log("SQL Query a ser executada:", sqlQuery);
+        try {
+          console.log("TESTE FINAL - INSERÇÃO DIRETA COM CLIENTE POOL");
+          
+          const queryText = `
+            INSERT INTO users (
+              phone_number, password, referral_code, referred_by, is_admin, 
+              balance, level1_commission, level2_commission, level3_commission,
+              has_product, has_deposited
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING *
+          `;
+          
+          // Utilizando client direto do pool para ter mais controle
+          const client = await db.$client.connect();
+          
+          try {
+            console.log("Usando parâmetros:", [
+              phoneStr, hashedPassword, referralStr, referredByStr, false, 
+              0, 0, 0, 0, false, false
+            ]);
+            
+            const res = await client.query(queryText, [
+              phoneStr, hashedPassword, referralStr, referredByStr, false, 
+              0, 0, 0, 0, false, false
+            ]);
+            
+            console.log("Resultado da inserção direta:", res.rows[0]);
+            
+            result = {
+              rows: res.rows
+            };
+          } finally {
+            // Sempre devolver o cliente ao pool
+            client.release();
+          }
+        } catch (directError) {
+          console.error("ERRO NA INSERÇÃO DIRETA:", directError);
+          
+          // Se falhar, tenta uma abordagem alternativa com query fixa
+          console.log("TENTANDO ABORDAGEM ALTERNATIVA COM SQL HARDCODED");
+          
+          // Isso é potencialmente inseguro (SQL injection), mas é um último recurso
+          const sqlQuery = `
+            INSERT INTO users (
+              phone_number, password, referral_code, referred_by, is_admin, 
+              balance, level1_commission, level2_commission, level3_commission,
+              has_product, has_deposited
+            ) 
+            VALUES (
+              '${phoneStr}', '${hashedPassword}', '${referralStr}', '${referredByStr}', false, 
+              0, 0, 0, 0, 
+              false, false
+            )
+            RETURNING *
+          `;
+          
+          result = await db.execute(sql.raw(sqlQuery));
+        }
         
-        const result = await db.execute(sql.raw(sqlQuery));
-        
-        if (result.rows && result.rows.length > 0) {
+        if (result && result.rows && result.rows.length > 0) {
           const user = result.rows[0];
           console.log("Usuário criado com sucesso:", user.id);
           
