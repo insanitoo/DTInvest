@@ -267,28 +267,34 @@ export function setupAuth(app: Express) {
           }
         }
       } else {
-        // 2. Aqui verificamos se o código de convite existe, ignorando case
+        // 2. NOVA IMPLEMENTAÇÃO: Buscar o número de telefone do usuário pelo código de referral
         try {
-          // Consulta case-insensitive para encontrar o código
-          // CORREÇÃO CRÍTICA: Não desestruturar o resultado diretamente
+          // Consulta case-insensitive para encontrar o usuário pelo código de referral
           const referrerResult = await db.execute(sql`
-            SELECT referral_code FROM users 
+            SELECT phone_number, referral_code FROM users 
             WHERE LOWER(referral_code) = LOWER(${referralCodeToUse})
           `);
           
           console.log("Resultado da busca de código de referral:", referrerResult);
           
           if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
-            // Encontrou o código - vamos usar o formato exato que está no banco e garantir que seja string
+            // Encontrou o usuário referenciador - vamos armazenar seu número de telefone
+            const referrerPhoneNumber = String(referrerResult.rows[0].phone_number);
+            // Também guardar o formato exato do código para usar na geração do código do novo usuário
             referralCodeToUse = String(referrerResult.rows[0].referral_code);
+            
             console.log("Código de convite encontrado:", referralCodeToUse, "(tipo:", typeof referralCodeToUse, ")");
+            console.log("Telefone do referenciador:", referrerPhoneNumber, "- será usado no campo referred_by");
+            
+            // Armazenar o telefone do referenciador em uma variável para uso posterior
+            req.body.referrerPhoneNumber = referrerPhoneNumber;
           } else {
             // Código não encontrado - tenta encontrar admin como último recurso
             console.log("Código não encontrado, tentando usar admin como fallback");
             
             // CORREÇÃO CRÍTICA: Não desestruturar o resultado diretamente
             const adminFallback = await db.execute(sql`
-              SELECT referral_code FROM users 
+              SELECT phone_number, referral_code FROM users 
               WHERE is_admin = true 
               LIMIT 1
             `);
@@ -395,12 +401,18 @@ export function setupAuth(app: Express) {
         // Garantir que todos os códigos sejam tratados como strings para evitar erro de tipo
         const phoneStr = formattedPhoneNumber.toString();
         const referralStr = referralCode.toString();
-        const referredByStr = referralCodeToUse.toString();
+        
+        // NOVA LÓGICA: Usar o número de telefone do referenciador em vez do código de referral
+        // Se tivermos o número de telefone do referenciador, usamos ele
+        // Caso contrário, mantemos a lógica anterior usando o código de referral
+        const referredByStr = req.body.referrerPhoneNumber ? 
+                              req.body.referrerPhoneNumber.toString() : 
+                              referralCodeToUse.toString();
         
         console.log(`DIAGNÓSTICO COMPLETO - Inserindo usuário com valores:
           - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
           - Código de referral: ${referralStr} (tipo: ${typeof referralStr})
-          - Referido por: ${referredByStr} (tipo: ${typeof referredByStr})
+          - Referido por: ${referredByStr} (tipo: ${typeof referredByStr}) - [Número de telefone do referenciador]
         `);
         
         // ******************* SOLUÇÃO DE EMERGÊNCIA ******************
