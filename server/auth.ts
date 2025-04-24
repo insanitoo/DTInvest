@@ -215,9 +215,9 @@ export function setupAuth(app: Express) {
           `);
           
           if (adminUser && adminUser.rows && adminUser.rows.length > 0) {
-            // Se encontrar o admin, usa o código dele
-            referralCodeToUse = adminUser.rows[0].referral_code;
-            console.log("Usando código do admin encontrado:", referralCodeToUse);
+            // Se encontrar o admin, usa o código dele e garante que seja string
+            referralCodeToUse = String(adminUser.rows[0].referral_code);
+            console.log("Usando código do admin encontrado:", referralCodeToUse, "(tipo:", typeof referralCodeToUse, ")");
           } else {
             // Se não encontrar admin, busca qualquer usuário ativo como alternativa
             const [anyUser] = await db.execute(sql`
@@ -227,8 +227,8 @@ export function setupAuth(app: Express) {
             `);
             
             if (anyUser && anyUser.rows && anyUser.rows.length > 0) {
-              referralCodeToUse = anyUser.rows[0].referral_code;
-              console.log("Usando código de usuário alternativo:", referralCodeToUse);
+              referralCodeToUse = String(anyUser.rows[0].referral_code);
+              console.log("Usando código de usuário alternativo:", referralCodeToUse, "(tipo:", typeof referralCodeToUse, ")");
             } else {
               console.log("Nenhum usuário encontrado, gerando um código válido");
               // Não podemos usar ADMIN01 como referral code (erro de tipo)
@@ -245,8 +245,8 @@ export function setupAuth(app: Express) {
             `);
             
             if (anyUserAsBackup && anyUserAsBackup.rows && anyUserAsBackup.rows.length > 0) {
-              referralCodeToUse = anyUserAsBackup.rows[0].referral_code;
-              console.log("Usando código de backup final:", referralCodeToUse);
+              referralCodeToUse = String(anyUserAsBackup.rows[0].referral_code);
+              console.log("Usando código de backup final:", referralCodeToUse, "(tipo:", typeof referralCodeToUse, ")");
             } else {
               // Último recurso - gerar um código novo
               referralCodeToUse = generateReferralCode() + '00';
@@ -268,9 +268,9 @@ export function setupAuth(app: Express) {
           `);
           
           if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
-            // Encontrou o código - vamos usar o formato exato que está no banco
-            referralCodeToUse = referrerResult.rows[0].referral_code;
-            console.log("Código de convite encontrado:", referralCodeToUse);
+            // Encontrou o código - vamos usar o formato exato que está no banco e garantir que seja string
+            referralCodeToUse = String(referrerResult.rows[0].referral_code);
+            console.log("Código de convite encontrado:", referralCodeToUse, "(tipo:", typeof referralCodeToUse, ")");
           } else {
             // Código não encontrado - tenta encontrar admin como último recurso
             console.log("Código não encontrado, tentando usar admin como fallback");
@@ -330,6 +330,17 @@ export function setupAuth(app: Express) {
       console.log("Tentando inserir usuário via SQL direto");
       try {
         // Use SQL direto para criar o usuário - mais robusto para produção
+        // Garantir que todos os códigos sejam tratados como strings para evitar erro de tipo
+        const phoneStr = formattedPhoneNumber.toString();
+        const referralStr = referralCode.toString();
+        const referredByStr = referralCodeToUse.toString();
+        
+        console.log(`Inserindo usuário com valores:
+          - Telefone: ${phoneStr} (tipo: ${typeof phoneStr})
+          - Código de referral: ${referralStr} (tipo: ${typeof referralStr})
+          - Referido por: ${referredByStr} (tipo: ${typeof referredByStr})
+        `);
+        
         const result = await db.execute(sql`
           INSERT INTO users (
             phone_number, password, referral_code, referred_by, is_admin, 
@@ -337,7 +348,7 @@ export function setupAuth(app: Express) {
             has_product, has_deposited
           ) 
           VALUES (
-            ${formattedPhoneNumber}, ${hashedPassword}, ${referralCode}, ${referralCodeToUse}, false, 
+            ${phoneStr}, ${hashedPassword}, ${referralStr}, ${referredByStr}, false, 
             0, 0, 0, 0, 
             false, false
           )
