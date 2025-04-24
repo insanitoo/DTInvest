@@ -210,78 +210,56 @@ export function setupAuth(app: Express) {
         // Continuamos mesmo se houver erro na verificação (para evitar bloqueio)
       }
 
-      // SOLUÇÃO REVISADA PARA TRATAR CORRETAMENTE O CÓDIGO ADMIN01
-      // Armazenar o código original para uso posterior
-      const originalReferralCode = (req.body.referralCode || '').trim();
-      
-      // Inicializar com o código fornecido pelo usuário
-      let referralCodeToUse = originalReferralCode;
+      // SOLUÇÃO SIMPLIFICADA, CONFORME SUGERIDO
+      let referralCodeToUse = (req.body.referralCode || '').trim();
       console.log("Código de convite recebido:", referralCodeToUse);
       
       try {
-        // Primeiro, verificar se é o código especial ADMIN01 (case-insensitive)
-        if (referralCodeToUse.toUpperCase() === 'ADMIN01') {
-          console.log("Código especial ADMIN01 detectado - buscando admin...");
+        // Buscar usuário diretamente com o código, sem substituições
+        const referrerResult = await db.execute(sql`
+          SELECT id, phone_number FROM users 
+          WHERE LOWER(referral_code) = LOWER(${referralCodeToUse})
+        `);
+        
+        // Logs detalhados para debugging
+        console.log("Resultado da busca de referenciador:", 
+          referrerResult && referrerResult.rows ? `Linhas: ${referrerResult.rows.length}` : "Sem resultados");
+        
+        // Verificar se encontrou o referenciador
+        if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
+          // Código encontrado, usar o telefone deste usuário como referenciador
+          const referrerPhoneNumber = String(referrerResult.rows[0].phone_number);
+          console.log(`Código encontrado, pertence ao usuário com telefone ${referrerPhoneNumber}`);
           
-          // Buscar o administrador do sistema
-          const adminResult = await db.execute(sql`
-            SELECT phone_number, referral_code FROM users 
-            WHERE is_admin = true 
-            LIMIT 1
-          `);
-          
-          if (adminResult && adminResult.rows && adminResult.rows.length > 0) {
-            // Encontramos o admin, usar o telefone dele como referenciador
-            const adminPhoneNumber = String(adminResult.rows[0].phone_number);
-            console.log(`Admin encontrado, usando número ${adminPhoneNumber} como referenciador`);
-            
-            // IMPORTANTE: Armazenar o número de telefone do admin para ser usado no campo referred_by
-            req.body.referrerPhoneNumber = adminPhoneNumber;
-            
-            // MANTER o código original para debugging e registro
-            console.log(`Código original mantido: ${originalReferralCode}`);
-          } else {
-            console.log("Nenhum admin encontrado no sistema!");
-            return res.status(400).json({ 
-              message: "Código de administrador fornecido, mas nenhum administrador encontrado no sistema."
-            });
-          }
+          // Armazenar o telefone do referenciador
+          req.body.referrerPhoneNumber = referrerPhoneNumber;
         } else {
-          // Verificar se o código fornecido existe no banco de dados
-          console.log(`Verificando se o código ${referralCodeToUse} existe...`);
-          
-          const referrerResult = await db.execute(sql`
-            SELECT phone_number, referral_code FROM users 
-            WHERE LOWER(referral_code) = LOWER(${referralCodeToUse})
-          `);
-          
-          if (referrerResult && referrerResult.rows && referrerResult.rows.length > 0) {
-            // Código encontrado, usar o telefone deste usuário como referenciador
-            const referrerPhoneNumber = String(referrerResult.rows[0].phone_number);
-            console.log(`Código encontrado, pertence ao usuário com telefone ${referrerPhoneNumber}`);
+          // FALLBACK: Se não for encontrado, tentar identificar "Admin01" manualmente
+          if (referralCodeToUse.toUpperCase() === 'ADMIN01') {
+            console.log("Palavra-chave ADMIN01 detectada, buscando admin...");
             
-            // Armazenar o telefone do referenciador
-            req.body.referrerPhoneNumber = referrerPhoneNumber;
-          } else {
-            // Código não encontrado, tentar usar admin como fallback
-            console.log("Código não encontrado, usando admin como fallback");
-            
-            const adminFallback = await db.execute(sql`
-              SELECT phone_number, referral_code FROM users 
+            // Buscar admin diretamente por flag is_admin
+            const adminResult = await db.execute(sql`
+              SELECT id, phone_number FROM users 
               WHERE is_admin = true 
               LIMIT 1
             `);
             
-            if (adminFallback && adminFallback.rows && adminFallback.rows.length > 0) {
-              const adminPhoneNumber = String(adminFallback.rows[0].phone_number);
-              console.log(`Usando admin (${adminPhoneNumber}) como referência padrão`);
-              
-              // Armazenar o telefone do admin como referenciador
+            if (adminResult && adminResult.rows && adminResult.rows.length > 0) {
+              const adminPhoneNumber = String(adminResult.rows[0].phone_number);
+              console.log(`Admin encontrado, usando número ${adminPhoneNumber}`);
               req.body.referrerPhoneNumber = adminPhoneNumber;
             } else {
-              console.log("Nenhum admin encontrado. Continuando sem referência.");
-              req.body.referrerPhoneNumber = null;
+              // Se não encontrou nem com Admin01, retornar erro
+              return res.status(400).json({ 
+                message: "Código de convite inválido. Admin não encontrado no sistema."
+              });
             }
+          } else {
+            // Código não encontrado e não é Admin01
+            return res.status(400).json({ 
+              message: "Código de convite inválido. Por favor, verifique e tente novamente."
+            });
           }
         }
       } catch (error) {
