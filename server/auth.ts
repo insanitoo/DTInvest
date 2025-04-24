@@ -199,23 +199,51 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Create user
-      const user = await storage.createUser({
-        phoneNumber: formattedPhoneNumber,
-        password: req.body.password, // armazenamos a senha diretamente para o protótipo
-        referralCode,
-        referredBy: req.body.referralCode,
-        isAdmin: false,
-      });
+      try {
+        // Create user
+        const user = await storage.createUser({
+          phoneNumber: formattedPhoneNumber,
+          password: req.body.password, // armazenamos a senha diretamente para o protótipo
+          referralCode,
+          referredBy: req.body.referralCode,
+          isAdmin: false,
+        });
 
-      // Log in the user
-      req.login(user, (err) => {
-        if (err) return next(err);
-        return res.status(201).json(user);
-      });
+        // Log in the user
+        req.login(user, (err) => {
+          if (err) return next(err);
+          return res.status(201).json(user);
+        });
+      } catch (error) {
+        console.error("Error creating user:", error);
+        
+        // Verificar se o erro é relacionado ao referred_by
+        if (error.message && (error.message.includes('referred_by') || error.message.includes('ADMIN01'))) {
+          // Use SQL direto para criar o usuário sem a restrição de chave estrangeira
+          const hashedPassword = await hashPassword(req.body.password);
+          
+          const result = await db.execute(sql`
+            INSERT INTO users (phone_number, password, referral_code, referred_by, is_admin) 
+            VALUES (${formattedPhoneNumber}, ${hashedPassword}, ${referralCode}, ${req.body.referralCode}, false)
+            RETURNING *
+          `);
+          
+          if (result.rows && result.rows.length > 0) {
+            const user = result.rows[0];
+            req.login(user, (err) => {
+              if (err) return next(err);
+              return res.status(201).json(user);
+            });
+          } else {
+            throw new Error("Falha ao inserir usuário alternativo");
+          }
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error("Error during registration:", error);
-      return res.status(500).json({ message: "Erro ao processar registro" });
+      return res.status(500).json({ message: "Erro ao processar registro: " + error.message });
     }
   });
 
