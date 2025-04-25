@@ -73,6 +73,7 @@ export interface IStorage {
   // Compras
   getUserPurchases(userId: number): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
+  updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase>;
 
   // Links Sociais
   getSocialLinks(): Promise<SocialLink[]>;
@@ -929,6 +930,23 @@ export class MemStorage implements IStorage {
     }
 
     return newPurchase;
+  }
+  
+  async updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase> {
+    const purchase = this.purchases.get(purchaseId);
+    if (!purchase) {
+      throw new Error('Compra não encontrada');
+    }
+    
+    const updatedPurchase = {
+      ...purchase,
+      daysRemaining
+    };
+    
+    this.purchases.set(purchaseId, updatedPurchase);
+    console.log(`PURCHASE >>> Dias restantes atualizados para compra ${purchaseId}: ${daysRemaining}`);
+    
+    return updatedPurchase;
   }
 
   // Método para atualizar propriedades do usuário
