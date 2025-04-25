@@ -534,36 +534,7 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {/* Session Tester */}
-              <div className="mb-4 border border-dark-border rounded-md overflow-hidden">
-                <div className="bg-dark-tertiary py-2 px-3 border-b border-dark-border">
-                  <h4 className="text-xs font-medium">Diagnóstico de Sessão no Servidor</h4>
-                </div>
-                <div className="p-3 text-xs bg-dark-primary/50">
-                  <button 
-                    className="w-full bg-dark-tertiary hover:bg-dark-tertiary/70 text-gray-300 text-xs py-2 px-4 rounded flex items-center justify-center"
-                    onClick={testSession}
-                    disabled={debugLoading}
-                  >
-                    {debugLoading ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-2 animate-spin" />
-                        Verificando...
-                      </>
-                    ) : (
-                      'Verificar estado da sessão no servidor'
-                    )}
-                  </button>
-                  
-                  {sessionData && (
-                    <div className="mt-3 p-2 bg-dark-tertiary rounded overflow-auto max-h-60 text-xs font-mono">
-                      <pre className="text-gray-300 whitespace-pre-wrap break-all">
-                        {JSON.stringify(sessionData, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              </div>
+
 
               {/* Action Buttons */}
               <div className="mt-4 flex justify-between gap-2">
