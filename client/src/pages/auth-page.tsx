@@ -501,56 +501,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Debug Panel */}
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-gray-400">Diagnóstico de Sessão</h3>
-            <button
-              className="text-xs bg-dark-tertiary hover:bg-dark-tertiary/80 text-gray-400 py-1 px-2 rounded"
-              onClick={() => setShowDebug(!showDebug)}
-            >
-              {showDebug ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-            </button>
-          </div>
-
-          {showDebug && (
-            <>
-              {/* Token Manager */}
-              <div className="mb-4 border border-dark-border rounded-md overflow-hidden">
-                <div className="bg-dark-tertiary py-2 px-3 border-b border-dark-border">
-                  <h4 className="text-xs font-medium">Token Manager</h4>
-                </div>
-                <div className="p-3 text-xs font-mono bg-dark-primary/50">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-400">Status:</span>
-                    <span className={`${user ? 'text-green-500' : 'text-gray-500'}`}>
-                      {user ? 'Válido' : 'Ausente'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-400">Armazenado em:</span>
-                    <span className="text-gray-300">localStorage</span>
-                  </div>
-                </div>
-              </div>
-
-
-
-              {/* Clear Data Button */}
-              <div className="mt-4 flex justify-end">
-                <button
-                  className="text-xs bg-red-900/50 hover:bg-red-900/80 text-red-300 py-1.5 px-3 rounded"
-                  onClick={() => {
-                    localStorage.removeItem(AUTH_USER_KEY);
-                    window.location.reload();
-                  }}
-                >
-                  Limpar dados e recarregar
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Área reservada para informações de suporte ou notícias */}
       </div>
     </div>
   );
