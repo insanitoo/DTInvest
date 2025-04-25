@@ -1180,9 +1180,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deposits
+  // API para verificação de sessão - TESTE DE AUTENTICAÇÃO
+  app.get("/api/test-session", (req, res) => {
+    res.json({
+      authenticated: req.isAuthenticated(),
+      sessionID: req.sessionID,
+      sessionExists: !!req.session,
+      user: req.user ? {
+        id: req.user.id, 
+        phoneNumber: req.user.phoneNumber,
+        isAdmin: req.user.isAdmin
+      } : null,
+      cookies: req.headers.cookie
+    });
+  });
+
+  // Rota modificada para depósitos com verificação de cookies alternativa
   app.post("/api/deposits", async (req, res, next) => {
+    // Log detalhado para diagnóstico
+    console.log("[DEPÓSITO] Recebida requisição de depósito:", {
+      method: req.method,
+      url: req.originalUrl,
+      isAuthenticated: req.isAuthenticated(),
+      hasUser: !!req.user,
+      userId: req.user?.id,
+      sessionID: req.sessionID,
+      cookies: req.headers.cookie,
+      body: {
+        amount: req.body.amount,
+        bankName: req.body.bankName,
+        bankId: req.body.bankId
+      }
+    });
+    
     if (!req.isAuthenticated()) {
-      // Log de diagnóstico para entender o problema de sessão
       console.log("[DEPÓSITO] ERRO: Usuário não autenticado. Detalhes da sessão:", {
         sessionID: req.sessionID,
         cookieHeader: req.headers.cookie,

@@ -91,14 +91,42 @@ function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginData): Promise<User> => {
       try {
         setIsLoading(true);
+        console.log("Attempting login with phone number:", credentials.phoneNumber);
+        console.log("Enviando requisição POST para /api/login, corpo:", JSON.stringify(credentials));
         
-        // First login call to get the session cookie
-        const res = await apiRequest("POST", "/api/login", credentials);
+        // Requisição robusta com todas as opções para garantir que cookies sejam gerenciados
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          credentials: "include",  // Crucial para receber os cookies
+          body: JSON.stringify(credentials)
+        });
+        
+        if (!res.ok) {
+          const error = await res.text();
+          throw new Error(`Login failed: ${res.status} - ${error}`);
+        }
+        
         const userData = await res.json();
-
-        // Atualiza o estado com o usuário
+        console.log("Login successful, setting status to authenticated");
+        
+        // Armazenar em localStorage e atualizar estado
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
         setUser(userData);
+        
+        // Verificar se a sessão foi estabelecida corretamente chamando endpoint de teste
+        try {
+          const sessionTest = await fetch("/api/test-session", {
+            credentials: "include"
+          });
+          const sessionData = await sessionTest.json();
+          console.log("Session validation:", sessionData);
+        } catch (error) {
+          console.warn("Error validating session:", error);
+        }
         
         return userData;
       } finally {
