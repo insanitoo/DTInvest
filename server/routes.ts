@@ -697,7 +697,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Garantindo que o usuário está marcado como tendo produtos...`);
       await storage.updateUser(userId, { hasProduct: true });
 
-      // PROCESSAMENTO DE COMISSÕES DOS REFERRALS
+      /**
+       * SISTEMA DE REFERIDOS MELHORADO 2.0
+       * - Processa comissões para todos os 3 níveis de referência
+       * - Usa um sistema robusto de identificação de referências por ID, telefone ou código
+       * - Taxas de comissão configuráveis para cada nível: 25%, 5%, 3% (padrão)
+       */
       console.log(`Processando comissões de referral...`);
 
       // Obter informações de configuração das comissões
@@ -711,82 +716,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Taxas de comissão: Nível 1: ${level1CommissionRate * 100}%, Nível 2: ${level2CommissionRate * 100}%, Nível 3: ${level3CommissionRate * 100}%`);
 
-      // Verificar se o usuário foi indicado por alguém (nível 1)
       if (user.referredBy) {
-        // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
-        const level1Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === user.referredBy);
-
-        if (level1Referrer) {
-          const level1Commission = product.price * level1CommissionRate;
-          console.log(`Comissão Nível 1: ${level1Commission} para ${level1Referrer.phoneNumber}`);
-
-          // Criar transação de comissão
-          await storage.createTransaction({
-            userId: level1Referrer.id,
-            type: "commission",
-            amount: level1Commission,
-            bankAccount: null,
-            bankName: null,
-            receipt: null,
-            transactionId: null,
-            status: 'completed' // Concluído automaticamente
-          });
-
-          // Atualizar o saldo do referenciador nível 1
-          await storage.updateUserBalance(level1Referrer.id, level1Referrer.balance + level1Commission);
-
-          // Verificar nível 2 (quem indicou o referenciador nível 1)
-          if (level1Referrer.referredBy) {
-            // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
-            const level2Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === level1Referrer.referredBy);
-
-            if (level2Referrer) {
-              const level2Commission = product.price * level2CommissionRate;
-              console.log(`Comissão Nível 2: ${level2Commission} para ${level2Referrer.phoneNumber}`);
-
-              // Criar transação de comissão nível 2
-              await storage.createTransaction({
-                userId: level2Referrer.id,
-                type: "commission",
-                amount: level2Commission,
-                bankAccount: null,
-                bankName: null,
-                receipt: null,
-                transactionId: null,
-                status: 'completed' // Concluído automaticamente
-              });
-
-              // Atualizar o saldo do referenciador nível 2
-              await storage.updateUserBalance(level2Referrer.id, level2Referrer.balance + level2Commission);
-
-              // Verificar nível 3 (quem indicou o referenciador nível 2)
-              if (level2Referrer.referredBy) {
-                // ATUALIZAÇÃO: O campo referredBy agora armazena o número de telefone, não o código de referral
-                const level3Referrer = (await storage.getAllUsers()).find(u => u.phoneNumber === level2Referrer.referredBy);
-
-                if (level3Referrer) {
-                  const level3Commission = product.price * level3CommissionRate;
-                  console.log(`Comissão Nível 3: ${level3Commission} para ${level3Referrer.phoneNumber}`);
-
-                  // Criar transação de comissão nível 3
-                  await storage.createTransaction({
-                    userId: level3Referrer.id,
-                    type: "commission",
-                    amount: level3Commission,
-                    bankAccount: null,
-                    bankName: null,
-                    receipt: null,
-                    transactionId: null,
-                    status: 'completed' // Concluído automaticamente
-                  });
-
-                  // Atualizar o saldo do referenciador nível 3
-                  await storage.updateUserBalance(level3Referrer.id, level3Referrer.balance + level3Commission);
-                }
-              }
+        try {
+          console.log(`Processando comissões para compra do produto ID:${product.id} por usuário ID:${user.id}`);
+          
+          // Obter todos os usuários uma única vez para evitar várias consultas ao banco
+          const allUsers = await storage.getAllUsers();
+          
+          // NÍVEL 1 - Referenciador direto
+          let level1Referrer = null;
+          const referredBy = String(user.referredBy || '');
+          
+          // Verificar primeiro se referredBy é um ID de usuário (número pequeno)
+          if (/^\d+$/.test(referredBy) && referredBy.length < 5) {
+            level1Referrer = allUsers.find(u => u.id === parseInt(referredBy));
+            if (level1Referrer) {
+              console.log(`Level 1: Encontrado referenciador por ID: ${level1Referrer.phoneNumber}`);
+            }
+          } 
+          
+          // Se não encontrou por ID, verificar se é um número de telefone
+          if (!level1Referrer && referredBy.length === 9 && /^\d+$/.test(referredBy)) {
+            level1Referrer = allUsers.find(u => u.phoneNumber === referredBy);
+            if (level1Referrer) {
+              console.log(`Level 1: Encontrado referenciador por telefone: ${level1Referrer.phoneNumber}`);
+            }
+          } 
+          
+          // Por fim, tentar por código de referral
+          if (!level1Referrer) {
+            level1Referrer = allUsers.find(u => u.referralCode === referredBy);
+            if (level1Referrer) {
+              console.log(`Level 1: Encontrado referenciador por código: ${level1Referrer.referralCode}`);
             }
           }
+          
+          // ===== NÍVEL 1 =====
+          if (level1Referrer) {
+            const level1Commission = product.price * level1CommissionRate;
+            console.log(`Comissão Nível 1: ${level1Commission} KZ para ${level1Referrer.phoneNumber}`);
+
+            // Criar transação de comissão com ID único
+            await storage.createTransaction({
+              userId: level1Referrer.id,
+              type: "commission",
+              amount: level1Commission,
+              bankAccount: null,
+              bankName: null,
+              receipt: null,
+              transactionId: `COM1-${Date.now().toString(36).toUpperCase()}`,
+              status: 'completed'
+            });
+
+            // Atualizar o saldo do referenciador nível 1
+            await storage.updateUserBalance(level1Referrer.id, level1Referrer.balance + level1Commission);
+            console.log(`✅ Comissão de nível 1 creditada com sucesso: ${level1Commission} KZ`);
+
+            // ===== NÍVEL 2 =====
+            if (level1Referrer.referredBy) {
+              let level2Referrer = null;
+              const level1ReferredBy = String(level1Referrer.referredBy || '');
+              
+              // Mesma lógica para encontrar referenciador de nível 2
+              if (/^\d+$/.test(level1ReferredBy) && level1ReferredBy.length < 5) {
+                level2Referrer = allUsers.find(u => u.id === parseInt(level1ReferredBy));
+                if (level2Referrer) {
+                  console.log(`Level 2: Encontrado referenciador por ID: ${level2Referrer.phoneNumber}`);
+                }
+              }
+              
+              if (!level2Referrer && level1ReferredBy.length === 9 && /^\d+$/.test(level1ReferredBy)) {
+                level2Referrer = allUsers.find(u => u.phoneNumber === level1ReferredBy);
+                if (level2Referrer) {
+                  console.log(`Level 2: Encontrado referenciador por telefone: ${level2Referrer.phoneNumber}`);
+                }
+              }
+              
+              if (!level2Referrer) {
+                level2Referrer = allUsers.find(u => u.referralCode === level1ReferredBy);
+                if (level2Referrer) {
+                  console.log(`Level 2: Encontrado referenciador por código: ${level2Referrer.referralCode}`);
+                }
+              }
+
+              if (level2Referrer) {
+                const level2Commission = product.price * level2CommissionRate;
+                console.log(`Comissão Nível 2: ${level2Commission} KZ para ${level2Referrer.phoneNumber}`);
+
+                // Criar transação de comissão nível 2 com ID único
+                await storage.createTransaction({
+                  userId: level2Referrer.id,
+                  type: "commission",
+                  amount: level2Commission,
+                  bankAccount: null,
+                  bankName: null,
+                  receipt: null,
+                  transactionId: `COM2-${Date.now().toString(36).toUpperCase()}`,
+                  status: 'completed'
+                });
+
+                // Atualizar o saldo do referenciador nível 2
+                await storage.updateUserBalance(level2Referrer.id, level2Referrer.balance + level2Commission);
+                console.log(`✅ Comissão de nível 2 creditada com sucesso: ${level2Commission} KZ`);
+
+                // ===== NÍVEL 3 =====
+                if (level2Referrer.referredBy) {
+                  let level3Referrer = null;
+                  const level2ReferredBy = String(level2Referrer.referredBy || '');
+                  
+                  // Mesma lógica para encontrar referenciador de nível 3
+                  if (/^\d+$/.test(level2ReferredBy) && level2ReferredBy.length < 5) {
+                    level3Referrer = allUsers.find(u => u.id === parseInt(level2ReferredBy));
+                    if (level3Referrer) {
+                      console.log(`Level 3: Encontrado referenciador por ID: ${level3Referrer.phoneNumber}`);
+                    }
+                  }
+                  
+                  if (!level3Referrer && level2ReferredBy.length === 9 && /^\d+$/.test(level2ReferredBy)) {
+                    level3Referrer = allUsers.find(u => u.phoneNumber === level2ReferredBy);
+                    if (level3Referrer) {
+                      console.log(`Level 3: Encontrado referenciador por telefone: ${level3Referrer.phoneNumber}`);
+                    }
+                  }
+                  
+                  if (!level3Referrer) {
+                    level3Referrer = allUsers.find(u => u.referralCode === level2ReferredBy);
+                    if (level3Referrer) {
+                      console.log(`Level 3: Encontrado referenciador por código: ${level3Referrer.referralCode}`);
+                    }
+                  }
+
+                  if (level3Referrer) {
+                    const level3Commission = product.price * level3CommissionRate;
+                    console.log(`Comissão Nível 3: ${level3Commission} KZ para ${level3Referrer.phoneNumber}`);
+
+                    // Criar transação de comissão nível 3 com ID único
+                    await storage.createTransaction({
+                      userId: level3Referrer.id,
+                      type: "commission",
+                      amount: level3Commission,
+                      bankAccount: null,
+                      bankName: null,
+                      receipt: null,
+                      transactionId: `COM3-${Date.now().toString(36).toUpperCase()}`,
+                      status: 'completed'
+                    });
+
+                    // Atualizar o saldo do referenciador nível 3
+                    await storage.updateUserBalance(level3Referrer.id, level3Referrer.balance + level3Commission);
+                    console.log(`✅ Comissão de nível 3 creditada com sucesso: ${level3Commission} KZ`);
+                  } else {
+                    console.log(`Nenhum referenciador de nível 3 encontrado para o valor '${level2ReferredBy}'`);
+                  }
+                } else {
+                  console.log(`Referenciador de nível 2 não tem referência (referredBy é nulo ou vazio)`);
+                }
+              } else {
+                console.log(`Nenhum referenciador de nível 2 encontrado para o valor '${level1ReferredBy}'`);
+              }
+            } else {
+              console.log(`Referenciador de nível 1 não tem referência (referredBy é nulo ou vazio)`);
+            }
+          } else {
+            console.log(`Nenhum referenciador de nível 1 encontrado para o valor '${referredBy}'`);
+          }
+        } catch (error) {
+          console.error("❌ Erro ao processar comissões:", error);
+          // Não interrompemos o fluxo se a comissão falhar
         }
+      } else {
+        console.log(`Usuário não tem referredBy definido, pulando processamento de comissões`);
       }
 
       console.log(`===== COMPRA DE PRODUTO CONCLUÍDA COM SUCESSO =====`);
@@ -1012,28 +1111,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasProduct: user.hasProduct || false
       }));
 
-      // DECISÃO: Qual fonte de dados usar?
-      // Se a view funcionou, usar contagens da view (mais otimizada)
-      // Mas SEMPRE usar as listas de referidos do cálculo manual (mais confiável)
+      // DECISÃO CORRIGIDA: SEMPRE usar contagens do cálculo manual (mais confiável)
+      // A view SQL só serve para otimização do nível 1, não para níveis 2 e 3
       
       // Contar usuários ativos (que compraram produtos)
       const level1Active = level1Referrals.filter(u => u.hasProduct).length;
       const level2Active = level2Referrals.filter(u => u.hasProduct).length;
       const level3Active = level3Referrals.filter(u => u.hasProduct).length;
       
-      // Decidir quais contagens usar
-      const useViewCounts = viewQuerySuccessful && referralCounts;
+      // USAR OS DADOS DO CÁLCULO MANUAL SEMPRE PARA NÍVEIS 2 e 3
+      // Para nível 1, podemos usar a view se ela existir (para compatibilidade com produção)
+      const useViewForLevel1 = viewQuerySuccessful && referralCounts;
       
       // Resolver contagens finais
-      const level1Count = useViewCounts ? Number(referralCounts.level1_count) : level1Referrals.length;
-      const level2Count = useViewCounts ? Number(referralCounts.level2_count) : level2Referrals.length;
-      const level3Count = useViewCounts ? Number(referralCounts.level3_count) : level3Referrals.length;
+      const level1Count = useViewForLevel1 ? Number(referralCounts.level1_count) : level1Referrals.length;
+      const level2Count = level2Referrals.length; // SEMPRE usar cálculo manual aqui
+      const level3Count = level3Referrals.length; // SEMPRE usar cálculo manual aqui
       
-      const level1ActiveCount = useViewCounts ? Number(referralCounts.level1_active) : level1Active;
-      const level2ActiveCount = useViewCounts ? Number(referralCounts.level2_active) : level2Active;
-      const level3ActiveCount = useViewCounts ? Number(referralCounts.level3_active) : level3Active;
+      const level1ActiveCount = useViewForLevel1 ? Number(referralCounts.level1_active) : level1Active;
+      const level2ActiveCount = level2Active; // SEMPRE usar cálculo manual aqui
+      const level3ActiveCount = level3Active; // SEMPRE usar cálculo manual aqui
       
-      console.log(`Dados finais de referidos (${useViewCounts ? 'contagem via view' : 'contagem via cálculo manual'}):
+      console.log(`Dados finais de referidos (${useViewForLevel1 ? 'contagem via view para nível 1' : 'contagem manual'}):
         Level 1: ${level1Count} (${level1ActiveCount} ativos) - ${level1Referrals.length} na lista
         Level 2: ${level2Count} (${level2ActiveCount} ativos) - ${level2Referrals.length} na lista
         Level 3: ${level3Count} (${level3ActiveCount} ativos) - ${level3Referrals.length} na lista
@@ -1059,7 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           referrals: formattedLevel3,
           active: level3ActiveCount
         },
-        source: useViewCounts ? 'view' : 'manual'  // para debugging
+        source: useViewForLevel1 ? 'view' : 'manual'  // para debugging
       });
     } catch (error) {
       console.error("Erro ao processar referidos:", error);
@@ -1413,6 +1512,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactionId: `PURCH${Date.now().toString(36).toUpperCase()}`,
         status: 'completed' // Adicionando status que estava faltando
       });
+      
+      // Creditar a primeira renda diária imediatamente 
+      const dailyIncome = product.dailyIncome || 0;
+      if (dailyIncome > 0) {
+        // Calcular novo saldo com a renda diária
+        const updatedBalanceWithIncome = newBalance + dailyIncome;
+        
+        // Atualizar o saldo do usuário adicionando a renda diária
+        const userWithDailyIncome = await storage.updateUserBalance(userId, updatedBalanceWithIncome);
+        
+        // Registrar a transação de renda diária
+        const dailyIncomeTransaction = await storage.createTransaction({
+          userId,
+          type: "income",
+          amount: dailyIncome,
+          bankAccount: null,
+          bankName: null,
+          receipt: null,
+          transactionId: `DINC${Date.now().toString(36).toUpperCase()}`,
+          status: 'completed'
+        });
+      }
+      
+      // Atualizar status de usuário para indicar que possui produto
+      await storage.updateUser(userId, { hasProduct: true });
+      
+      // PROCESSAMENTO DE COMISSÕES PARA REFERIDOS (TODOS OS 3 NÍVEIS)
+      if (user.referredBy) {
+        try {
+          console.log(`Processando comissões para compra do produto ID:${product.id} por usuário ID:${user.id}`);
+          
+          // Obter configurações de comissão
+          const level1CommissionSetting = await storage.getSetting('level1_commission');
+          const level2CommissionSetting = await storage.getSetting('level2_commission');
+          const level3CommissionSetting = await storage.getSetting('level3_commission');
+
+          const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
+          const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
+          const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+          
+          // Obter todos os usuários uma única vez 
+          const allUsers = await storage.getAllUsers();
+          
+          // NÍVEL 1 - Referenciador direto
+          let level1Referrer = null;
+          const referredBy = String(user.referredBy || '');
+          
+          // Tentar encontrar referenciador por ID, telefone ou código
+          if (/^\d+$/.test(referredBy) && referredBy.length < 5) {
+            level1Referrer = allUsers.find(u => u.id === parseInt(referredBy));
+          }
+          
+          if (!level1Referrer && referredBy.length === 9 && /^\d+$/.test(referredBy)) {
+            level1Referrer = allUsers.find(u => u.phoneNumber === referredBy);
+          }
+          
+          if (!level1Referrer) {
+            level1Referrer = allUsers.find(u => u.referralCode === referredBy);
+          }
+          
+          // PROCESSAR COMISSÃO NÍVEL 1
+          if (level1Referrer) {
+            const level1Commission = product.price * level1CommissionRate;
+            
+            // Atualizar saldo do referenciador nível 1
+            await storage.updateUserBalance(level1Referrer.id, level1Referrer.balance + level1Commission);
+            
+            // Registrar transação de comissão
+            await storage.createTransaction({
+              userId: level1Referrer.id,
+              type: "commission",
+              amount: level1Commission,
+              bankAccount: null,
+              bankName: null,
+              receipt: null,
+              transactionId: `COM1-${Date.now().toString(36).toUpperCase()}`,
+              status: 'completed'
+            });
+            
+            // PROCESSAR COMISSÃO NÍVEL 2
+            if (level1Referrer.referredBy) {
+              let level2Referrer = null;
+              const level1ReferredBy = String(level1Referrer.referredBy || '');
+              
+              // Tentar encontrar referenciador nível 2
+              if (/^\d+$/.test(level1ReferredBy) && level1ReferredBy.length < 5) {
+                level2Referrer = allUsers.find(u => u.id === parseInt(level1ReferredBy));
+              }
+              
+              if (!level2Referrer && level1ReferredBy.length === 9 && /^\d+$/.test(level1ReferredBy)) {
+                level2Referrer = allUsers.find(u => u.phoneNumber === level1ReferredBy);
+              }
+              
+              if (!level2Referrer) {
+                level2Referrer = allUsers.find(u => u.referralCode === level1ReferredBy);
+              }
+              
+              if (level2Referrer) {
+                const level2Commission = product.price * level2CommissionRate;
+                
+                // Atualizar saldo do referenciador nível 2
+                await storage.updateUserBalance(level2Referrer.id, level2Referrer.balance + level2Commission);
+                
+                // Registrar transação de comissão
+                await storage.createTransaction({
+                  userId: level2Referrer.id,
+                  type: "commission",
+                  amount: level2Commission,
+                  bankAccount: null,
+                  bankName: null,
+                  receipt: null,
+                  transactionId: `COM2-${Date.now().toString(36).toUpperCase()}`,
+                  status: 'completed'
+                });
+                
+                // PROCESSAR COMISSÃO NÍVEL 3
+                if (level2Referrer.referredBy) {
+                  let level3Referrer = null;
+                  const level2ReferredBy = String(level2Referrer.referredBy || '');
+                  
+                  // Tentar encontrar referenciador nível 3
+                  if (/^\d+$/.test(level2ReferredBy) && level2ReferredBy.length < 5) {
+                    level3Referrer = allUsers.find(u => u.id === parseInt(level2ReferredBy));
+                  }
+                  
+                  if (!level3Referrer && level2ReferredBy.length === 9 && /^\d+$/.test(level2ReferredBy)) {
+                    level3Referrer = allUsers.find(u => u.phoneNumber === level2ReferredBy);
+                  }
+                  
+                  if (!level3Referrer) {
+                    level3Referrer = allUsers.find(u => u.referralCode === level2ReferredBy);
+                  }
+                  
+                  if (level3Referrer) {
+                    const level3Commission = product.price * level3CommissionRate;
+                    
+                    // Atualizar saldo do referenciador nível 3
+                    await storage.updateUserBalance(level3Referrer.id, level3Referrer.balance + level3Commission);
+                    
+                    // Registrar transação de comissão
+                    await storage.createTransaction({
+                      userId: level3Referrer.id,
+                      type: "commission",
+                      amount: level3Commission,
+                      bankAccount: null,
+                      bankName: null,
+                      receipt: null,
+                      transactionId: `COM3-${Date.now().toString(36).toUpperCase()}`,
+                      status: 'completed'
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao processar comissões:", error);
+          // Não interrompemos o fluxo se a comissão falhar
+        }
+      }
 
       res.status(201).json(purchase);
     } catch (error) {
