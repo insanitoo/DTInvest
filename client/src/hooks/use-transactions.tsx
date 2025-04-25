@@ -326,7 +326,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   // === FUNÇÕES DE INTERFACE ===
 
-  // Criar depósito (versão robusta com controle total sobre a requisição)
+  // Criar depósito - Versão robusta atualizada que usa o apiRequest para garantir consistência
   const createDeposit = async (data: {
     amount: number,
     bankId?: string | number,
@@ -354,83 +354,49 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       
       console.log('[DEPÓSITO] Dados adaptados que serão enviados:', depositData);
       
-      // Usar fetch diretamente em vez de mutation para ter controle total
-      console.log('[DEPÓSITO] Enviando requisição direta ao servidor...');
+      // Criar o depósito usando createDepositMutation para garantir consistência
+      const result = await createDepositMutation.mutateAsync(depositData);
       
-      // Fazer requisição direta, sem passar pelo apiRequest
-      const response = await fetch('/api/deposits', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        credentials: 'include', // CRUCIAL para manter sessão
-        body: JSON.stringify(depositData)
-      });
-      
-      console.log('[DEPÓSITO] Status da resposta:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        let errorMessage = '';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || 'Erro desconhecido';
-        } catch (_) {
-          errorMessage = await response.text() || `Erro ${response.status}`;
-        }
-        
-        console.error('[DEPÓSITO] Erro na resposta:', errorMessage);
-        
-        // Tratamento especial para erro de sessão
-        if (response.status === 401) {
-          toast({
-            title: 'Sessão expirada',
-            description: 'Sua sessão expirou. Por favor, faça login novamente.',
-            variant: 'destructive',
-          });
-          return { 
-            success: false, 
-            message: 'Sessão expirada. Faça login novamente.'
-          };
-        }
-        
-        toast({
-          title: 'Erro ao criar depósito',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-        
-        return { success: false, message: errorMessage };
-      }
-      
-      const result = await response.json();
-      console.log('[DEPÓSITO] Depósito criado com sucesso:', result);
+      console.log('[DEPÓSITO] Resultado da mutation:', result);
       
       // Atualizar dados locais após sucesso
-      await loadDeposits();
-      await loadTransactions();
-      
-      // Notificação de sucesso
-      toast({
-        title: 'Depósito solicitado',
-        description: `Seu depósito foi registrado com sucesso! ID: ${result.transactionId}`,
-        variant: 'default',
-      });
-      
-      return { 
-        success: true, 
-        transactionId: result.transactionId,
-        message: result.message
-      };
+      if (result.success) {
+        await loadDeposits();
+        await loadTransactions();
+        
+        return { 
+          success: true, 
+          transactionId: result.transactionId,
+          message: result.message
+        };
+      } else {
+        return { 
+          success: false, 
+          message: result.message || "Falha ao processar depósito"
+        };
+      }
     } catch (error) {
       console.error('[DEPÓSITO] Erro inesperado ao criar depósito:', error);
+      
+      // Tratamento especial para erro de sessão
+      if (error instanceof Error && error.message.includes('401')) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Por favor, faça login novamente.',
+          variant: 'destructive',
+        });
+        return { 
+          success: false, 
+          message: 'Sessão expirada. Faça login novamente.'
+        };
+      }
+      
       toast({
         title: 'Erro ao processar depósito',
         description: error instanceof Error ? error.message : 'Erro inesperado',
         variant: 'destructive',
       });
-      return { success: false, message: 'Erro inesperado ao processar seu depósito' };
+      return { success: false, message: error instanceof Error ? error.message : 'Erro inesperado ao processar seu depósito' };
     }
   };
 
