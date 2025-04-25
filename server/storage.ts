@@ -914,6 +914,18 @@ export class MemStorage implements IStorage {
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
     const id = this.currentPurchaseId++;
     const now = new Date();
+    
+    // Garantir que daysRemaining esteja presente no objeto, caso não esteja
+    if (purchase.daysRemaining === undefined) {
+      // Se não for fornecido, buscar o número de dias do ciclo do produto
+      const product = await this.getProduct(purchase.productId);
+      if (product) {
+        purchase = {
+          ...purchase,
+          daysRemaining: product.cycleDays
+        };
+      }
+    }
 
     const newPurchase: Purchase = {
       id,
@@ -1793,10 +1805,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
+    // Garantir que daysRemaining esteja presente no objeto, caso não esteja
+    if (purchase.daysRemaining === undefined) {
+      // Se não for fornecido, buscar o número de dias do ciclo do produto
+      const product = await this.getProduct(purchase.productId);
+      if (product) {
+        purchase = {
+          ...purchase,
+          daysRemaining: product.cycleDays
+        };
+      }
+    }
+    
     const [newPurchase] = await db
       .insert(purchases)
       .values(purchase)
       .returning();
+    
+    // Atualizar o usuário para indicar que ele possui um produto
+    await this.updateUser(purchase.userId, { hasProduct: true });
 
     return newPurchase;
   }
