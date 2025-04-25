@@ -53,27 +53,7 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
   
-  // Estados para diagnóstico de sessão  
-  const [showDebug, setShowDebug] = useState(false);
-  const [sessionData, setSessionData] = useState<any>(null);
-  const [debugLoading, setDebugLoading] = useState(false);
-  
-  // Função para testar o estado da sessão
-  const testSession = async () => {
-    try {
-      setDebugLoading(true);
-      const response = await fetch('/api/test-session', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      setSessionData(data);
-    } catch (error) {
-      console.error('Erro ao testar sessão:', error);
-      setSessionData({ error: String(error) });
-    } finally {
-      setDebugLoading(false);
-    }
-  };
+  // Estado de sessão apenas para controle interno
 
   // Prevenir login automático quando houver código de convite
   useEffect(() => {
