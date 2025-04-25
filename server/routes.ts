@@ -1182,11 +1182,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deposits
   app.post("/api/deposits", async (req, res, next) => {
     if (!req.isAuthenticated()) {
+      // Log de diagnóstico para entender o problema de sessão
+      console.log("[DEPÓSITO] ERRO: Usuário não autenticado. Detalhes da sessão:", {
+        sessionID: req.sessionID,
+        cookieHeader: req.headers.cookie,
+        sessionExists: !!req.session
+      });
+      
       return res.status(401).json({ 
         message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
       });
     }
 
+    console.log("[DEPÓSITO] Usuário autenticado:", req.user.id);
     const { amount, bankId, receipt } = req.body;
 
     try {

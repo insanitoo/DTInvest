@@ -62,6 +62,7 @@ export function setupAuth(app: Express) {
     secret: process.env.SESSION_SECRET || 'sp_global_session_secret',
     resave: true,
     saveUninitialized: true,
+    name: 'dtinvest_sid',
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days para persistência longa
@@ -82,8 +83,30 @@ export function setupAuth(app: Express) {
     console.log(`[SESSÃO] Autenticado: ${req.isAuthenticated()} | URL: ${req.url} | Método: ${req.method}`);
     if (req.isAuthenticated() && req.user) {
       console.log(`[SESSÃO] Usuário na sessão: ID=${typeof req.user.id === 'undefined' ? 'UNDEFINED' : req.user.id}, Tipo=${typeof req.user}`);
+      
+      // Diagnóstico: Imprimir a sessão completa para depuração
+      if (req.method === 'POST' || req.url === '/api/user') {
+        console.log(`[SESSÃO] Detalhes da sessão: ID=${req.sessionID}`);
+        console.log(`[SESSÃO] Cookie da sessão:`, req.session.cookie);
+      }
     }
     next();
+  });
+  
+  // Rota específica para diagnosticar problemas com sessão
+  app.get('/api/session-debug', (req, res) => {
+    res.json({
+      authenticated: req.isAuthenticated(),
+      sessionID: req.sessionID,
+      sessionExists: !!req.session,
+      user: req.user ? { 
+        id: req.user.id,
+        phoneNumber: req.user.phoneNumber,
+        isAdmin: req.user.isAdmin,
+        // Outros campos que não sejam sensíveis
+      } : null,
+      cookies: req.headers.cookie
+    });
   });
 
   // Configure Passport Local Strategy
@@ -520,15 +543,42 @@ export function setupAuth(app: Express) {
         req.login(userWithBankInfo, (loginErr) => {
           if (loginErr) return next(loginErr);
           
-          // IMPORTANTE: Retornar o usuário com as informações bancárias
-          return res.status(200).json(userWithBankInfo);
+          // Forçar salvamento da sessão para garantir persistência
+          req.session.save(saveErr => {
+            if (saveErr) {
+              console.error('[LOGIN] Erro ao salvar sessão:', saveErr);
+              return next(saveErr);
+            }
+            
+            console.log('[LOGIN] Sessão salva com sucesso:', {
+              sessionID: req.sessionID,
+              userID: userWithBankInfo.id
+            });
+            
+            // IMPORTANTE: Retornar o usuário com as informações bancárias
+            return res.status(200).json(userWithBankInfo);
+          });
         });
       } catch (error) {
         console.error("Erro ao buscar dados bancários durante login:", error);
         // Se houver erro ao buscar os dados bancários, continuamos o login sem esses dados
         req.login(user, (loginErr) => {
           if (loginErr) return next(loginErr);
-          return res.status(200).json(user);
+          
+          // Mesmo para fallback, forçar salvamento da sessão
+          req.session.save(saveErr => {
+            if (saveErr) {
+              console.error('[LOGIN-FALLBACK] Erro ao salvar sessão:', saveErr);
+              return next(saveErr);
+            }
+            
+            console.log('[LOGIN-FALLBACK] Sessão salva com sucesso:', {
+              sessionID: req.sessionID,
+              userID: user.id
+            });
+            
+            return res.status(200).json(user);
+          });
         });
       }
     })(req, res, next);
@@ -540,7 +590,8 @@ export function setupAuth(app: Express) {
       if (err) return next(err);
       req.session.destroy((sessionErr) => {
         if (sessionErr) return next(sessionErr);
-        res.clearCookie('connect.sid');
+        // Usar o mesmo nome configurado nas opções de sessão
+        res.clearCookie('dtinvest_sid');
         return res.sendStatus(200);
       });
     });
