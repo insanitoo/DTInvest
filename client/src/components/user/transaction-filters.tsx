@@ -101,6 +101,10 @@ export function TransactionFilters({ onFilterChange, activeFilters }: Transactio
                   <RadioGroupItem value="commission" id="type-commission" />
                   <Label htmlFor="type-commission">Comissões</Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="income" id="type-income" />
+                  <Label htmlFor="type-income">Rendimentos</Label>
+                </div>
               </RadioGroup>
             </div>
 

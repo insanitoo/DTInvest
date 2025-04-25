@@ -78,7 +78,7 @@ export function TransactionsList({ limit, showFilters = true, title = "Históric
     if (status === 'processing') return 'text-blue-500';
     
     // Concluído
-    if (type === 'deposit' || type === 'commission') return 'text-green-500';
+    if (type === 'deposit' || type === 'commission' || type === 'income') return 'text-green-500';
     if (type === 'withdrawal' || type === 'purchase') return 'text-red-500';
     
     return 'text-white';
@@ -91,13 +91,14 @@ export function TransactionsList({ limit, showFilters = true, title = "Históric
       case 'withdrawal': return 'Saque';
       case 'purchase': return 'Compra';
       case 'commission': return 'Comissão';
+      case 'income': return 'Rendimento';
       default: return type;
     }
   };
 
   // Formatar valor da transação com o sinal correto
   const formatTransactionAmount = (transaction: Transaction) => {
-    const sign = transaction.type === 'deposit' || transaction.type === 'commission' ? '+' : '-';
+    const sign = transaction.type === 'deposit' || transaction.type === 'commission' || transaction.type === 'income' ? '+' : '-';
     return `${sign} ${formatCurrency(transaction.amount)}`;
   };
 
@@ -137,7 +138,9 @@ export function TransactionsList({ limit, showFilters = true, title = "Históric
                 </div>
                 <div className="text-right">
                   <p className={`font-bold ${
-                    transaction.type === 'deposit' || transaction.type === 'commission' ? 'text-green-500' : 'text-red-500'
+                    transaction.type === 'deposit' || transaction.type === 'commission' || transaction.type === 'income' 
+                      ? 'text-green-500' 
+                      : 'text-red-500'
                   }`}>
                     {formatTransactionAmount(transaction)}
                   </p>
