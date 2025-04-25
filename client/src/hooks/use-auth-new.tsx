@@ -48,7 +48,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       
       const res = await fetch('/api/user', { 
-        credentials: 'include',
+        credentials: 'include', // Certificar que os cookies sejam enviados
         headers: {
           'Cache-Control': 'no-cache, no-store',
           'Pragma': 'no-cache'

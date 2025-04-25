@@ -67,7 +67,7 @@ export function setupAuth(app: Express) {
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days para persistência longa
       secure: false, // desabilitado para desenvolvimento
-      httpOnly: true,
+      httpOnly: false, // permitir acesso via JavaScript para depuração
       path: '/',
       sameSite: 'lax'
     }
