@@ -1086,11 +1086,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obter as comissões reais do usuário a partir das transações
       const transactions = await storage.getTransactions(req.user.id);
       const commissionTransactions = transactions.filter(t => t.type === 'commission');
+      
+      // Identificar transações de comissão por nível com base no transactionId
+      const level1CommissionTxs = commissionTransactions.filter(tx => 
+        tx.transactionId && tx.transactionId.startsWith('COM1-'));
+      const level2CommissionTxs = commissionTransactions.filter(tx => 
+        tx.transactionId && tx.transactionId.startsWith('COM2-'));
+      const level3CommissionTxs = commissionTransactions.filter(tx => 
+        tx.transactionId && tx.transactionId.startsWith('COM3-'));
+        
+      // Se não houver transactionId ou prefixo específico, considerar todas como nível 1
+      const unspecifiedCommissionTxs = commissionTransactions.filter(tx => 
+        !tx.transactionId || 
+        !(tx.transactionId.startsWith('COM1-') || 
+          tx.transactionId.startsWith('COM2-') || 
+          tx.transactionId.startsWith('COM3-')));
 
-      // Calcular comissões reais
-      const level1Commission = commissionTransactions.reduce((total, tx) => total + tx.amount, 0);
-      const level2Commission = 0; // Usar 0 para nível 2 e 3, pois comissões estão todas no nível 1
-      const level3Commission = 0;
+      // Calcular comissões reais por nível
+      const level1Commission = level1CommissionTxs.reduce((total, tx) => total + tx.amount, 0) + 
+                            unspecifiedCommissionTxs.reduce((total, tx) => total + tx.amount, 0);
+      const level2Commission = level2CommissionTxs.reduce((total, tx) => total + tx.amount, 0);
+      const level3Commission = level3CommissionTxs.reduce((total, tx) => total + tx.amount, 0);
+      
+      console.log(`Comissões calculadas para usuário ${currentUser.id}:
+        Nível 1: ${level1Commission} KZ (${level1CommissionTxs.length + unspecifiedCommissionTxs.length} transações)
+        Nível 2: ${level2Commission} KZ (${level2CommissionTxs.length} transações)
+        Nível 3: ${level3Commission} KZ (${level3CommissionTxs.length} transações)
+      `);
 
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
