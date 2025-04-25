@@ -109,6 +109,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/login", credentials);
       const userData = await res.json();
 
+      // Verificar se as informações bancárias estão inclusas
+      console.log("Dados do usuário recebidos após login:", 
+        userData ? `ID: ${userData.id}, Tem bankInfo: ${!!userData.bankInfo}` : 'Nenhum dado recebido');
+
       // Immediately verify the session with explicit credentials option
       console.log("Forcing call to /api/user after successful login...");
       try {
@@ -123,6 +127,14 @@ function AuthProvider({ children }: { children: ReactNode }) {
         if (!userCheckRes.ok) {
           console.error("Session verification failed with status:", userCheckRes.status);
           throw new Error("A sessão não pôde ser estabelecida. Tente novamente.");
+        }
+        
+        // Se a verificação foi bem-sucedida, também buscar os dados atualizados
+        const latestUserData = await userCheckRes.json();
+        if (latestUserData && !userData.bankInfo && latestUserData.bankInfo) {
+          console.log("Usando dados bancários completos de /api/user");
+          // Se o login original não tinha dados bancários mas /api/user tem, usar os dados mais completos
+          return latestUserData;
         }
       } catch (error) {
         console.error("Error verifying session after login:", error);

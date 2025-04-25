@@ -1405,7 +1405,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountNumber, 
           userId 
         });
-        return res.status(200).json(bankInfo);
+        
+        // Atualizar a sessão do usuário com os dados bancários
+        if (req.user) {
+          req.user.bankInfo = bankInfo;
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: "Informações bancárias atualizadas com sucesso",
+          data: bankInfo
+        });
       } else {
         // Se não existe, cria novo
         const bankInfo = await storage.createBankInfo(userId, { 
@@ -1414,7 +1424,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountNumber, 
           userId 
         });
-        return res.status(201).json(bankInfo);
+        
+        // Atualizar a sessão do usuário com os dados bancários
+        if (req.user) {
+          req.user.bankInfo = bankInfo;
+        }
+        
+        return res.status(201).json({
+          success: true,
+          message: "Informações bancárias criadas com sucesso",
+          data: bankInfo
+        });
       }
     } catch (error) {
       next(error);

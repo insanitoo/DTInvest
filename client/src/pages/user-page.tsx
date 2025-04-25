@@ -74,12 +74,21 @@ export default function UserPage() {
 
   // Update form values when user data changes
   useEffect(() => {
+    console.log("Dados de usuário atualizados em user-page:", user?.id, "bankInfo:", user?.bankInfo ? 'presente' : 'ausente');
+    
     if (user?.bankInfo) {
+      console.log("Preenchendo formulário com informações bancárias:", 
+        user.bankInfo.bank, 
+        user.bankInfo.ownerName, 
+        user.bankInfo.accountNumber);
+        
       form.reset({
         bank: user.bankInfo.bank || '',
         ownerName: user.bankInfo.ownerName || '',
         accountNumber: user.bankInfo.accountNumber || '',
       });
+    } else {
+      console.log("Usuário não possui informações bancárias");
     }
   }, [user, form]);
 
