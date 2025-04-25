@@ -174,6 +174,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Gerar ID de referência único para o depósito
       const transactionId = `DEP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
+      // Verificar valor mínimo de depósito
+      const depositMinSetting = await storage.getSetting("deposit_min");
+      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 25000;
+
+      if (!req.body.amount || req.body.amount < minDeposit) {
+        return res.status(400).json({ 
+          success: false,
+          message: `Valor mínimo para depósito é KZ ${minDeposit}` 
+        });
+      }
+
       // Criar solicitação de depósito
       const depositRequest = await storage.createDepositRequest({
         userId: req.user.id,
@@ -1226,64 +1237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Deposits
-  app.post("/api/deposits", async (req, res, next) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ 
-        message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
-      });
-    }
-
-    const { amount, bankId, receipt } = req.body;
-
-    try {
-      // Obter o valor mínimo de depósito das configurações
-      const depositMinSetting = await storage.getSetting("deposit_min");
-      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 25000;
-
-      if (!amount || amount < minDeposit) {
-        return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
-      }
-
-      // Se foi fornecido um ID de banco, pegar informações dele
-      let bankName = null;
-      let bankAccount = null;
-      if (bankId) {
-        const bank = await storage.getBank(parseInt(bankId));
-        if (bank) {
-          bankName = bank.name;
-          // Aqui podemos adicionar a conta padrão para esse banco, se houver
-          const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
-          if (bankSetting) {
-            bankAccount = bankSetting.value;
-          }
-        }
-      }
-
-      console.log(`Criando nova transação de depósito: valor=${amount}, banco=${bankName || 'Não informado'}`);
-
-      const transaction = await storage.createTransaction({
-        userId: req.user.id,
-        type: "deposit",
-        amount,
-        bankName: bankName,
-        bankAccount: bankAccount,
-        receipt: receipt || null,
-        transactionId: `DEP${Date.now().toString(36).toUpperCase()}`,
-        status: 'pending' // Os depósitos começam como pendentes e precisam de aprovação
-      });
-
-      console.log(`Transação de depósito criada com sucesso: ${JSON.stringify(transaction)}`);
-
-      // Atualizar o usuário para indicar que ele já fez um depósito
-      await storage.updateUser(req.user.id, { hasDeposited: true });
-
-      res.status(201).json(transaction);
-    } catch (error) {
-      console.error("Erro ao criar depósito:", error);
-      next(error);
-    }
-  });
+  // A rota de depósitos agora está implementada na linha 166 (evitando duplicação)
 
   // Withdrawals
   app.post("/api/withdrawals", async (req, res, next) => {
