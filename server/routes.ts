@@ -1250,7 +1250,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar o usuário para indicar que ele já fez um depósito
       await storage.updateUser(req.user.id, { hasDeposited: true });
 
-      res.status(201).json(transaction);
+      // Enviar resposta mais completa para que o cliente tenha todas as informações necessárias
+      res.status(201).json({
+        success: true,
+        transactionId: transaction.transactionId,
+        message: "Depósito registrado com sucesso. Aguardando confirmação.",
+        ...transaction
+      });
     } catch (error) {
       console.error("Erro ao criar depósito:", error);
       next(error);

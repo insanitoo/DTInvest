@@ -327,9 +327,34 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   // === FUNÇÕES DE INTERFACE ===
 
   // Criar depósito
-  const createDeposit = async (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>): Promise<{ success: boolean; transactionId?: string }> => {
+  const createDeposit = async (data: {
+    amount: number,
+    bankId?: string | number,
+    bankName?: string | null,
+    receipt?: string | null
+  }): Promise<{ success: boolean; transactionId?: string }> => {
     try {
-      const result = await createDepositMutation.mutateAsync(data);
+      console.log('Dados recebidos na função createDeposit:', data);
+      
+      // Adaptação para garantir compatibilidade do objeto
+      const depositData: any = {
+        amount: data.amount,
+        receipt: data.receipt || null
+      };
+      
+      // Se temos bankId, usamos ele
+      if (data.bankId !== undefined) {
+        depositData.bankId = data.bankId;
+      }
+      
+      // Se temos bankName, usamos ele
+      if (data.bankName) {
+        depositData.bankName = data.bankName;
+      }
+      
+      console.log('Dados adaptados que serão enviados:', depositData);
+      
+      const result = await createDepositMutation.mutateAsync(depositData);
       return { 
         success: result.success, 
         transactionId: result.transactionId 
