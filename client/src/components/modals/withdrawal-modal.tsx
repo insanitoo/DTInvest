@@ -207,7 +207,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 <ul className="text-sm list-disc pl-4 space-y-1">
                   <li>Valor mínimo: KZ {MIN_WITHDRAWAL.toLocaleString('pt-AO')}</li>
                   <li>Valor máximo: KZ {MAX_WITHDRAWAL.toLocaleString('pt-AO')}</li>
-                  <li>Disponível 10h-15h (Angola), dias úteis</li>
+                  <li>Disponível 10h-16h (Angola), todos os dias</li>
                 </ul>
               </div>
             </div>
@@ -237,9 +237,8 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                     </>
                   ) : !user?.hasProduct ? "Compre um produto primeiro." :
                     !user?.hasDeposited ? "Faça um depósito primeiro." :
-                      !isWithinAngolaBusinessHours() ? "Apenas das 10h às 15h." :
-                        !isWeekday() ? "Apenas dias úteis." :
-                          "Indisponível no momento."}
+                      !isWithinAngolaBusinessHours() ? "Apenas das 10h às 16h." :
+                        "Indisponível no momento."}
                 </AlertDescription>
               </Alert>
             )}

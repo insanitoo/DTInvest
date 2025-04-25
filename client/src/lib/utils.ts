@@ -65,14 +65,12 @@ export function isWithinAngolaBusinessHours(): boolean {
   const now = new Date();
   const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
   const hours = angolaTime.getHours();
-  return hours >= 10 && hours < 15;
+  return hours >= 10 && hours < 16;
 }
 
 export function isWeekday(): boolean {
-  const now = new Date();
-  const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
-  const day = angolaTime.getDay();
-  return day >= 1 && day <= 5; // 0 is Sunday, 6 is Saturday
+  // Agora permite todos os dias da semana
+  return true;
 }
 
 export function getTransactionStatusColor(status: string, type?: string): string {
