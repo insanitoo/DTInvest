@@ -67,16 +67,55 @@ export function setupAuth(app: Express) {
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days para persistência longa
       secure: false, // desabilitado para desenvolvimento
-      httpOnly: false, // permitir acesso via JavaScript para depuração
+      httpOnly: true, // necessário para segurança e funcionamento adequado dos cookies
       path: '/',
       sameSite: 'lax'
     }
   };
+  
+  // Adicionar log para diagnóstico de sessão em cada autenticação
+  console.log("[SESSÃO] Configurações:", {
+    name: sessionSettings.name,
+    secure: sessionSettings.cookie?.secure,
+    httpOnly: sessionSettings.cookie?.httpOnly,
+    sameSite: sessionSettings.cookie?.sameSite,
+    path: sessionSettings.cookie?.path,
+    maxAge: sessionSettings.cookie?.maxAge
+  });
 
+  // Garantir que estamos aceitando solicitações mesmo atrás de proxies
   app.set("trust proxy", 1);
+  
+  // Melhorar o gerenciamento de sessão com logs detalhados
+  app.use((req, res, next) => {
+    // Garantir que todas as solicitações têm o cabeçalho Credentials
+    res.header('Access-Control-Allow-Credentials', 'true');
+    next();
+  });
+  
+  // Configurar middleware de sessão com diagnóstico
   app.use(session(sessionSettings));
+  
+  // Adicionar diagnóstico específico para sessão
+  app.use((req, res, next) => {
+    if (req.method === 'POST') {
+      console.log(`[SESSÃO-ID] ${req.method} ${req.url} - SessionID: ${req.sessionID || 'undefined'}`);
+    }
+    next();
+  });
+  
+  // Inicializar autenticação
   app.use(passport.initialize());
   app.use(passport.session());
+  
+  // Para manter sessões válidas em todos os endpoints
+  app.use((req, res, next) => {
+    if (req.session && req.isAuthenticated()) {
+      // Tocar na sessão para atualizar o cookie
+      req.session.touch();
+    }
+    next();
+  });
   
   // Adicionar middleware de diagnóstico para sessão
   app.use((req, res, next) => {
