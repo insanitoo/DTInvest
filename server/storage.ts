@@ -179,10 +179,12 @@ export class MemStorage implements IStorage {
     this.currentSettingId = 1;
     this.currentCarouselImageId = 1;
     
-    // Initialize memory store for express sessions
-    const MemoryStore = createMemoryStore(session);
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    // Usar PostgreSQL para sessões para garantir persistência entre reinicializações
+    const PostgresStore = connectPg(session);
+    this.sessionStore = new PostgresStore({
+      pool: pool,
+      createTableIfMissing: true,
+      tableName: 'session'
     });
   }
 
