@@ -104,7 +104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankAccount: '123456789',
         bankName: 'Banco Angolano de Investimentos (BAI)',
         receipt: null,
-        transactionId: null
+        transactionId: null,
+        status: 'pending' // Adicionado o status que faltava
       });
 
       console.log(`TEST >>> Transação criada: ID=${transaction.id}, Valor=${transaction.amount}`);
@@ -162,40 +163,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .catch(next);
   });
 
-  // NOVO FLUXO: Solicitar depósito
-  app.post("/api/deposits", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ 
-        message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
-      });
-    }
-
-    try {
-      // Gerar ID de referência único para o depósito
-      const transactionId = `DEP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-
-      // Criar solicitação de depósito
-      const depositRequest = await storage.createDepositRequest({
-        userId: req.user.id,
-        amount: req.body.amount,
-        bankName: req.body.bankName || null,
-        receipt: req.body.receipt || null,
-        transactionId: transactionId
-      });
-
-      res.status(201).json({
-        success: true,
-        message: "Solicitação de depósito criada com sucesso",
-        depositRequest,
-        transactionId
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        error: "Erro ao criar solicitação de depósito", 
-        message: error instanceof Error ? error.message : "Erro desconhecido" 
-      });
-    }
-  });
+  // Endpoint de depósito removido para evitar duplicidade
+  // Esta implementação foi movida para a linha ~1213
+  // e agora inclui validações e tratamento completo dos depósitos
 
   // NOVO FLUXO: Solicitações de depósito do usuário
   app.get("/api/deposits", async (req, res) => {
