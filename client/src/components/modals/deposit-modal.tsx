@@ -59,7 +59,7 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
       
       const result = await createDeposit({
         amount: Number(amount),
-        bankName,
+        bankId: bankName, // Usar o nome do banco como ID temporariamente
         receipt: null // Comprovante não é mais carregado no sistema
       });
       

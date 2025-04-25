@@ -1195,7 +1195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     console.log("[DEPÓSITO] Usuário autenticado:", req.user.id);
-    const { amount, bankId, receipt } = req.body;
+    const { amount, bankId, bankName: bankNameParam, receipt } = req.body;
 
     try {
       // Obter o valor mínimo de depósito das configurações
@@ -1206,17 +1206,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
       }
 
-      // Se foi fornecido um ID de banco, pegar informações dele
-      let bankName = null;
+      // Se foi fornecido um ID ou nome de banco, pegar informações dele
+      let bankName = bankNameParam || null;
       let bankAccount = null;
+      
       if (bankId) {
-        const bank = await storage.getBank(parseInt(bankId));
-        if (bank) {
-          bankName = bank.name;
-          // Aqui podemos adicionar a conta padrão para esse banco, se houver
-          const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
-          if (bankSetting) {
-            bankAccount = bankSetting.value;
+        // Primeiro, verificar se bankId é um nome de banco (string) ou um ID (número)
+        if (isNaN(parseInt(bankId))) {
+          // Se bankId é uma string (nome do banco), usamos diretamente
+          bankName = bankId;
+          console.log(`[DEPÓSITO] Usando nome do banco diretamente: ${bankName}`);
+        } else {
+          // Se bankId é um número, buscamos o banco pelo ID
+          const bank = await storage.getBank(parseInt(bankId));
+          if (bank) {
+            bankName = bank.name;
+            console.log(`[DEPÓSITO] Banco encontrado pelo ID ${bankId}: ${bankName}`);
+            
+            // Aqui podemos adicionar a conta padrão para esse banco, se houver
+            const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
+            if (bankSetting) {
+              bankAccount = bankSetting.value;
+            }
           }
         }
       }
