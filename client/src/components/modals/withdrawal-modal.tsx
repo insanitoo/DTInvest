@@ -112,7 +112,9 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
         // Apresenta a mensagem específica retornada pela API
         toast({
           title: 'Solicitação Negada',
-          description: result.message || 'Não foi possível processar sua solicitação de saque.',
+          description: typeof result === 'object' && 'message' in result 
+            ? result.message as string 
+            : 'Não foi possível processar sua solicitação de saque.',
           variant: 'destructive'
         });
       }

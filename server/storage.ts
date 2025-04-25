@@ -684,14 +684,11 @@ export class MemStorage implements IStorage {
     const angolaHour = angolaTime.getHours();
     const angolaDay = angolaTime.getDay();
     
-    // Verificar se é dia útil (segunda a sexta)
-    if (angolaDay === 0 || angolaDay === 6) {
-      throw new Error('Saques só podem ser solicitados em dias úteis (segunda a sexta-feira)');
-    }
+    // Verificação de dias úteis removida - saques permitidos todos os dias
     
-    // Verificar se está dentro do horário comercial (10h às 15h)
-    if (angolaHour < 10 || angolaHour >= 15) {
-      throw new Error('Saques só podem ser solicitados das 10h às 15h (horário de Angola)');
+    // Verificar se está dentro do horário comercial (10h às 16h)
+    if (angolaHour < 10 || angolaHour >= 16) {
+      throw new Error('Saques só podem ser solicitados das 10h às 16h (horário de Angola)');
     }
     
     // Bloquear o valor no saldo do usuário
