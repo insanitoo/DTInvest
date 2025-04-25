@@ -80,6 +80,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Endpoint para diagnóstico de sessão
+  app.get("/api/test-session", (req, res) => {
+    console.log("[TESTE SESSÃO] Requisição recebida");
+    
+    // Informações gerais sobre a sessão
+    const sessionInfo = {
+      authenticated: req.isAuthenticated(),
+      sessionID: req.sessionID,
+      hasSession: !!req.session,
+      cookies: req.headers.cookie,
+      user: req.isAuthenticated() ? {
+        id: req.user.id,
+        phoneNumber: req.user.phoneNumber,
+        isAdmin: req.user.isAdmin || false
+      } : null,
+      sessionDetails: req.session,
+      timestamp: new Date().toISOString(),
+      headers: {
+        referer: req.headers.referer,
+        origin: req.headers.origin,
+        userAgent: req.headers['user-agent'],
+      }
+    };
+    
+    console.log("[TESTE SESSÃO] Resultado:", JSON.stringify(sessionInfo, null, 2));
+    res.json(sessionInfo);
+  });
+  
   // Set up authentication
   setupAuth(app);
 
