@@ -486,17 +486,37 @@ export function setupAuth(app: Express) {
   });
 
   // Login route
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+  app.post("/api/login", async (req, res, next) => {
+    passport.authenticate("local", async (err, user, info) => {
       if (err) return next(err);
       if (!user) {
         return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
       }
 
-      req.login(user, (loginErr) => {
-        if (loginErr) return next(loginErr);
-        return res.status(200).json(user);
-      });
+      try {
+        // Buscar dados bancários do usuário para incluir na resposta
+        const bankInfo = await storage.getBankInfoByUserId(user.id);
+        
+        // Adicionar informações bancárias ao objeto do usuário para a sessão
+        const userWithBankInfo = {
+          ...user,
+          bankInfo: bankInfo || null // Inclui null se não existir
+        };
+
+        req.login(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+          
+          // IMPORTANTE: Retornar o usuário com as informações bancárias
+          return res.status(200).json(userWithBankInfo);
+        });
+      } catch (error) {
+        console.error("Erro ao buscar dados bancários durante login:", error);
+        // Se houver erro ao buscar os dados bancários, continuamos o login sem esses dados
+        req.login(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+          return res.status(200).json(user);
+        });
+      }
     })(req, res, next);
   });
 
@@ -529,6 +549,8 @@ export function setupAuth(app: Express) {
       }
 
       // Adicionar informações bancárias, se existirem
+      // CORREÇÃO: Garantir que as informações bancárias sejam sempre buscadas do banco
+      // e incluídas na resposta, mesmo que não existam (retorna null nesse caso)
       const bankInfo = await storage.getBankInfoByUserId(userId);
       
       // Calcular total de comissões a partir das transações
