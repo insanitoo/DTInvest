@@ -503,7 +503,7 @@ export function setupAuth(app: Express) {
           bankInfo: bankInfo || null // Inclui null se não existir
         };
 
-        req.login(user, (loginErr) => {
+        req.login(userWithBankInfo, (loginErr) => {
           if (loginErr) return next(loginErr);
           
           // IMPORTANTE: Retornar o usuário com as informações bancárias
