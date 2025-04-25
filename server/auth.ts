@@ -76,6 +76,15 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+  
+  // Adicionar middleware de diagnóstico para sessão
+  app.use((req, res, next) => {
+    console.log(`[SESSÃO] Autenticado: ${req.isAuthenticated()} | URL: ${req.url} | Método: ${req.method}`);
+    if (req.isAuthenticated() && req.user) {
+      console.log(`[SESSÃO] Usuário na sessão: ID=${typeof req.user.id === 'undefined' ? 'UNDEFINED' : req.user.id}, Tipo=${typeof req.user}`);
+    }
+    next();
+  });
 
   // Configure Passport Local Strategy
   passport.use(
@@ -141,32 +150,37 @@ export function setupAuth(app: Express) {
 
   // Configure serialization and deserialization
   passport.serializeUser((user, done) => {
+    console.log(`[SERIALIZE] Serializando usuário: ${JSON.stringify(user.id)}`);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log(`[DESERIALIZE] Recuperando usuário com ID: ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
+        console.error(`[DESERIALIZE] ERRO: Usuário com ID ${id} não encontrado`);
         return done(null, false);
       }
 
       // Add bank info to user if available
       const bankInfo = await storage.getBankInfoByUserId(id);
-      if (bankInfo) {
-        const userWithBank = {
-          ...user,
-          bankInfo: {
-            bank: bankInfo.bank,
-            ownerName: bankInfo.ownerName,
-            accountNumber: bankInfo.accountNumber
-          }
-        };
-        return done(null, userWithBank);
-      }
-
-      return done(null, user);
+      console.log(`[DESERIALIZE] Informações bancárias encontradas: ${!!bankInfo}`);
+      
+      // IMPORTANTE: Sempre criar um objeto completo para todas as referências do usuário
+      const userWithAllInfo = {
+        ...user,
+        bankInfo: bankInfo ? {
+          bank: bankInfo.bank,
+          ownerName: bankInfo.ownerName,
+          accountNumber: bankInfo.accountNumber
+        } : null
+      };
+      
+      console.log(`[DESERIALIZE] Usuário com ID ${id} recuperado com sucesso`);
+      return done(null, userWithAllInfo);
     } catch (error) {
+      console.error(`[DESERIALIZE] ERRO na deserialização: ${error}`);
       return done(error);
     }
   });
