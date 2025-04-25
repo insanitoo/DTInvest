@@ -426,8 +426,7 @@ export class MemStorage implements IStorage {
             bankName: depositRequest.bankName,
             receipt: depositRequest.receipt,
             bankAccount: null,
-            transactionId: depositRequest.transactionId,
-            status: 'pending' // Adicionado o status que faltava
+            transactionId: depositRequest.transactionId
           });
           
           console.log(`TRANSACT >>> Transação criada a partir da solicitação de depósito: ID=${transaction.id}`);

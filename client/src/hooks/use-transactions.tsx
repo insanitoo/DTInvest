@@ -326,77 +326,17 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   // === FUNÇÕES DE INTERFACE ===
 
-  // Criar depósito - Versão robusta atualizada que usa o apiRequest para garantir consistência
-  const createDeposit = async (data: {
-    amount: number,
-    bankId?: string | number,
-    bankName?: string | null,
-    receipt?: string | null
-  }): Promise<{ success: boolean; transactionId?: string; message?: string }> => {
+  // Criar depósito
+  const createDeposit = async (data: Omit<InsertDepositRequest, 'userId' | 'transactionId'>): Promise<{ success: boolean; transactionId?: string }> => {
     try {
-      console.log('[DEPÓSITO] Dados recebidos na função createDeposit:', data);
-      
-      // Adaptação para garantir compatibilidade do objeto
-      const depositData: any = {
-        amount: data.amount,
-        receipt: data.receipt || null
+      const result = await createDepositMutation.mutateAsync(data);
+      return { 
+        success: result.success, 
+        transactionId: result.transactionId 
       };
-      
-      // Se temos bankId, usamos ele
-      if (data.bankId !== undefined) {
-        depositData.bankId = data.bankId;
-      }
-      
-      // Se temos bankName, usamos ele
-      if (data.bankName) {
-        depositData.bankName = data.bankName;
-      }
-      
-      console.log('[DEPÓSITO] Dados adaptados que serão enviados:', depositData);
-      
-      // Criar o depósito usando createDepositMutation para garantir consistência
-      const result = await createDepositMutation.mutateAsync(depositData);
-      
-      console.log('[DEPÓSITO] Resultado da mutation:', result);
-      
-      // Atualizar dados locais após sucesso
-      if (result.success) {
-        await loadDeposits();
-        await loadTransactions();
-        
-        return { 
-          success: true, 
-          transactionId: result.transactionId,
-          message: result.message
-        };
-      } else {
-        return { 
-          success: false, 
-          message: result.message || "Falha ao processar depósito"
-        };
-      }
     } catch (error) {
-      console.error('[DEPÓSITO] Erro inesperado ao criar depósito:', error);
-      
-      // Tratamento especial para erro de sessão
-      if (error instanceof Error && error.message.includes('401')) {
-        toast({
-          title: 'Sessão expirada',
-          description: 'Sua sessão expirou. Por favor, faça login novamente.',
-          variant: 'destructive',
-        });
-        return { 
-          success: false, 
-          message: 'Sessão expirada. Faça login novamente.'
-        };
-      }
-      
-      toast({
-        title: 'Erro ao processar depósito',
-        description: error instanceof Error ? error.message : 'Erro inesperado',
-        variant: 'destructive',
-      });
-      return { success: false, message: error instanceof Error ? error.message : 'Erro inesperado ao processar seu depósito' };
+      console.error('Erro ao criar depósito:', error);
+      return { success: false };
     }
   };
 

@@ -80,35 +80,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
-  // Endpoint para diagnóstico de sessão
-  app.get("/api/test-session", (req, res) => {
-    console.log("[TESTE SESSÃO] Requisição recebida");
-    
-    // Informações gerais sobre a sessão
-    const sessionInfo = {
-      authenticated: req.isAuthenticated(),
-      sessionID: req.sessionID,
-      hasSession: !!req.session,
-      cookies: req.headers.cookie,
-      user: req.isAuthenticated() ? {
-        id: req.user.id,
-        phoneNumber: req.user.phoneNumber,
-        isAdmin: req.user.isAdmin || false
-      } : null,
-      sessionDetails: req.session,
-      timestamp: new Date().toISOString(),
-      headers: {
-        referer: req.headers.referer,
-        origin: req.headers.origin,
-        userAgent: req.headers['user-agent'],
-      }
-    };
-    
-    console.log("[TESTE SESSÃO] Resultado:", JSON.stringify(sessionInfo, null, 2));
-    res.json(sessionInfo);
-  });
-  
   // Set up authentication
   setupAuth(app);
 
@@ -133,8 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bankAccount: '123456789',
         bankName: 'Banco Angolano de Investimentos (BAI)',
         receipt: null,
-        transactionId: null,
-        status: 'pending' // Adicionado o status que faltava
+        transactionId: null
       });
 
       console.log(`TEST >>> Transação criada: ID=${transaction.id}, Valor=${transaction.amount}`);
@@ -192,9 +162,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .catch(next);
   });
 
-  // Endpoint de depósito removido para evitar duplicidade
-  // Esta implementação foi movida para a linha ~1213
-  // e agora inclui validações e tratamento completo dos depósitos
+  // NOVO FLUXO: Solicitar depósito
+  app.post("/api/deposits", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ 
+        message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
+      });
+    }
+
+    try {
+      // Gerar ID de referência único para o depósito
+      const transactionId = `DEP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+      // Criar solicitação de depósito
+      const depositRequest = await storage.createDepositRequest({
+        userId: req.user.id,
+        amount: req.body.amount,
+        bankName: req.body.bankName || null,
+        receipt: req.body.receipt || null,
+        transactionId: transactionId
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Solicitação de depósito criada com sucesso",
+        depositRequest,
+        transactionId
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Erro ao criar solicitação de depósito", 
+        message: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
 
   // NOVO FLUXO: Solicitações de depósito do usuário
   app.get("/api/deposits", async (req, res) => {
@@ -1209,53 +1210,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deposits
-  // API para verificação de sessão - TESTE DE AUTENTICAÇÃO
-  app.get("/api/test-session", (req, res) => {
-    res.json({
-      authenticated: req.isAuthenticated(),
-      sessionID: req.sessionID,
-      sessionExists: !!req.session,
-      user: req.user ? {
-        id: req.user.id, 
-        phoneNumber: req.user.phoneNumber,
-        isAdmin: req.user.isAdmin
-      } : null,
-      cookies: req.headers.cookie
-    });
-  });
-
-  // Rota modificada para depósitos com verificação de cookies alternativa
   app.post("/api/deposits", async (req, res, next) => {
-    // Log detalhado para diagnóstico
-    console.log("[DEPÓSITO] Recebida requisição de depósito:", {
-      method: req.method,
-      url: req.originalUrl,
-      isAuthenticated: req.isAuthenticated(),
-      hasUser: !!req.user,
-      userId: req.user?.id,
-      sessionID: req.sessionID,
-      cookies: req.headers.cookie,
-      body: {
-        amount: req.body.amount,
-        bankName: req.body.bankName,
-        bankId: req.body.bankId
-      }
-    });
-    
     if (!req.isAuthenticated()) {
-      console.log("[DEPÓSITO] ERRO: Usuário não autenticado. Detalhes da sessão:", {
-        sessionID: req.sessionID,
-        cookieHeader: req.headers.cookie,
-        sessionExists: !!req.session
-      });
-      
       return res.status(401).json({ 
         message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
       });
     }
 
-    console.log("[DEPÓSITO] Usuário autenticado:", req.user.id);
-    const { amount, bankId, bankName: bankNameParam, receipt } = req.body;
+    const { amount, bankId, receipt } = req.body;
 
     try {
       // Obter o valor mínimo de depósito das configurações
@@ -1266,28 +1228,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
       }
 
-      // Se foi fornecido um ID ou nome de banco, pegar informações dele
-      let bankName = bankNameParam || null;
+      // Se foi fornecido um ID de banco, pegar informações dele
+      let bankName = null;
       let bankAccount = null;
-      
       if (bankId) {
-        // Primeiro, verificar se bankId é um nome de banco (string) ou um ID (número)
-        if (isNaN(parseInt(bankId))) {
-          // Se bankId é uma string (nome do banco), usamos diretamente
-          bankName = bankId;
-          console.log(`[DEPÓSITO] Usando nome do banco diretamente: ${bankName}`);
-        } else {
-          // Se bankId é um número, buscamos o banco pelo ID
-          const bank = await storage.getBank(parseInt(bankId));
-          if (bank) {
-            bankName = bank.name;
-            console.log(`[DEPÓSITO] Banco encontrado pelo ID ${bankId}: ${bankName}`);
-            
-            // Aqui podemos adicionar a conta padrão para esse banco, se houver
-            const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
-            if (bankSetting) {
-              bankAccount = bankSetting.value;
-            }
+        const bank = await storage.getBank(parseInt(bankId));
+        if (bank) {
+          bankName = bank.name;
+          // Aqui podemos adicionar a conta padrão para esse banco, se houver
+          const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
+          if (bankSetting) {
+            bankAccount = bankSetting.value;
           }
         }
       }
@@ -1310,13 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar o usuário para indicar que ele já fez um depósito
       await storage.updateUser(req.user.id, { hasDeposited: true });
 
-      // Enviar resposta mais completa para que o cliente tenha todas as informações necessárias
-      res.status(201).json({
-        success: true,
-        transactionId: transaction.transactionId,
-        message: "Depósito registrado com sucesso. Aguardando confirmação.",
-        ...transaction
-      });
+      res.status(201).json(transaction);
     } catch (error) {
       console.error("Erro ao criar depósito:", error);
       next(error);

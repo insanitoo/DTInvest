@@ -182,7 +182,6 @@ export const insertDepositRequestSchema = createInsertSchema(depositRequests).ex
   userId: z.number(),
   amount: z.number().positive().min(25000, "Valor mínimo para depósito é KZ 25000"),
   bankName: z.string().nullable(),
-  bankId: z.string().or(z.number()).optional(), // Permite enviar bankId como string ou número
   receipt: z.string().nullable(),
   transactionId: z.string()
 });

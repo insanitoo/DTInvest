@@ -38,7 +38,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation, checkAuth } = useAuth();
+  const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const referralCode = new URLSearchParams(window.location.search).get('ref');
@@ -46,14 +46,6 @@ export default function AuthPage() {
     const tabParam = new URLSearchParams(window.location.search).get('tab');
     return tabParam === 'register' || referralCode ? 'register' : 'login';
   });
-  
-  // Estados para controle de UI
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
-  
-  // Estado de sessão apenas para controle interno
 
   // Prevenir login automático quando houver código de convite
   useEffect(() => {
@@ -67,6 +59,11 @@ export default function AuthPage() {
       registerForm.setValue('referralCode', referralCode);
     }
   }, [activeTab, referralCode]);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -256,9 +253,9 @@ export default function AuthPage() {
                 <label htmlFor="login-phone" className="block text-sm text-gray-400 mb-1">
                   Número de Telefone
                 </label>
-                <input
+                <Input
                   id="login-phone"
-                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                  className="w-full rounded-md p-2.5 auth-input"
                   placeholder="Ex: 999 999 999"
                   {...loginForm.register('phoneNumber')}
                   onChange={(e) => formatPhoneInput(e, (val: string) => 
@@ -277,10 +274,10 @@ export default function AuthPage() {
                   Senha
                 </label>
                 <div className="relative">
-                  <input
+                  <Input
                     id="login-password"
                     type={showLoginPassword ? 'text' : 'password'}
-                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                    className="w-full rounded-md p-2.5 auth-input"
                     placeholder="Sua senha"
                     {...loginForm.register('password')}
                   />
@@ -349,9 +346,9 @@ export default function AuthPage() {
                 <label htmlFor="register-phone" className="block text-sm text-gray-400 mb-1">
                   Número de Telefone
                 </label>
-                <input
+                <Input
                   id="register-phone"
-                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                  className="w-full rounded-md p-2.5 auth-input"
                   placeholder="Ex: 999 999 999"
                   {...registerForm.register('phoneNumber')}
                   onChange={(e) => formatPhoneInput(e, (val: string) => 
@@ -370,10 +367,10 @@ export default function AuthPage() {
                   Senha
                 </label>
                 <div className="relative">
-                  <input
+                  <Input
                     id="register-password"
                     type={showRegisterPassword ? 'text' : 'password'}
-                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                    className="w-full rounded-md p-2.5 auth-input"
                     placeholder="Crie uma senha"
                     {...registerForm.register('password')}
                   />
@@ -401,10 +398,10 @@ export default function AuthPage() {
                   Confirmar Senha
                 </label>
                 <div className="relative">
-                  <input
+                  <Input
                     id="confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                    className="w-full rounded-md p-2.5 auth-input"
                     placeholder="Confirme sua senha"
                     {...registerForm.register('confirmPassword')}
                   />
@@ -431,9 +428,9 @@ export default function AuthPage() {
                 <label htmlFor="referral-code" className="block text-sm text-gray-400 mb-1">
                   Código de Convite *
                 </label>
-                <input
+                <Input
                   id="referral-code"
-                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
+                  className="w-full rounded-md p-2.5 auth-input"
                   placeholder="Código de convite"
                   defaultValue={new URLSearchParams(window.location.search).get('ref') || ''}
                   {...registerForm.register('referralCode', { required: 'Código de convite é obrigatório' })}
@@ -481,7 +478,54 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Área reservada para informações de suporte ou notícias */}
+        {/* Debug Panel - Hidden */}
+        <div className="hidden">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-gray-400">Debug: Autenticação</h3>
+            <button
+              className="text-xs bg-dark-tertiary hover:bg-dark-tertiary/80 text-gray-400 py-1 px-2 rounded"
+              onClick={() => setShowDebug(!showDebug)}
+            >
+              {showDebug ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+            </button>
+          </div>
+
+          {showDebug && (
+            <>
+              {/* Token Manager */}
+              <div className="mb-4 border border-dark-border rounded-md overflow-hidden">
+                <div className="bg-dark-tertiary py-2 px-3 border-b border-dark-border">
+                  <h4 className="text-xs font-medium">Token Manager</h4>
+                </div>
+                <div className="p-3 text-xs font-mono bg-dark-primary/50">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-400">Status:</span>
+                    <span className={`${user ? 'text-green-500' : 'text-gray-500'}`}>
+                      {user ? 'Válido' : 'Ausente'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-400">Armazenado em:</span>
+                    <span className="text-gray-300">localStorage</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Storage Button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  className="text-xs bg-red-900/50 hover:bg-red-900/80 text-red-300 py-1.5 px-3 rounded"
+                  onClick={() => {
+                    localStorage.removeItem(AUTH_USER_KEY);
+                    window.location.reload();
+                  }}
+                >
+                  Limpar dados armazenados
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -62,91 +62,20 @@ export function setupAuth(app: Express) {
     secret: process.env.SESSION_SECRET || 'sp_global_session_secret',
     resave: true,
     saveUninitialized: true,
-    name: 'dtinvest_sid',
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days para persistência longa
       secure: false, // desabilitado para desenvolvimento
-      httpOnly: true, // necessário para segurança e funcionamento adequado dos cookies
+      httpOnly: true,
       path: '/',
       sameSite: 'lax'
     }
   };
-  
-  // Adicionar log para diagnóstico de sessão em cada autenticação
-  console.log("[SESSÃO] Configurações:", {
-    name: sessionSettings.name,
-    secure: sessionSettings.cookie?.secure,
-    httpOnly: sessionSettings.cookie?.httpOnly,
-    sameSite: sessionSettings.cookie?.sameSite,
-    path: sessionSettings.cookie?.path,
-    maxAge: sessionSettings.cookie?.maxAge
-  });
 
-  // Garantir que estamos aceitando solicitações mesmo atrás de proxies
   app.set("trust proxy", 1);
-  
-  // Melhorar o gerenciamento de sessão com logs detalhados
-  app.use((req, res, next) => {
-    // Garantir que todas as solicitações têm o cabeçalho Credentials
-    res.header('Access-Control-Allow-Credentials', 'true');
-    next();
-  });
-  
-  // Configurar middleware de sessão com diagnóstico
   app.use(session(sessionSettings));
-  
-  // Adicionar diagnóstico específico para sessão
-  app.use((req, res, next) => {
-    if (req.method === 'POST') {
-      console.log(`[SESSÃO-ID] ${req.method} ${req.url} - SessionID: ${req.sessionID || 'undefined'}`);
-    }
-    next();
-  });
-  
-  // Inicializar autenticação
   app.use(passport.initialize());
   app.use(passport.session());
-  
-  // Para manter sessões válidas em todos os endpoints
-  app.use((req, res, next) => {
-    if (req.session && req.isAuthenticated()) {
-      // Tocar na sessão para atualizar o cookie
-      req.session.touch();
-    }
-    next();
-  });
-  
-  // Adicionar middleware de diagnóstico para sessão
-  app.use((req, res, next) => {
-    console.log(`[SESSÃO] Autenticado: ${req.isAuthenticated()} | URL: ${req.url} | Método: ${req.method}`);
-    if (req.isAuthenticated() && req.user) {
-      console.log(`[SESSÃO] Usuário na sessão: ID=${typeof req.user.id === 'undefined' ? 'UNDEFINED' : req.user.id}, Tipo=${typeof req.user}`);
-      
-      // Diagnóstico: Imprimir a sessão completa para depuração
-      if (req.method === 'POST' || req.url === '/api/user') {
-        console.log(`[SESSÃO] Detalhes da sessão: ID=${req.sessionID}`);
-        console.log(`[SESSÃO] Cookie da sessão:`, req.session.cookie);
-      }
-    }
-    next();
-  });
-  
-  // Rota específica para diagnosticar problemas com sessão
-  app.get('/api/session-debug', (req, res) => {
-    res.json({
-      authenticated: req.isAuthenticated(),
-      sessionID: req.sessionID,
-      sessionExists: !!req.session,
-      user: req.user ? { 
-        id: req.user.id,
-        phoneNumber: req.user.phoneNumber,
-        isAdmin: req.user.isAdmin,
-        // Outros campos que não sejam sensíveis
-      } : null,
-      cookies: req.headers.cookie
-    });
-  });
 
   // Configure Passport Local Strategy
   passport.use(
@@ -212,37 +141,32 @@ export function setupAuth(app: Express) {
 
   // Configure serialization and deserialization
   passport.serializeUser((user, done) => {
-    console.log(`[SERIALIZE] Serializando usuário: ${JSON.stringify(user.id)}`);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      console.log(`[DESERIALIZE] Recuperando usuário com ID: ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
-        console.error(`[DESERIALIZE] ERRO: Usuário com ID ${id} não encontrado`);
         return done(null, false);
       }
 
       // Add bank info to user if available
       const bankInfo = await storage.getBankInfoByUserId(id);
-      console.log(`[DESERIALIZE] Informações bancárias encontradas: ${!!bankInfo}`);
-      
-      // IMPORTANTE: Sempre criar um objeto completo para todas as referências do usuário
-      const userWithAllInfo = {
-        ...user,
-        bankInfo: bankInfo ? {
-          bank: bankInfo.bank,
-          ownerName: bankInfo.ownerName,
-          accountNumber: bankInfo.accountNumber
-        } : null
-      };
-      
-      console.log(`[DESERIALIZE] Usuário com ID ${id} recuperado com sucesso`);
-      return done(null, userWithAllInfo);
+      if (bankInfo) {
+        const userWithBank = {
+          ...user,
+          bankInfo: {
+            bank: bankInfo.bank,
+            ownerName: bankInfo.ownerName,
+            accountNumber: bankInfo.accountNumber
+          }
+        };
+        return done(null, userWithBank);
+      }
+
+      return done(null, user);
     } catch (error) {
-      console.error(`[DESERIALIZE] ERRO na deserialização: ${error}`);
       return done(error);
     }
   });
@@ -579,45 +503,18 @@ export function setupAuth(app: Express) {
           bankInfo: bankInfo || null // Inclui null se não existir
         };
 
-        req.login(userWithBankInfo, (loginErr) => {
+        req.login(user, (loginErr) => {
           if (loginErr) return next(loginErr);
           
-          // Forçar salvamento da sessão para garantir persistência
-          req.session.save(saveErr => {
-            if (saveErr) {
-              console.error('[LOGIN] Erro ao salvar sessão:', saveErr);
-              return next(saveErr);
-            }
-            
-            console.log('[LOGIN] Sessão salva com sucesso:', {
-              sessionID: req.sessionID,
-              userID: userWithBankInfo.id
-            });
-            
-            // IMPORTANTE: Retornar o usuário com as informações bancárias
-            return res.status(200).json(userWithBankInfo);
-          });
+          // IMPORTANTE: Retornar o usuário com as informações bancárias
+          return res.status(200).json(userWithBankInfo);
         });
       } catch (error) {
         console.error("Erro ao buscar dados bancários durante login:", error);
         // Se houver erro ao buscar os dados bancários, continuamos o login sem esses dados
         req.login(user, (loginErr) => {
           if (loginErr) return next(loginErr);
-          
-          // Mesmo para fallback, forçar salvamento da sessão
-          req.session.save(saveErr => {
-            if (saveErr) {
-              console.error('[LOGIN-FALLBACK] Erro ao salvar sessão:', saveErr);
-              return next(saveErr);
-            }
-            
-            console.log('[LOGIN-FALLBACK] Sessão salva com sucesso:', {
-              sessionID: req.sessionID,
-              userID: user.id
-            });
-            
-            return res.status(200).json(user);
-          });
+          return res.status(200).json(user);
         });
       }
     })(req, res, next);
@@ -629,8 +526,7 @@ export function setupAuth(app: Express) {
       if (err) return next(err);
       req.session.destroy((sessionErr) => {
         if (sessionErr) return next(sessionErr);
-        // Usar o mesmo nome configurado nas opções de sessão
-        res.clearCookie('dtinvest_sid');
+        res.clearCookie('connect.sid');
         return res.sendStatus(200);
       });
     });
