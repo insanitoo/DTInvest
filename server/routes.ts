@@ -174,17 +174,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Gerar ID de referência único para o depósito
       const transactionId = `DEP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-      // Verificar valor mínimo de depósito
-      const depositMinSetting = await storage.getSetting("deposit_min");
-      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 25000;
-
-      if (!req.body.amount || req.body.amount < minDeposit) {
-        return res.status(400).json({ 
-          success: false,
-          message: `Valor mínimo para depósito é KZ ${minDeposit}` 
-        });
-      }
-
       // Criar solicitação de depósito
       const depositRequest = await storage.createDepositRequest({
         userId: req.user.id,
@@ -654,13 +643,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newBalance = user.balance - product.price;
       console.log(`Novo saldo calculado: ${newBalance}`);
 
-      // 1. Primeiro: Registrar a compra - inicializar com dias do ciclo
+      // 1. Primeiro: Registrar a compra
       console.log(`Registrando compra no sistema...`);
       const purchase = await storage.createPurchase({
         userId,
         productId: product.id,
-        amount: product.price,
-        daysRemaining: product.cycleDays
+        amount: product.price
       });
       console.log(`Compra registrada com sucesso: ID=${purchase.id}`);
 
@@ -902,11 +890,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`===== COMPRA DE PRODUTO CONCLUÍDA COM SUCESSO =====`);
 
-      // Atualizar dias restantes após creditar o primeiro rendimento diário
-      await storage.updatePurchaseDaysRemaining(purchase.id, product.cycleDays - 1); // Descontar o primeiro dia já creditado
-        
-      console.log(`Dias restantes atualizados: ${product.cycleDays} -> ${product.cycleDays - 1}`);
-
       // Retornar resposta com informações detalhadas
       res.status(200).json({
         success: true,
@@ -951,11 +934,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return null; // Produto pode ter sido excluído
           }
 
-          // Obter os dias restantes do registro da compra (atualizado pelo processamento diário)
-          const daysRemaining = purchase.daysRemaining !== null && purchase.daysRemaining !== undefined
-            ? purchase.daysRemaining
-            : Math.max(0, product.cycleDays); // Fallback para produto recém-comprado sem daysRemaining
-          
+          // Calcular dias restantes com base na data da compra e dias do ciclo
+          const purchaseDate = new Date(purchase.createdAt);
+          const today = new Date();
+          const daysPassed = Math.floor((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+          const daysRemaining = Math.max(0, product.cycleDays - daysPassed);
           const isActive = daysRemaining > 0;
 
           // Formatar conforme interface UserProduct
@@ -1103,33 +1086,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obter as comissões reais do usuário a partir das transações
       const transactions = await storage.getTransactions(req.user.id);
       const commissionTransactions = transactions.filter(t => t.type === 'commission');
-      
-      // Identificar transações de comissão por nível com base no transactionId
-      const level1CommissionTxs = commissionTransactions.filter(tx => 
-        tx.transactionId && tx.transactionId.startsWith('COM1-'));
-      const level2CommissionTxs = commissionTransactions.filter(tx => 
-        tx.transactionId && tx.transactionId.startsWith('COM2-'));
-      const level3CommissionTxs = commissionTransactions.filter(tx => 
-        tx.transactionId && tx.transactionId.startsWith('COM3-'));
-        
-      // Se não houver transactionId ou prefixo específico, considerar todas como nível 1
-      const unspecifiedCommissionTxs = commissionTransactions.filter(tx => 
-        !tx.transactionId || 
-        !(tx.transactionId.startsWith('COM1-') || 
-          tx.transactionId.startsWith('COM2-') || 
-          tx.transactionId.startsWith('COM3-')));
 
-      // Calcular comissões reais por nível
-      const level1Commission = level1CommissionTxs.reduce((total, tx) => total + tx.amount, 0) + 
-                            unspecifiedCommissionTxs.reduce((total, tx) => total + tx.amount, 0);
-      const level2Commission = level2CommissionTxs.reduce((total, tx) => total + tx.amount, 0);
-      const level3Commission = level3CommissionTxs.reduce((total, tx) => total + tx.amount, 0);
-      
-      console.log(`Comissões calculadas para usuário ${currentUser.id}:
-        Nível 1: ${level1Commission} KZ (${level1CommissionTxs.length + unspecifiedCommissionTxs.length} transações)
-        Nível 2: ${level2Commission} KZ (${level2CommissionTxs.length} transações)
-        Nível 3: ${level3Commission} KZ (${level3CommissionTxs.length} transações)
-      `);
+      // Calcular comissões reais
+      const level1Commission = commissionTransactions.reduce((total, tx) => total + tx.amount, 0);
+      const level2Commission = 0; // Usar 0 para nível 2 e 3, pois comissões estão todas no nível 1
+      const level3Commission = 0;
 
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
@@ -1237,7 +1198,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // A rota de depósitos agora está implementada na linha 166 (evitando duplicação)
+  // Deposits
+  app.post("/api/deposits", async (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ 
+        message: "Sua sessão expirou ou você não está conectado. Por favor, faça login novamente para continuar." 
+      });
+    }
+
+    const { amount, bankId, receipt } = req.body;
+
+    try {
+      // Obter o valor mínimo de depósito das configurações
+      const depositMinSetting = await storage.getSetting("deposit_min");
+      const minDeposit = depositMinSetting ? parseInt(depositMinSetting.value) : 25000;
+
+      if (!amount || amount < minDeposit) {
+        return res.status(400).json({ message: `Valor mínimo para depósito é KZ ${minDeposit}` });
+      }
+
+      // Se foi fornecido um ID de banco, pegar informações dele
+      let bankName = null;
+      let bankAccount = null;
+      if (bankId) {
+        const bank = await storage.getBank(parseInt(bankId));
+        if (bank) {
+          bankName = bank.name;
+          // Aqui podemos adicionar a conta padrão para esse banco, se houver
+          const bankSetting = await storage.getSetting(`bank_account_${bank.id}`);
+          if (bankSetting) {
+            bankAccount = bankSetting.value;
+          }
+        }
+      }
+
+      console.log(`Criando nova transação de depósito: valor=${amount}, banco=${bankName || 'Não informado'}`);
+
+      const transaction = await storage.createTransaction({
+        userId: req.user.id,
+        type: "deposit",
+        amount,
+        bankName: bankName,
+        bankAccount: bankAccount,
+        receipt: receipt || null,
+        transactionId: `DEP${Date.now().toString(36).toUpperCase()}`,
+        status: 'pending' // Os depósitos começam como pendentes e precisam de aprovação
+      });
+
+      console.log(`Transação de depósito criada com sucesso: ${JSON.stringify(transaction)}`);
+
+      // Atualizar o usuário para indicar que ele já fez um depósito
+      await storage.updateUser(req.user.id, { hasDeposited: true });
+
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Erro ao criar depósito:", error);
+      next(error);
+    }
+  });
 
   // Withdrawals
   app.post("/api/withdrawals", async (req, res, next) => {
@@ -1492,12 +1510,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Saldo insuficiente para comprar este produto" });
       }
 
-      // Registrar a compra com o número inicial de dias do ciclo
+      // Registrar a compra
       const purchase = await storage.createPurchase({
         userId,
         productId: product.id,
-        amount: product.price,
-        daysRemaining: product.cycleDays
+        amount: product.price
       });
 
       // Atualizar o saldo do usuário

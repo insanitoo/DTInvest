@@ -93,7 +93,6 @@ export const purchases = pgTable("purchases", {
   userId: integer("user_id").notNull().references(() => users.id),
   productId: integer("product_id").notNull().references(() => products.id),
   amount: doublePrecision("amount").notNull(),
-  daysRemaining: integer("days_remaining"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -225,7 +224,6 @@ export const insertPurchaseSchema = createInsertSchema(purchases).pick({
   userId: true,
   productId: true,
   amount: true,
-  daysRemaining: true,
 });
 
 export const insertSocialLinkSchema = createInsertSchema(socialLinks).pick({

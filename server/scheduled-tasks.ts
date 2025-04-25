@@ -90,27 +90,6 @@ async function processDailyIncome() {
         const updatedBalance = user.balance + product.dailyIncome;
         await storage.updateUserBalance(user.id, updatedBalance);
 
-        // Verificar se precisamos decrementar os dias restantes da compra
-        try {
-          const purchaseObj = await db.select().from(purchases).where(eq(purchases.id, purchase.id)).limit(1);
-          
-          if (purchaseObj.length > 0 && purchaseObj[0].daysRemaining !== null && purchaseObj[0].daysRemaining > 0) {
-            // Decrementar os dias restantes
-            const updatedDaysRemaining = purchaseObj[0].daysRemaining - 1;
-            
-            console.log(`Atualizando dias restantes para produto ${product.name} do usuário ${user.id}: ${purchaseObj[0].daysRemaining} -> ${updatedDaysRemaining}`);
-            
-            // Usar o método implementado no storage para atualizar os dias restantes
-            await storage.updatePurchaseDaysRemaining(purchase.id, updatedDaysRemaining);
-              
-            if (updatedDaysRemaining === 0) {
-              console.log(`⚠️ Produto ${product.name} do usuário ${user.id} expirou (0 dias restantes)`);
-            }
-          }
-        } catch (error) {
-          console.error(`Erro ao atualizar dias restantes para compra ${purchase.id}:`, error);
-        }
-
         // Gera um ID único para a transação
         const uniqueId = `INC${Date.now().toString(36).toUpperCase()}-${purchase.id}`;
         

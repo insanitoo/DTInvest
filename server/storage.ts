@@ -73,7 +73,6 @@ export interface IStorage {
   // Compras
   getUserPurchases(userId: number): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
-  updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase>;
 
   // Links Sociais
   getSocialLinks(): Promise<SocialLink[]>;
@@ -179,12 +178,10 @@ export class MemStorage implements IStorage {
     this.currentSettingId = 1;
     this.currentCarouselImageId = 1;
     
-    // Usar PostgreSQL para sessões para garantir persistência entre reinicializações
-    const PostgresStore = connectPg(session);
-    this.sessionStore = new PostgresStore({
-      pool: pool,
-      createTableIfMissing: true,
-      tableName: 'session'
+    // Initialize memory store for express sessions
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000,
     });
   }
 
@@ -916,18 +913,6 @@ export class MemStorage implements IStorage {
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
     const id = this.currentPurchaseId++;
     const now = new Date();
-    
-    // Garantir que daysRemaining esteja presente no objeto, caso não esteja
-    if (purchase.daysRemaining === undefined) {
-      // Se não for fornecido, buscar o número de dias do ciclo do produto
-      const product = await this.getProduct(purchase.productId);
-      if (product) {
-        purchase = {
-          ...purchase,
-          daysRemaining: product.cycleDays
-        };
-      }
-    }
 
     const newPurchase: Purchase = {
       id,
@@ -944,23 +929,6 @@ export class MemStorage implements IStorage {
     }
 
     return newPurchase;
-  }
-  
-  async updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase> {
-    const purchase = this.purchases.get(purchaseId);
-    if (!purchase) {
-      throw new Error('Compra não encontrada');
-    }
-    
-    const updatedPurchase = {
-      ...purchase,
-      daysRemaining
-    };
-    
-    this.purchases.set(purchaseId, updatedPurchase);
-    console.log(`PURCHASE >>> Dias restantes atualizados para compra ${purchaseId}: ${daysRemaining}`);
-    
-    return updatedPurchase;
   }
 
   // Método para atualizar propriedades do usuário
@@ -1807,43 +1775,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
-    // Garantir que daysRemaining esteja presente no objeto, caso não esteja
-    if (purchase.daysRemaining === undefined) {
-      // Se não for fornecido, buscar o número de dias do ciclo do produto
-      const product = await this.getProduct(purchase.productId);
-      if (product) {
-        purchase = {
-          ...purchase,
-          daysRemaining: product.cycleDays
-        };
-      }
-    }
-    
     const [newPurchase] = await db
       .insert(purchases)
       .values(purchase)
       .returning();
-    
-    // Atualizar o usuário para indicar que ele possui um produto
-    await this.updateUser(purchase.userId, { hasProduct: true });
 
     return newPurchase;
-  }
-  
-  async updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase> {
-    const [updatedPurchase] = await db
-      .update(purchases)
-      .set({ daysRemaining })
-      .where(eq(purchases.id, purchaseId))
-      .returning();
-      
-    if (!updatedPurchase) {
-      throw new Error('Compra não encontrada');
-    }
-    
-    console.log(`PURCHASE >>> Dias restantes atualizados para compra ${purchaseId}: ${daysRemaining}`);
-    
-    return updatedPurchase;
   }
 
   // Social links methods
