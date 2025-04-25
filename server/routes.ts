@@ -1087,8 +1087,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getTransactions(req.user.id);
       const commissionTransactions = transactions.filter(t => t.type === 'commission');
 
-      // Calcular comissões reais por nível
-      // Agora vamos processar as transações de comissão corretamente por nível
+      // Calcular comissões reais por nível, lidando com transações históricas
+      
+      // Verificar se há transações com IDs nulos (transações históricas)
+      const hasLegacyTransactions = commissionTransactions.some(tx => tx.transactionId === null);
+      
+      // ETAPA 1: Calcular transações modernas com prefixos COM1, COM2, COM3
       const level1Commission = commissionTransactions
         .filter(tx => tx.transactionId?.startsWith('COM1-'))
         .reduce((total, tx) => total + tx.amount, 0);
@@ -1100,8 +1104,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const level3Commission = commissionTransactions
         .filter(tx => tx.transactionId?.startsWith('COM3-'))
         .reduce((total, tx) => total + tx.amount, 0);
+      
+      // ETAPA 2: Tratar transações históricas (sem ID) como nível 1
+      // Isso é necessário para compatibilidade com dados existentes
+      const legacyCommission = hasLegacyTransactions 
+        ? commissionTransactions
+            .filter(tx => tx.transactionId === null)
+            .reduce((total, tx) => total + tx.amount, 0)
+        : 0;
+      
+      // Total final (soma das transações modernas + históricas)
+      const totalLevel1Commission = level1Commission + legacyCommission;
         
-      console.log(`Comissões calculadas: Nível 1: ${level1Commission}, Nível 2: ${level2Commission}, Nível 3: ${level3Commission}`);
+      console.log(`Comissões calculadas: 
+        Nível 1: ${totalLevel1Commission} (novas: ${level1Commission}, legadas: ${legacyCommission})
+        Nível 2: ${level2Commission}
+        Nível 3: ${level3Commission}
+      `);
 
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
@@ -1153,7 +1172,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         level1: {
           count: level1Count,
-          commission: level1Commission,
+          commission: totalLevel1Commission,  // Agora incluindo comissões históricas!
+          legacyCommission: legacyCommission, // Para fins de depuração
+          newCommission: level1Commission,    // Para fins de depuração
           referrals: formattedLevel1,
           active: level1ActiveCount
         },
