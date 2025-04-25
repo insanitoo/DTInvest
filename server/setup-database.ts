@@ -288,7 +288,9 @@ export async function setupDatabase() {
             rt.level + 1
           FROM users u
           JOIN referral_tree rt ON 
-            u.referred_by = rt.referral_code
+            u.referred_by::TEXT = rt.phone_number OR 
+            u.referred_by::TEXT = rt.referral_code OR
+            u.referred_by = rt.id
           WHERE rt.level < 3 -- Limit to 3 levels
         )
 
@@ -302,7 +304,9 @@ export async function setupDatabase() {
           SUM(CASE WHEN r.level = 3 AND r.has_product = true THEN 1 ELSE 0 END) AS level3_active
         FROM users u
         LEFT JOIN referral_tree r ON 
-          r.referred_by = u.phone_number OR r.referred_by = u.referral_code
+          r.referred_by::TEXT = u.phone_number OR 
+          r.referred_by::TEXT = u.referral_code OR
+          r.referred_by = u.id
         GROUP BY u.id;
       `);
       console.log("✅ View 'referral_counts' criada/atualizada");
@@ -316,14 +320,22 @@ export async function setupDatabase() {
           CREATE OR REPLACE VIEW referral_counts AS
           SELECT 
             u.id AS user_id,
-            COUNT(CASE WHEN r.referred_by = u.phone_number OR r.referred_by = u.referral_code THEN 1 ELSE NULL END) AS level1_count,
+            COUNT(CASE WHEN 
+              -- Abordagem mais simples: contar apenas referidos pelo telefone ou código
+              r.referred_by = u.phone_number OR r.referred_by = u.referral_code
+              THEN 1 ELSE NULL END) AS level1_count,
             0 AS level2_count,
             0 AS level3_count,
-            SUM(CASE WHEN (r.referred_by = u.phone_number OR r.referred_by = u.referral_code) AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
+            SUM(CASE WHEN 
+              (r.referred_by = u.phone_number OR r.referred_by = u.referral_code) 
+              AND r.has_product = true THEN 1 ELSE 0 END) AS level1_active,
             0 AS level2_active,
             0 AS level3_active
           FROM users u
-          LEFT JOIN users r ON r.referred_by = u.phone_number OR r.referred_by = u.referral_code
+          -- Usar LEFT JOIN para incluir usuários sem referidos
+          LEFT JOIN users r ON 
+            r.referred_by = u.phone_number OR 
+            r.referred_by = u.referral_code
           GROUP BY u.id;
         `);
         console.log("✅ View simplificada 'referral_counts' criada com sucesso!");
