@@ -643,12 +643,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newBalance = user.balance - product.price;
       console.log(`Novo saldo calculado: ${newBalance}`);
 
-      // 1. Primeiro: Registrar a compra
+      // 1. Primeiro: Registrar a compra - inicializar com dias do ciclo
       console.log(`Registrando compra no sistema...`);
       const purchase = await storage.createPurchase({
         userId,
         productId: product.id,
-        amount: product.price
+        amount: product.price,
+        daysRemaining: product.cycleDays
       });
       console.log(`Compra registrada com sucesso: ID=${purchase.id}`);
 
@@ -890,6 +891,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`===== COMPRA DE PRODUTO CONCLUÍDA COM SUCESSO =====`);
 
+      // Atualizar dias restantes após creditar o primeiro rendimento diário
+      await storage.updatePurchaseDaysRemaining(purchase.id, product.cycleDays - 1); // Descontar o primeiro dia já creditado
+        
+      console.log(`Dias restantes atualizados: ${product.cycleDays} -> ${product.cycleDays - 1}`);
+
       // Retornar resposta com informações detalhadas
       res.status(200).json({
         success: true,
@@ -934,11 +940,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return null; // Produto pode ter sido excluído
           }
 
-          // Calcular dias restantes com base na data da compra e dias do ciclo
-          const purchaseDate = new Date(purchase.createdAt);
-          const today = new Date();
-          const daysPassed = Math.floor((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
-          const daysRemaining = Math.max(0, product.cycleDays - daysPassed);
+          // Obter os dias restantes do registro da compra (atualizado pelo processamento diário)
+          const daysRemaining = purchase.daysRemaining !== null && purchase.daysRemaining !== undefined
+            ? purchase.daysRemaining
+            : Math.max(0, product.cycleDays); // Fallback para produto recém-comprado sem daysRemaining
+          
           const isActive = daysRemaining > 0;
 
           // Formatar conforme interface UserProduct
@@ -1532,11 +1538,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Saldo insuficiente para comprar este produto" });
       }
 
-      // Registrar a compra
+      // Registrar a compra com o número inicial de dias do ciclo
       const purchase = await storage.createPurchase({
         userId,
         productId: product.id,
-        amount: product.price
+        amount: product.price,
+        daysRemaining: product.cycleDays
       });
 
       // Atualizar o saldo do usuário
