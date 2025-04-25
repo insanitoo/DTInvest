@@ -536,22 +536,8 @@ export default function AuthPage() {
 
 
 
-              {/* Action Buttons */}
-              <div className="mt-4 flex justify-between gap-2">
-                <button
-                  className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 px-3 rounded"
-                  onClick={async () => {
-                    const user = await checkAuth();
-                    toast({
-                      title: user ? "Autenticado" : "Não autenticado",
-                      description: user ? `Usuário: ${user.phoneNumber}` : "Sessão inválida ou expirada",
-                      variant: user ? "default" : "destructive"
-                    });
-                  }}
-                >
-                  Verificar autenticação
-                </button>
-                
+              {/* Clear Data Button */}
+              <div className="mt-4 flex justify-end">
                 <button
                   className="text-xs bg-red-900/50 hover:bg-red-900/80 text-red-300 py-1.5 px-3 rounded"
                   onClick={() => {
