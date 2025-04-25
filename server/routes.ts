@@ -874,45 +874,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Obter dados da view referral_counts - OTIMIZAÇÃO PARA PRODUÇÃO
-      console.log("Buscando informações de referidos a partir da view referral_counts...");
+      /**
+       * VERSÃO MELHORADA DO ENDPOINT DE REFERIDOS
+       * - Tenta usar a view SQL se disponível (mais rápido)
+       * - Fallback para cálculo manual se a view não funcionar
+       * - Garante compatibilidade com todas as versões do sistema de referência (referred_by como ID, telefone ou código)
+       */
+      
+      // IMPORTANTE: SEMPRE buscar os usuários primeiro para garantir que teremos os dados completos
+      // mesmo que a view SQL falhe
+      console.log("Buscando todos os usuários do sistema...");
+      const users = await storage.getAllUsers();
+      
+      // Recuperar dados do usuário atual para ter certeza que estão atualizados
+      const currentUser = users.find(u => u.id === req.user.id);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      console.log(`Processando referidos para usuário: ${currentUser.id} (Tel: ${currentUser.phoneNumber})`);
+      
+      // ETAPA 1: Tentar obter dados da view (mais rápido em produção)
+      console.log("Tentando buscar informações de referidos a partir da view referral_counts...");
       let referralCounts = null;
+      let viewQuerySuccessful = false;
+      
       try {
-        const userId = req.user.id;
+        const userId = currentUser.id;
         const result = await db.execute(sql`
           SELECT * FROM referral_counts WHERE user_id = ${userId}
         `);
         
         if (result.rows && result.rows.length > 0) {
           referralCounts = result.rows[0];
-          console.log("Dados obtidos da view referral_counts:", referralCounts);
+          viewQuerySuccessful = true;
+          console.log("✅ Dados obtidos com sucesso da view referral_counts:", referralCounts);
         } else {
-          console.log("Nenhum dado encontrado na view referral_counts para o usuário", userId);
+          console.log("⚠️ Nenhum dado encontrado na view referral_counts para o usuário", userId);
         }
       } catch (err) {
-        console.error("Erro ao consultar view referral_counts:", err);
+        console.error("❌ Erro ao consultar view referral_counts:", err);
       }
       
-      // FALLBACK: Se não conseguir usar a view, calcular manualmente
-      const users = await storage.getAllUsers();
+      // ETAPA 2: SEMPRE calcular manualmente para garantir que teremos os dados de referidos
+      console.log("Calculando referidos manualmente (independente da view)...");
       
-      // Obter referidos diretos (nível 1)
-      console.log("Calculando referidos manualmente como fallback...");
-      const level1Referrals = users.filter(
-        user => (user.referredBy === req.user.phoneNumber || user.referredBy === req.user.referralCode)
-      );
+      // Verificar todos os possíveis campos de referência
+      // 1. Outro usuário pode ter sido referido pelo ID deste usuário
+      // 2. Outro usuário pode ter sido referido pelo telefone deste usuário
+      // 3. Outro usuário pode ter sido referido pelo código de referência deste usuário
       
-      // Obter referidos de nível 2
+      // Obter referidos diretos (nível 1) - considerando todos os possíveis campos de referência
+      const level1Referrals = users.filter(user => {
+        // Converter referred_by para string para comparar com segurança
+        const referredBy = String(user.referredBy || '');
+        return (
+          referredBy === String(currentUser.id) || 
+          referredBy === currentUser.phoneNumber || 
+          referredBy === currentUser.referralCode
+        );
+      });
+      
+      console.log(`Encontrados ${level1Referrals.length} referidos diretos (nível 1)`);
+      
+      // Obter referidos de nível 2 
+      // (usuários que foram referidos por alguém que foi referido pelo usuário atual)
+      const level1Ids = level1Referrals.map(user => user.id);
       const level1PhoneNumbers = level1Referrals.map(user => user.phoneNumber);
-      const level2Referrals = users.filter(
-        user => user.referredBy && level1PhoneNumbers.includes(user.referredBy)
-      );
+      const level1ReferralCodes = level1Referrals.map(user => user.referralCode);
+      
+      const level2Referrals = users.filter(user => {
+        if (!user.referredBy) return false;
+        
+        const referredBy = String(user.referredBy || '');
+        return (
+          level1Ids.some(id => referredBy === String(id)) ||
+          level1PhoneNumbers.some(phone => referredBy === phone) ||
+          level1ReferralCodes.some(code => referredBy === code)
+        );
+      });
+      
+      console.log(`Encontrados ${level2Referrals.length} referidos de nível 2`);
       
       // Obter referidos de nível 3
+      // (usuários que foram referidos por alguém de nível 2)
+      const level2Ids = level2Referrals.map(user => user.id);
       const level2PhoneNumbers = level2Referrals.map(user => user.phoneNumber);
-      const level3Referrals = users.filter(
-        user => user.referredBy && level2PhoneNumbers.includes(user.referredBy)
-      );
+      const level2ReferralCodes = level2Referrals.map(user => user.referralCode);
+      
+      const level3Referrals = users.filter(user => {
+        if (!user.referredBy) return false;
+        
+        const referredBy = String(user.referredBy || '');
+        return (
+          level2Ids.some(id => referredBy === String(id)) ||
+          level2PhoneNumbers.some(phone => referredBy === phone) ||
+          level2ReferralCodes.some(code => referredBy === code)
+        );
+      });
+      
+      console.log(`Encontrados ${level3Referrals.length} referidos de nível 3`);
 
       // Obter as configurações de comissão atualizadas
       const level1CommissionSetting = await storage.getSetting('level1_commission');
@@ -951,42 +1012,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasProduct: user.hasProduct || false
       }));
 
-      // OTIMIZAÇÃO: Usar os dados da view referral_counts se disponíveis
-      // Caso contrário, usar os cálculos manuais
+      // DECISÃO: Qual fonte de dados usar?
+      // Se a view funcionou, usar contagens da view (mais otimizada)
+      // Mas SEMPRE usar as listas de referidos do cálculo manual (mais confiável)
       
-      // Verificar se temos os dados da view
-      const level1Count = referralCounts ? Number(referralCounts.level1_count) : Number(level1Referrals.length);
-      const level2Count = referralCounts ? Number(referralCounts.level2_count) : Number(level2Referrals.length);
-      const level3Count = referralCounts ? Number(referralCounts.level3_count) : Number(level3Referrals.length);
+      // Contar usuários ativos (que compraram produtos)
+      const level1Active = level1Referrals.filter(u => u.hasProduct).length;
+      const level2Active = level2Referrals.filter(u => u.hasProduct).length;
+      const level3Active = level3Referrals.filter(u => u.hasProduct).length;
       
-      const level1Active = referralCounts ? Number(referralCounts.level1_active) : level1Referrals.filter(u => u.hasProduct).length;
+      // Decidir quais contagens usar
+      const useViewCounts = viewQuerySuccessful && referralCounts;
       
-      console.log(`Dados finais (${referralCounts ? 'via view' : 'via cálculo manual'}):
-        Level 1: ${level1Count} (${level1Active} ativos)
-        Level 2: ${level2Count}
-        Level 3: ${level3Count}
+      // Resolver contagens finais
+      const level1Count = useViewCounts ? Number(referralCounts.level1_count) : level1Referrals.length;
+      const level2Count = useViewCounts ? Number(referralCounts.level2_count) : level2Referrals.length;
+      const level3Count = useViewCounts ? Number(referralCounts.level3_count) : level3Referrals.length;
+      
+      const level1ActiveCount = useViewCounts ? Number(referralCounts.level1_active) : level1Active;
+      const level2ActiveCount = useViewCounts ? Number(referralCounts.level2_active) : level2Active;
+      const level3ActiveCount = useViewCounts ? Number(referralCounts.level3_active) : level3Active;
+      
+      console.log(`Dados finais de referidos (${useViewCounts ? 'contagem via view' : 'contagem via cálculo manual'}):
+        Level 1: ${level1Count} (${level1ActiveCount} ativos) - ${level1Referrals.length} na lista
+        Level 2: ${level2Count} (${level2ActiveCount} ativos) - ${level2Referrals.length} na lista
+        Level 3: ${level3Count} (${level3ActiveCount} ativos) - ${level3Referrals.length} na lista
       `);
       
+      // Resposta final com todos os dados
       res.json({
         level1: {
           count: level1Count,
           commission: level1Commission,
           referrals: formattedLevel1,
-          active: level1Active
+          active: level1ActiveCount
         },
         level2: {
           count: level2Count,
           commission: level2Commission,
-          referrals: formattedLevel2
+          referrals: formattedLevel2,
+          active: level2ActiveCount
         },
         level3: {
           count: level3Count,
           commission: level3Commission,
-          referrals: formattedLevel3
+          referrals: formattedLevel3,
+          active: level3ActiveCount
         },
-        source: referralCounts ? 'view' : 'manual'  // para debugging
+        source: useViewCounts ? 'view' : 'manual'  // para debugging
       });
     } catch (error) {
+      console.error("Erro ao processar referidos:", error);
       next(error);
     }
   });
