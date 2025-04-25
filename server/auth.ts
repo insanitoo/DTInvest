@@ -539,9 +539,11 @@ export function setupAuth(app: Express) {
       // Obter dados dos referidos para calculer estatísticas
       const allUsers = await storage.getAllUsers();
       
-      // MODIFICAÇÃO: Agora o referred_by armazena o número de telefone do referenciador, não o código
+      // MODIFICAÇÃO: Agora referred_by pode ser o número de telefone ou o código de referral
       // Contar referidos diretos (nível 1)
-      const level1Referrals = allUsers.filter(user => user.referredBy === freshUserData.phoneNumber);
+      const level1Referrals = allUsers.filter(user => 
+        user.referredBy === freshUserData.phoneNumber || user.referredBy === freshUserData.referralCode
+      );
       
       // Contar referidos nível 2
       // Precisamos usar o número de telefone de cada usuário nível 1
@@ -579,17 +581,29 @@ export function setupAuth(app: Express) {
         console.error('Erro ao buscar contagem de referidos:', e);
       }
       
-      // CORREÇÃO: Priorizar a contagem manual (level1Referrals.length) e usar o referralCounts como fallback
-      // Isso garante que os números são os mesmos na página de equipe e na página de perfil
+      // OTIMIZAÇÃO: Usar dados da view referral_counts se disponíveis
+      // Isso garante consistência entre todas as interfaces
+      const level1Count = referralCounts ? Number(referralCounts.level1_count) : level1Referrals.length;
+      const level2Count = referralCounts ? Number(referralCounts.level2_count) : level2Referrals.length;
+      const level3Count = referralCounts ? Number(referralCounts.level3_count) : level3Referrals.length;
+      
+      console.log(`Contagem de referidos para usuário ${userId} (${referralCounts ? 'via view' : 'manual'}): L1=${level1Count}, L2=${level2Count}, L3=${level3Count}`);
+      
       const freshUserWithExtras = {
         ...freshUserData,
         bankInfo: bankInfo || null,
         totalCommission,
         memberSince,
         invitationCode: freshUserData.referralCode,
-        level1ReferralCount: level1Referrals.length,
-        level2ReferralCount: level2Referrals.length,
-        level3ReferralCount: level3Referrals.length
+        level1ReferralCount: level1Count,
+        level2ReferralCount: level2Count,
+        level3ReferralCount: level3Count,
+        // Informações adicionais de atividade dos referidos
+        level1Active: referralCounts ? Number(referralCounts.level1_active) : level1Referrals.filter(u => u.hasProduct).length,
+        level2Active: referralCounts ? Number(referralCounts.level2_active) : 0,
+        level3Active: referralCounts ? Number(referralCounts.level3_active) : 0,
+        // Para detecção de problemas
+        referralSource: referralCounts ? 'view' : 'manual'
       };
 
       // Atualizar a sessão com os dados mais recentes
