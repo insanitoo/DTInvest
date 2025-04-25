@@ -253,9 +253,9 @@ export default function AuthPage() {
                 <label htmlFor="login-phone" className="block text-sm text-gray-400 mb-1">
                   Número de Telefone
                 </label>
-                <Input
+                <input
                   id="login-phone"
-                  className="w-full rounded-md p-2.5 auth-input"
+                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                   placeholder="Ex: 999 999 999"
                   {...loginForm.register('phoneNumber')}
                   onChange={(e) => formatPhoneInput(e, (val: string) => 
@@ -274,10 +274,10 @@ export default function AuthPage() {
                   Senha
                 </label>
                 <div className="relative">
-                  <Input
+                  <input
                     id="login-password"
                     type={showLoginPassword ? 'text' : 'password'}
-                    className="w-full rounded-md p-2.5 auth-input"
+                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                     placeholder="Sua senha"
                     {...loginForm.register('password')}
                   />
@@ -346,9 +346,9 @@ export default function AuthPage() {
                 <label htmlFor="register-phone" className="block text-sm text-gray-400 mb-1">
                   Número de Telefone
                 </label>
-                <Input
+                <input
                   id="register-phone"
-                  className="w-full rounded-md p-2.5 auth-input"
+                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                   placeholder="Ex: 999 999 999"
                   {...registerForm.register('phoneNumber')}
                   onChange={(e) => formatPhoneInput(e, (val: string) => 
@@ -367,10 +367,10 @@ export default function AuthPage() {
                   Senha
                 </label>
                 <div className="relative">
-                  <Input
+                  <input
                     id="register-password"
                     type={showRegisterPassword ? 'text' : 'password'}
-                    className="w-full rounded-md p-2.5 auth-input"
+                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                     placeholder="Crie uma senha"
                     {...registerForm.register('password')}
                   />
@@ -398,10 +398,10 @@ export default function AuthPage() {
                   Confirmar Senha
                 </label>
                 <div className="relative">
-                  <Input
+                  <input
                     id="confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    className="w-full rounded-md p-2.5 auth-input"
+                    className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                     placeholder="Confirme sua senha"
                     {...registerForm.register('confirmPassword')}
                   />
@@ -428,9 +428,9 @@ export default function AuthPage() {
                 <label htmlFor="referral-code" className="block text-sm text-gray-400 mb-1">
                   Código de Convite *
                 </label>
-                <Input
+                <input
                   id="referral-code"
-                  className="w-full rounded-md p-2.5 auth-input"
+                  className="w-full bg-[#2D2D2D] border border-[#3B3B3B] rounded-md p-2.5 text-white"
                   placeholder="Código de convite"
                   defaultValue={new URLSearchParams(window.location.search).get('ref') || ''}
                   {...registerForm.register('referralCode', { required: 'Código de convite é obrigatório' })}
