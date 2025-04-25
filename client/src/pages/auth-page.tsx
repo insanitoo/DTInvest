@@ -38,7 +38,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation, registerMutation, checkAuth } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const referralCode = new URLSearchParams(window.location.search).get('ref');
@@ -46,6 +46,34 @@ export default function AuthPage() {
     const tabParam = new URLSearchParams(window.location.search).get('tab');
     return tabParam === 'register' || referralCode ? 'register' : 'login';
   });
+  
+  // Estados para controle de UI
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
+  
+  // Estados para diagnóstico de sessão  
+  const [showDebug, setShowDebug] = useState(false);
+  const [sessionData, setSessionData] = useState<any>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  
+  // Função para testar o estado da sessão
+  const testSession = async () => {
+    try {
+      setDebugLoading(true);
+      const response = await fetch('/api/test-session', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      setSessionData(data);
+    } catch (error) {
+      console.error('Erro ao testar sessão:', error);
+      setSessionData({ error: String(error) });
+    } finally {
+      setDebugLoading(false);
+    }
+  };
 
   // Prevenir login automático quando houver código de convite
   useEffect(() => {
@@ -59,11 +87,6 @@ export default function AuthPage() {
       registerForm.setValue('referralCode', referralCode);
     }
   }, [activeTab, referralCode]);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated' | 'not-authenticated'>('checking');
 
   // Redirect if already logged in
   useEffect(() => {
