@@ -326,15 +326,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   // === FUNÇÕES DE INTERFACE ===
 
-  // Criar depósito
+  // Criar depósito (versão robusta com controle total sobre a requisição)
   const createDeposit = async (data: {
     amount: number,
     bankId?: string | number,
     bankName?: string | null,
     receipt?: string | null
-  }): Promise<{ success: boolean; transactionId?: string }> => {
+  }): Promise<{ success: boolean; transactionId?: string; message?: string }> => {
     try {
-      console.log('Dados recebidos na função createDeposit:', data);
+      console.log('[DEPÓSITO] Dados recebidos na função createDeposit:', data);
       
       // Adaptação para garantir compatibilidade do objeto
       const depositData: any = {
@@ -352,16 +352,85 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         depositData.bankName = data.bankName;
       }
       
-      console.log('Dados adaptados que serão enviados:', depositData);
+      console.log('[DEPÓSITO] Dados adaptados que serão enviados:', depositData);
       
-      const result = await createDepositMutation.mutateAsync(depositData);
+      // Usar fetch diretamente em vez de mutation para ter controle total
+      console.log('[DEPÓSITO] Enviando requisição direta ao servidor...');
+      
+      // Fazer requisição direta, sem passar pelo apiRequest
+      const response = await fetch('/api/deposits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        credentials: 'include', // CRUCIAL para manter sessão
+        body: JSON.stringify(depositData)
+      });
+      
+      console.log('[DEPÓSITO] Status da resposta:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        let errorMessage = '';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || 'Erro desconhecido';
+        } catch (_) {
+          errorMessage = await response.text() || `Erro ${response.status}`;
+        }
+        
+        console.error('[DEPÓSITO] Erro na resposta:', errorMessage);
+        
+        // Tratamento especial para erro de sessão
+        if (response.status === 401) {
+          toast({
+            title: 'Sessão expirada',
+            description: 'Sua sessão expirou. Por favor, faça login novamente.',
+            variant: 'destructive',
+          });
+          return { 
+            success: false, 
+            message: 'Sessão expirada. Faça login novamente.'
+          };
+        }
+        
+        toast({
+          title: 'Erro ao criar depósito',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        
+        return { success: false, message: errorMessage };
+      }
+      
+      const result = await response.json();
+      console.log('[DEPÓSITO] Depósito criado com sucesso:', result);
+      
+      // Atualizar dados locais após sucesso
+      await loadDeposits();
+      await loadTransactions();
+      
+      // Notificação de sucesso
+      toast({
+        title: 'Depósito solicitado',
+        description: `Seu depósito foi registrado com sucesso! ID: ${result.transactionId}`,
+        variant: 'default',
+      });
+      
       return { 
-        success: result.success, 
-        transactionId: result.transactionId 
+        success: true, 
+        transactionId: result.transactionId,
+        message: result.message
       };
     } catch (error) {
-      console.error('Erro ao criar depósito:', error);
-      return { success: false };
+      console.error('[DEPÓSITO] Erro inesperado ao criar depósito:', error);
+      toast({
+        title: 'Erro ao processar depósito',
+        description: error instanceof Error ? error.message : 'Erro inesperado',
+        variant: 'destructive',
+      });
+      return { success: false, message: 'Erro inesperado ao processar seu depósito' };
     }
   };
 
