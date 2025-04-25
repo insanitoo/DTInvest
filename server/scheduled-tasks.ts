@@ -100,9 +100,8 @@ async function processDailyIncome() {
             
             console.log(`Atualizando dias restantes para produto ${product.name} do usuário ${user.id}: ${purchaseObj[0].daysRemaining} -> ${updatedDaysRemaining}`);
             
-            await db.update(purchases)
-              .set({ daysRemaining: updatedDaysRemaining })
-              .where(eq(purchases.id, purchase.id));
+            // Usar o método implementado no storage para atualizar os dias restantes
+            await storage.updatePurchaseDaysRemaining(purchase.id, updatedDaysRemaining);
               
             if (updatedDaysRemaining === 0) {
               console.log(`⚠️ Produto ${product.name} do usuário ${user.id} expirou (0 dias restantes)`);

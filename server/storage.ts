@@ -1800,6 +1800,22 @@ export class DatabaseStorage implements IStorage {
 
     return newPurchase;
   }
+  
+  async updatePurchaseDaysRemaining(purchaseId: number, daysRemaining: number): Promise<Purchase> {
+    const [updatedPurchase] = await db
+      .update(purchases)
+      .set({ daysRemaining })
+      .where(eq(purchases.id, purchaseId))
+      .returning();
+      
+    if (!updatedPurchase) {
+      throw new Error('Compra não encontrada');
+    }
+    
+    console.log(`PURCHASE >>> Dias restantes atualizados para compra ${purchaseId}: ${daysRemaining}`);
+    
+    return updatedPurchase;
+  }
 
   // Social links methods
   async getSocialLinks(): Promise<SocialLink[]> {
