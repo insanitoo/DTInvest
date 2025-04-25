@@ -31,6 +31,7 @@ function scheduleForMidnight(callback: () => void) {
   
   // Agenda a execução para a meia-noite
   setTimeout(() => {
+    console.log(`🕛 EXECUTANDO TAREFA AGENDADA - ${new Date().toISOString()}`);
     callback();
     // Reagenda para a próxima meia-noite após executar
     scheduleForMidnight(callback);
@@ -44,6 +45,8 @@ function scheduleForMidnight(callback: () => void) {
  */
 async function processDailyIncome() {
   console.log("🔄 Iniciando processamento de rendimentos diários");
+  console.log(`Data e hora atual: ${new Date().toISOString()}`);
+  console.log(`Hora local de Angola: ${new Date().toLocaleString('pt-AO', { timeZone: 'Africa/Luanda' })}`);
   
   try {
     // Obtém todos os produtos ativos
@@ -59,7 +62,8 @@ async function processDailyIncome() {
     const allPurchases = await db.select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId
+      productId: purchases.productId,
+      createdAt: purchases.createdAt
     }).from(purchases);
     
     console.log(`Encontradas ${allPurchases.length} compras para processamento`);
@@ -68,6 +72,12 @@ async function processDailyIncome() {
       console.log("Nenhuma compra encontrada. Pulando processamento de rendimentos.");
       return;
     }
+    
+    // Iniciar o registro de log do ciclo
+    console.log("🔄 NOVO CICLO DE RENDIMENTOS DIÁRIOS INICIADO");
+    console.log(`Data/hora: ${new Date().toISOString()}`);
+    console.log(`Total de produtos ativos: ${activeProducts.length}`);
+    console.log(`Total de compras para processar: ${allPurchases.length}`);
 
     // Para cada compra, processa o rendimento diário
     for (const purchase of allPurchases) {
@@ -90,10 +100,12 @@ async function processDailyIncome() {
         const updatedBalance = user.balance + product.dailyIncome;
         await storage.updateUserBalance(user.id, updatedBalance);
 
-        // Gera um ID único para a transação
-        const uniqueId = `INC${Date.now().toString(36).toUpperCase()}-${purchase.id}`;
+        // Gera um ID único para a transação incluindo a data atual para rastreamento de ciclo
+        const now = new Date();
+        const cycleDate = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+        const uniqueId = `INC${cycleDate}-${purchase.id}`;
         
-        // Registra a transação
+        // Registra a transação com identificador de ciclo
         const transaction = await db.insert(transactions).values({
           userId: user.id,
           amount: product.dailyIncome,
@@ -105,7 +117,7 @@ async function processDailyIncome() {
           transactionId: uniqueId
         }).returning();
 
-        console.log(`Rendimento processado para usuário ${user.id}: +${product.dailyIncome} KZ do produto ${product.name}`);
+        console.log(`Rendimento processado para usuário ${user.id}: +${product.dailyIncome} KZ do produto ${product.name} (Ciclo: ${cycleDate})`);
       } catch (error) {
         console.error(`Erro ao processar rendimento para compra ${purchase.id}:`, error);
       }

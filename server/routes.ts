@@ -1087,10 +1087,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getTransactions(req.user.id);
       const commissionTransactions = transactions.filter(t => t.type === 'commission');
 
-      // Calcular comissões reais
-      const level1Commission = commissionTransactions.reduce((total, tx) => total + tx.amount, 0);
-      const level2Commission = 0; // Usar 0 para nível 2 e 3, pois comissões estão todas no nível 1
-      const level3Commission = 0;
+      // Calcular comissões reais por nível
+      // Agora vamos processar as transações de comissão corretamente por nível
+      const level1Commission = commissionTransactions
+        .filter(tx => tx.transactionId?.startsWith('COM1-'))
+        .reduce((total, tx) => total + tx.amount, 0);
+        
+      const level2Commission = commissionTransactions
+        .filter(tx => tx.transactionId?.startsWith('COM2-'))
+        .reduce((total, tx) => total + tx.amount, 0);
+        
+      const level3Commission = commissionTransactions
+        .filter(tx => tx.transactionId?.startsWith('COM3-'))
+        .reduce((total, tx) => total + tx.amount, 0);
+        
+      console.log(`Comissões calculadas: Nível 1: ${level1Commission}, Nível 2: ${level2Commission}, Nível 3: ${level3Commission}`);
 
       // Transformar dados de referidos para o formato desejado
       const formattedLevel1 = level1Referrals.map(user => ({
