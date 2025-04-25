@@ -229,7 +229,7 @@ export default function UserPage() {
                 <div className="space-y-3">
                   <TransactionsList 
                     limit={5} 
-                    showFilters={false} 
+                    showFilters={true} 
                     title="" 
                   />
                   
