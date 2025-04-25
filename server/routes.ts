@@ -874,23 +874,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      // Obter dados da view referral_counts - OTIMIZAÇÃO PARA PRODUÇÃO
+      console.log("Buscando informações de referidos a partir da view referral_counts...");
+      let referralCounts = null;
+      try {
+        const userId = req.user.id;
+        const result = await db.execute(sql`
+          SELECT * FROM referral_counts WHERE user_id = ${userId}
+        `);
+        
+        if (result.rows && result.rows.length > 0) {
+          referralCounts = result.rows[0];
+          console.log("Dados obtidos da view referral_counts:", referralCounts);
+        } else {
+          console.log("Nenhum dado encontrado na view referral_counts para o usuário", userId);
+        }
+      } catch (err) {
+        console.error("Erro ao consultar view referral_counts:", err);
+      }
+      
+      // FALLBACK: Se não conseguir usar a view, calcular manualmente
       const users = await storage.getAllUsers();
-
-      // MODIFICAÇÃO: Agora o referred_by armazena o número de telefone do referenciador, não o código
+      
       // Obter referidos diretos (nível 1)
+      console.log("Calculando referidos manualmente como fallback...");
       const level1Referrals = users.filter(
-        user => user.referredBy === req.user.phoneNumber
+        user => (user.referredBy === req.user.phoneNumber || user.referredBy === req.user.referralCode)
       );
-
+      
       // Obter referidos de nível 2
-      // Precisamos usar o número de telefone de cada usuário nível 1 como referred_by para encontrar os nível 2
       const level1PhoneNumbers = level1Referrals.map(user => user.phoneNumber);
       const level2Referrals = users.filter(
         user => user.referredBy && level1PhoneNumbers.includes(user.referredBy)
       );
-
+      
       // Obter referidos de nível 3
-      // Usar os números de telefone dos usuários nível 2
       const level2PhoneNumbers = level2Referrals.map(user => user.phoneNumber);
       const level3Referrals = users.filter(
         user => user.referredBy && level2PhoneNumbers.includes(user.referredBy)
@@ -933,25 +951,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasProduct: user.hasProduct || false
       }));
 
-      // CORREÇÃO: Os números de referidos estão sendo mostrados corretamente
-      // sem multiplicação por 100 ou qualquer outro fator
-      // Garantir que são números inteiros reais
+      // OTIMIZAÇÃO: Usar os dados da view referral_counts se disponíveis
+      // Caso contrário, usar os cálculos manuais
+      
+      // Verificar se temos os dados da view
+      const level1Count = referralCounts ? Number(referralCounts.level1_count) : Number(level1Referrals.length);
+      const level2Count = referralCounts ? Number(referralCounts.level2_count) : Number(level2Referrals.length);
+      const level3Count = referralCounts ? Number(referralCounts.level3_count) : Number(level3Referrals.length);
+      
+      const level1Active = referralCounts ? Number(referralCounts.level1_active) : level1Referrals.filter(u => u.hasProduct).length;
+      
+      console.log(`Dados finais (${referralCounts ? 'via view' : 'via cálculo manual'}):
+        Level 1: ${level1Count} (${level1Active} ativos)
+        Level 2: ${level2Count}
+        Level 3: ${level3Count}
+      `);
+      
       res.json({
         level1: {
-          count: Number(level1Referrals.length),
+          count: level1Count,
           commission: level1Commission,
-          referrals: formattedLevel1
+          referrals: formattedLevel1,
+          active: level1Active
         },
         level2: {
-          count: Number(level2Referrals.length),
+          count: level2Count,
           commission: level2Commission,
           referrals: formattedLevel2
         },
         level3: {
-          count: Number(level3Referrals.length),
+          count: level3Count,
           commission: level3Commission,
           referrals: formattedLevel3
-        }
+        },
+        source: referralCounts ? 'view' : 'manual'  // para debugging
       });
     } catch (error) {
       next(error);
