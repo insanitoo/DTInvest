@@ -36,10 +36,10 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
 
   // Criação do depósito
   const handleDeposit = async () => {
-    if (!amount || amount < 25000) {
+    if (!amount || amount < 10000) {
       toast({
         title: 'Valor inválido',
-        description: 'O valor mínimo para depósito é KZ 25.000',
+        description: 'O valor mínimo para depósito é KZ 10.000',
         variant: 'destructive'
       });
       return;
@@ -219,11 +219,11 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
                   onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
                   className="bg-dark-tertiary text-white border-gray-700"
                   placeholder="KZ 0.00"
-                  min={25000}
+                  min={10000}
                   step={1000}
                   disabled={loadingDeposit}
                 />
-                <p className="text-xs text-gray-400 mt-1">Valor mínimo: KZ 25.000</p>
+                <p className="text-xs text-gray-400 mt-1">Valor mínimo: KZ 10.000</p>
               </div>
               
               {/* Banco */}
@@ -259,7 +259,7 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
                 disabled={
                   loadingDeposit || 
                   !amount || 
-                  amount < 25000 ||
+                  amount < 10000 ||
                   !bankName
                 }
               >
