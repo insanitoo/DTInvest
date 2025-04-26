@@ -15,7 +15,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
 import { db, pool } from "./db";
-import { eq, desc, and, isNull, or, not } from "drizzle-orm";
+import { eq, desc, asc, and, isNull, or, not } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -1711,18 +1711,22 @@ export class DatabaseStorage implements IStorage {
 
   // Product methods
   async getProducts(): Promise<Product[]> {
-    return await db
+    const result = await db
       .select()
       .from(products)
-      .orderBy(asc(products.price));
+      .orderBy(products.price);
+    
+    return result;
   }
 
   async getActiveProducts(): Promise<Product[]> {
-    return await db
+    const result = await db
       .select()
       .from(products)
       .where(eq(products.active, true))
-      .orderBy(asc(products.price));
+      .orderBy(products.price);
+    
+    return result;
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
