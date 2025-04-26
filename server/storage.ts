@@ -1711,14 +1711,18 @@ export class DatabaseStorage implements IStorage {
 
   // Product methods
   async getProducts(): Promise<Product[]> {
-    return await db.select().from(products);
+    return await db
+      .select()
+      .from(products)
+      .orderBy(asc(products.price));
   }
 
   async getActiveProducts(): Promise<Product[]> {
     return await db
       .select()
       .from(products)
-      .where(eq(products.active, true));
+      .where(eq(products.active, true))
+      .orderBy(asc(products.price));
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
