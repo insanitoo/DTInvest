@@ -104,7 +104,7 @@ export default function TeamPage() {
                 level={2} 
                 commission={referralStats.level2.commission} 
                 members={referralStats.level2.count} 
-                commissionPercentage={3} 
+                commissionPercentage={10} 
                 referrals={referralStats.level2.referrals}
               />
 
@@ -112,7 +112,7 @@ export default function TeamPage() {
                 level={3} 
                 commission={referralStats.level3.commission} 
                 members={referralStats.level3.count} 
-                commissionPercentage={1} 
+                commissionPercentage={3} 
                 referrals={referralStats.level3.referrals}
               />
             </>

@@ -49,9 +49,9 @@ export async function setupDatabase() {
         has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
         has_purchased BOOLEAN NOT NULL DEFAULT FALSE,
         has_product BOOLEAN NOT NULL DEFAULT FALSE,
-        level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0.10,
-        level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0.03,
-        level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0.01,
+        level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0.25,
+        level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0.10,
+        level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0.03,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
