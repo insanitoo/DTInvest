@@ -31,6 +31,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
   const [loadingWithdrawal, setLoadingWithdrawal] = useState(false);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
   const [bankInfo, setBankInfo] = useState(user?.bankInfo || null); // Add bank info state
+  const [withdrawalResult, setWithdrawalResult] = useState<any>(null);
 
   // Verificar se o usuário pode fazer saques
   const canWithdraw =
@@ -45,6 +46,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
   const handleClose = () => {
     setAmount('');
     setWithdrawalSuccess(false);
+    setWithdrawalResult(null);
     onClose();
   };
 
@@ -96,6 +98,9 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
         bankAccount: bankInfo.accountNumber,
         ownerName: bankInfo.ownerName
       });
+
+      // Salvar o resultado para exibir na tela de sucesso
+      setWithdrawalResult(result);
 
       if (result.success) {
         // Update queries to reflect new balance and add transaction
@@ -172,12 +177,12 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
               Sua solicitação de saque foi enviada com sucesso.
             </p>
             <p className="text-center text-green-400 mb-1">
-              {result && result.message}
+              {withdrawalResult && withdrawalResult.message}
             </p>
-            {result && result.netAmount && (
+            {withdrawalResult && withdrawalResult.netAmount && (
               <p className="text-xs text-center text-gray-400 mb-4">
-                Valor original: {formatCurrency(result.originalAmount)}
-                <br />Taxa aplicada: {formatCurrency(result.feeAmount)} ({(result.feeAmount / result.originalAmount * 100).toFixed(0)}%)
+                Valor original: {formatCurrency(withdrawalResult.originalAmount)}
+                <br />Taxa aplicada: {formatCurrency(withdrawalResult.feeAmount)} ({(withdrawalResult.feeAmount / withdrawalResult.originalAmount * 100).toFixed(0)}%)
               </p>
             )}
             <div className="space-y-3">
@@ -215,6 +220,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
                 <ul className="text-sm list-disc pl-4 space-y-1">
                   <li>Valor mínimo: KZ {MIN_WITHDRAWAL.toLocaleString('pt-AO')}</li>
                   <li>Valor máximo: KZ {MAX_WITHDRAWAL.toLocaleString('pt-AO')}</li>
+                  <li>Taxa de processamento: <span className="text-amber-500 font-medium">12%</span></li>
                   <li>Disponível 10h-16h (Angola), todos os dias</li>
                 </ul>
               </div>
