@@ -710,9 +710,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const level2CommissionSetting = await storage.getSetting('level2_commission');
       const level3CommissionSetting = await storage.getSetting('level3_commission');
 
-      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
-      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
-      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.10;
+      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.01;
+      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.01;
 
       console.log(`Taxas de comissão: Nível 1: ${level1CommissionRate * 100}%, Nível 2: ${level2CommissionRate * 100}%, Nível 3: ${level3CommissionRate * 100}%`);
 
@@ -1079,9 +1079,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const level2CommissionSetting = await storage.getSetting('level2_commission');
       const level3CommissionSetting = await storage.getSetting('level3_commission');
 
-      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
-      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
-      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+      const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.10;
+      const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.01;
+      const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.01;
 
       // Obter as comissões reais do usuário a partir das transações
       const transactions = await storage.getTransactions(req.user.id);
@@ -1579,9 +1579,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const level2CommissionSetting = await storage.getSetting('level2_commission');
           const level3CommissionSetting = await storage.getSetting('level3_commission');
 
-          const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.25;
-          const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.05;
-          const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.03;
+          const level1CommissionRate = level1CommissionSetting ? parseFloat(level1CommissionSetting.value) : 0.10;
+          const level2CommissionRate = level2CommissionSetting ? parseFloat(level2CommissionSetting.value) : 0.01;
+          const level3CommissionRate = level3CommissionSetting ? parseFloat(level3CommissionSetting.value) : 0.01;
           
           // Obter todos os usuários uma única vez 
           const allUsers = await storage.getAllUsers();
