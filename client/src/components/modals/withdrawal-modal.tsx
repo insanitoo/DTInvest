@@ -171,9 +171,15 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
             <p className="text-gray-400 mb-4 text-center">
               Sua solicitação de saque foi enviada com sucesso.
             </p>
-            <p className="text-center text-green-400 mb-4">
-              Sua solicitação de {formatCurrency(typeof amount === 'number' ? amount : 0)} foi registrada e está em análise.
+            <p className="text-center text-green-400 mb-1">
+              {result && result.message}
             </p>
+            {result && result.netAmount && (
+              <p className="text-xs text-center text-gray-400 mb-4">
+                Valor original: {formatCurrency(result.originalAmount)}
+                <br />Taxa aplicada: {formatCurrency(result.feeAmount)} ({(result.feeAmount / result.originalAmount * 100).toFixed(0)}%)
+              </p>
+            )}
             <div className="space-y-3">
               <Button
                 variant="default"

@@ -1278,6 +1278,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const { amount } = req.body;
     const userId = req.user.id;
+    
+    // Obter a taxa de saque da configuração
+    let withdrawalFee = 0.12; // Valor padrão (12%)
+    try {
+      const withdrawalFeeSetting = await storage.getSetting("withdrawal_fee");
+      if (withdrawalFeeSetting) {
+        withdrawalFee = parseFloat(withdrawalFeeSetting.value);
+      }
+    } catch (error) {
+      console.warn("Erro ao obter taxa de saque, usando valor padrão:", error);
+    }
 
     try {
       // Verificar valor mínimo e máximo
@@ -1339,6 +1350,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Calcular o valor após aplicar a taxa de saque (12%)
+      const feeAmount = amount * withdrawalFee;
+      const netAmount = amount - feeAmount;
+
+      // Arredondar para 2 casas decimais
+      const roundedNetAmount = Math.floor(netAmount * 100) / 100;
+      
+      console.log(`Saque solicitado: KZ ${amount} | Taxa: ${withdrawalFee * 100}% (KZ ${feeAmount}) | Valor líquido: KZ ${roundedNetAmount}`);
+
       // Apply 20% penalty if request is rejected
       const REJECTION_PENALTY = 0.2;
       const penaltyAmount = amount * REJECTION_PENALTY;
@@ -1347,7 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create withdrawal request
       const withdrawalRequest = await storage.createWithdrawalRequest({
         userId,
-        amount,
+        amount: roundedNetAmount, // Salvar o valor líquido (após taxa)
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
         ownerName: bankInfo.ownerName,
@@ -1360,14 +1380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique transaction ID
       const transactionId = `WDR${Date.now().toString(36).toUpperCase()}`;
 
-      // Deduzimos o valor imediatamente para evitar saques excessivos
+      // Deduzimos o valor original (total) imediatamente para evitar saques excessivos
       await storage.updateUserBalance(userId, user.balance - amount);
 
       // Criar transação para registrar o saque pendente
       await storage.createTransaction({
         userId,
         type: "withdrawal",
-        amount,
+        amount: roundedNetAmount, // Valor líquido
         status: 'pending',
         bankName: bankInfo.bank,
         bankAccount: bankInfo.accountNumber,
@@ -1378,7 +1398,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Retornamos a resposta com informações da solicitação criada
       return res.status(201).json({
         success: true,
-        message: "Solicitação de saque registrada com sucesso e está em análise",
+        message: `O seu saque de ${formatCurrency(roundedNetAmount)} foi solicitado com sucesso. Taxa aplicada: ${(withdrawalFee * 100).toFixed(0)}%`,
+        originalAmount: amount,
+        feeAmount: feeAmount,
+        netAmount: roundedNetAmount,
         withdrawalRequest: {
           id: withdrawalRequest.id,
           amount: withdrawalRequest.amount,
