@@ -49,9 +49,9 @@ export async function setupDatabase() {
         has_deposited BOOLEAN NOT NULL DEFAULT FALSE,
         has_purchased BOOLEAN NOT NULL DEFAULT FALSE,
         has_product BOOLEAN NOT NULL DEFAULT FALSE,
-        level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
-        level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
-        level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0,
+        level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0.10,
+        level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0.03,
+        level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0.01,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
@@ -64,17 +64,17 @@ export async function setupDatabase() {
         DO $$
         BEGIN
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level1_commission') THEN
-            ALTER TABLE users ADD COLUMN level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+            ALTER TABLE users ADD COLUMN level1_commission DOUBLE PRECISION NOT NULL DEFAULT 0.10;
           END IF;
 
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level2_commission') THEN
-            ALTER TABLE users ADD COLUMN level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+            ALTER TABLE users ADD COLUMN level2_commission DOUBLE PRECISION NOT NULL DEFAULT 0.03;
           END IF;
 
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'level3_commission') THEN
-            ALTER TABLE users ADD COLUMN level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0;
+            ALTER TABLE users ADD COLUMN level3_commission DOUBLE PRECISION NOT NULL DEFAULT 0.01;
           END IF;
-          
+
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'has_product') THEN
             ALTER TABLE users ADD COLUMN has_product BOOLEAN NOT NULL DEFAULT FALSE;
           END IF;
@@ -132,6 +132,7 @@ export async function setupDatabase() {
         bank_name TEXT NOT NULL,
         owner_name TEXT NOT NULL,
         status TEXT NOT NULL,
+        withdrawal_fee DOUBLE PRECISION NOT NULL DEFAULT 0.12,
         processed_at TIMESTAMP,
         processed_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -312,7 +313,7 @@ export async function setupDatabase() {
       console.log("✅ View 'referral_counts' criada/atualizada");
     } catch (error) {
       console.error("⚠️ Erro ao criar view de referidos:", error);
-      
+
       // Tentativa alternativa sem recursão para evitar problemas de compatibilidade
       console.log("Tentando criar view de referidos de forma simplificada...");
       try {
@@ -376,10 +377,10 @@ export async function setupDatabase() {
       console.log("✅ Bancos padrão criados com sucesso!");
     } else {
       console.log("✅ Bancos já existem, verificando BIC...");
-      
+
       // Verificar se o banco BIC existe
       const bicExists = existingBanks.rows.some(bank => bank.name === 'BIC');
-      
+
       if (!bicExists) {
         console.log("Adicionando banco BIC...");
         await db.execute(sql`INSERT INTO banks (name, active) VALUES ('BIC', true)`);
@@ -415,27 +416,27 @@ export async function setupDatabase() {
       }
     } else {
       console.log("✅ Detalhes das contas bancárias já existem, verificando conta BIC...");
-      
+
       // Verificar se existe detalhes da conta do BIC
       const bicBankAccount = await db.execute(sql`
         SELECT bd.* FROM bank_account_details bd
         JOIN banks b ON bd.bank_id = b.id
         WHERE b.name = 'BIC'
       `);
-      
+
       if (bicBankAccount.rows.length === 0) {
         // Obter ID do banco BIC
         const bicBankResult = await db.execute(sql`SELECT id FROM banks WHERE name = 'BIC'`);
-        
+
         if (bicBankResult.rows.length > 0) {
           const bicBankId = bicBankResult.rows[0].id;
           console.log("Adicionando detalhes da conta do BIC...");
-          
+
           await db.execute(sql`
             INSERT INTO bank_account_details (bank_id, account_holder, iban)
             VALUES (${bicBankId}, 'Emanuel António', '0051 0000 83515613101 79')
           `);
-          
+
           console.log("✅ Detalhes da conta do BIC adicionados com sucesso!");
         }
       }
@@ -459,17 +460,17 @@ export async function setupDatabase() {
       console.log("✅ Produtos padrão criados com sucesso!");
     } else {
       console.log("✅ Produtos já existem, verificando o produto Premium de 25.000 KZ...");
-      
+
       // Verificar se existe o produto problemático (Plano Premium de 25.000 KZ) e remover
       const premiumProduct = await db.execute(sql`
         SELECT * FROM products 
         WHERE name = 'Plano Premium' AND price = 25000 
         OR description LIKE '%Melhor opção de retorno para investidores%'
       `);
-      
+
       if (premiumProduct.rows.length > 0) {
         console.log("⚠️ Encontrado produto problemático (Plano Premium de 25.000 KZ), removendo...");
-        
+
         for (const product of premiumProduct.rows) {
           await db.execute(sql`DELETE FROM products WHERE id = ${product.id}`);
           console.log(`✅ Produto problemático com ID ${product.id} removido com sucesso!`);
