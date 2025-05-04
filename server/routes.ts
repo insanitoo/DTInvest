@@ -1360,8 +1360,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique transaction ID
       const transactionId = `WDR${Date.now().toString(36).toUpperCase()}`;
 
-      // Deduzimos o valor imediatamente para evitar saques excessivos
+      // Calcular valor após a taxa de 12%
+      const taxa = amount * 0.12;
+      const valorComTaxa = amount - taxa;
+      
+      // Deduzir o valor do saldo (valor original, a taxa é deduzida do saque)
       await storage.updateUserBalance(userId, user.balance - amount);
+
+      // Atualizar o valor do saque para refletir a dedução da taxa
+      withdrawalRequest.amount = valorComTaxa;
+      await storage.updateWithdrawalRequest(withdrawalRequest.id, { amount: valorComTaxa });
 
       // Criar transação para registrar o saque pendente
       await storage.createTransaction({
