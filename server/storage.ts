@@ -21,7 +21,7 @@ import { eq, desc, asc, and, isNull, or, not } from "drizzle-orm";
 export interface IStorage {
   // SQL direto
   execute(query: string, params?: any[]): Promise<any>;
-  
+
   // Usuários
   getUser(id: number): Promise<User | undefined>;
   getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
@@ -36,7 +36,7 @@ export interface IStorage {
   updateBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   createBankInfo(userId: number, bankInfo: InsertBankInfo): Promise<BankInfo>;
   deleteBankInfo(userId: number): Promise<void>;
-  
+
   // Detalhes de contas bancárias (admin)
   getBankAccountDetails(): Promise<BankAccountDetail[]>;
   getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined>;
@@ -47,14 +47,14 @@ export interface IStorage {
   getTransaction(id: number): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: string | number, status: string): Promise<Transaction>;
-  
+
   // Solicitações de depósito
   createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest>;
   getDepositRequests(): Promise<DepositRequest[]>;
   getDepositRequest(id: number): Promise<DepositRequest | undefined>;
   getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined>;
   approveDepositRequest(id: number): Promise<Transaction>;
-  
+
   // Solicitações de saque
   createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest>;
   getWithdrawalRequests(): Promise<WithdrawalRequest[]>;
@@ -114,11 +114,11 @@ export class MemStorage implements IStorage {
     // Isso garante que as chamadas diretas com SQL funcionem quando necessário
     return pool.query(query, params);
   }
-  
+
   async getBankAccountDetails(): Promise<BankAccountDetail[]> {
     return Array.from(this.bankAccountDetails.values());
   }
-  
+
   async getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined> {
     return Array.from(this.bankAccountDetails.values())
       .find(details => details.bankId === bankId);
@@ -135,7 +135,7 @@ export class MemStorage implements IStorage {
   private settings: Map<string, Setting>;
   private carouselImages: Map<number, CarouselImage>;
   private bankAccountDetails: Map<number, BankAccountDetail>;
-  
+
   private currentUserId: number;
   private currentBankInfoId: number;
   private currentTransactionId: number;
@@ -147,7 +147,7 @@ export class MemStorage implements IStorage {
   private currentBankId: number;
   private currentSettingId: number;
   private currentCarouselImageId: number;
-  
+
   sessionStore: session.Store;
 
   constructor() {
@@ -164,7 +164,7 @@ export class MemStorage implements IStorage {
     this.settings = new Map();
     this.carouselImages = new Map();
     this.bankAccountDetails = new Map();
-    
+
     // Initialize IDs
     this.currentUserId = 1;
     this.currentBankInfoId = 1;
@@ -177,7 +177,7 @@ export class MemStorage implements IStorage {
     this.currentBankId = 1;
     this.currentSettingId = 1;
     this.currentCarouselImageId = 1;
-    
+
     // Initialize memory store for express sessions
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
@@ -189,25 +189,25 @@ export class MemStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
-  
+
   async getUserByPhoneNumber(phoneNumber: string): Promise<User | undefined> {
     return Array.from(this.users.values())
       .find(user => user.phoneNumber === phoneNumber);
   }
-  
+
   async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
     return Array.from(this.users.values())
       .find(user => user.referralCode === referralCode);
   }
-  
+
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
-  
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
-    
+
     const user: User = {
       id,
       phoneNumber: insertUser.phoneNumber,
@@ -224,7 +224,7 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     this.users.set(id, user);
     return user;
   }
@@ -234,13 +234,13 @@ export class MemStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     const updatedUser = {
       ...user,
       balance: newBalance,
       updatedAt: new Date(),
     };
-    
+
     this.users.set(userId, updatedUser);
     return updatedUser;
   }
@@ -249,31 +249,31 @@ export class MemStorage implements IStorage {
   async getBankInfoByUserId(userId: number): Promise<BankInfo | undefined> {
     const bankInfoEntry = Array.from(this.bankInfo.values())
       .find(info => info.userId === userId);
-    
+
     if (!bankInfoEntry) return undefined;
-    
+
     const { userId: _, ...bankInfo } = bankInfoEntry;
     return bankInfo;
   }
-  
+
   async createBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     // Verificar se já existe informação bancária para este usuário
     const existingBankInfo = Array.from(this.bankInfo.entries())
       .find(([_, info]) => info.userId === userId);
-    
+
     if (existingBankInfo) {
       // Se já existe, atualize ao invés de criar uma nova
       return this.updateBankInfo(userId, bankInfoData);
     }
-    
+
     const id = this.currentBankInfoId++;
     const now = new Date();
-    
+
     const bankInfoEntry = {
       id,
       userId,
@@ -283,29 +283,29 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     this.bankInfo.set(id, bankInfoEntry);
-    
+
     const { userId: _, ...bankInfo } = bankInfoEntry;
     return bankInfo;
   }
-  
+
   async updateBankInfo(userId: number, bankInfoData: InsertBankInfo): Promise<BankInfo> {
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     const existingBankInfo = Array.from(this.bankInfo.entries())
       .find(([_, info]) => info.userId === userId);
-    
+
     if (!existingBankInfo) {
       // Se não existe, crie um novo ao invés de atualizar
       return this.createBankInfo(userId, bankInfoData);
     }
-    
+
     const [existingId, existing] = existingBankInfo;
-    
+
     const updated = {
       ...existing,
       bank: bankInfoData.bank,
@@ -313,26 +313,26 @@ export class MemStorage implements IStorage {
       accountNumber: bankInfoData.accountNumber,
       updatedAt: new Date(),
     };
-    
+
     this.bankInfo.set(existingId, updated);
-    
+
     const { userId: _, ...bankInfo } = updated;
     return bankInfo;
   }
-  
+
   async deleteBankInfo(userId: number): Promise<void> {
     const user = await this.getUser(userId);
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     const existingBankInfo = Array.from(this.bankInfo.entries())
       .find(([_, info]) => info.userId === userId);
-    
+
     if (!existingBankInfo) {
       return; // Nada para excluir
     }
-    
+
     this.bankInfo.delete(existingBankInfo[0]);
   }
 
@@ -393,31 +393,31 @@ export class MemStorage implements IStorage {
 
   async updateTransactionStatus(id: string | number, status: string): Promise<Transaction> {
     console.log(`\n=== TRANSACT >>> Atualizando transação ${id} para ${status} ===\n`);
-    
+
     // CORREÇÃO: Verificar se o parâmetro é numérico (id interno) ou string (transactionId externo)
     let transaction: Transaction | undefined;
-    
+
     // Tentar primeiro como id interno (conversão para número)
     const numericId = typeof id === 'number' ? id : parseInt(id as string);
     if (!isNaN(numericId)) {
       console.log(`TRANSACT >>> Buscando transação por ID interno: ${numericId}`);
       transaction = this.transactions.get(numericId);
     }
-    
+
     // Se não encontrou por ID interno, busca por transactionId
     if (!transaction && typeof id === 'string') {
       console.log(`TRANSACT >>> Buscando transação por transactionId: ${id}`);
       transaction = Array.from(this.transactions.values())
         .find(t => t.transactionId === id);
-    
+
       // BUSCAR TAMBÉM EM DEPOSIT REQUESTS (FIX CRÍTICO)
       if (!transaction) {
         console.log(`TRANSACT >>> Transação não encontrada, buscando em solicitações de depósito...`);
         const depositRequest = await this.getDepositRequestByTransactionId(id);
-        
+
         if (depositRequest) {
           console.log(`TRANSACT >>> Encontrada solicitação de depósito com ID ${depositRequest.id}`);
-          
+
           // Criar transação a partir da solicitação de depósito
           transaction = await this.createTransaction({
             userId: depositRequest.userId,
@@ -428,12 +428,12 @@ export class MemStorage implements IStorage {
             bankAccount: null,
             transactionId: depositRequest.transactionId
           });
-          
+
           console.log(`TRANSACT >>> Transação criada a partir da solicitação de depósito: ID=${transaction.id}`);
         }
       }
     }
-      
+
     if (!transaction) {
       // Log de depuração: mostrar todas as transações e seus IDs para diagnóstico
       console.error(`TRANSACT >>> Transação ${id} não encontrada`);
@@ -441,28 +441,28 @@ export class MemStorage implements IStorage {
         Array.from(this.transactions.entries())
           .map(([tId, t]) => ({ id: tId, transactionId: t.transactionId }))
       );
-      
+
       // Exibir solicitações de depósito disponíveis
       console.log('TRANSACT >>> Solicitações de depósito disponíveis:', 
         Array.from(this.depositRequests.entries())
           .map(([dId, d]) => ({ id: dId, transactionId: d.transactionId }))
       );
-      
+
       // ÚLTIMA TENTATIVA - TENTAR APROVAR DIRETAMENTE PELO DEPÓSITO (FIX CRUCIAL)
       if (typeof id === 'string') {
         console.log(`TRANSACT >>> ÚLTIMA TENTATIVA: Buscando e aprovando depósito pelo transactionId ${id}`);
         const depositRequest = Array.from(this.depositRequests.values())
           .find(d => d.transactionId === id);
-          
+
         if (depositRequest && status === 'completed') {
           console.log(`TRANSACT >>> Encontrado depósito pendente com ID ${depositRequest.id}, aprovando diretamente...`);
           return this.approveDepositRequest(depositRequest.id);
         }
       }
-      
+
       throw new Error(`Transação ${id} não encontrada`);
     }
-    
+
     console.log(`TRANSACT >>> Transação encontrada:`, transaction);
 
     // Se for um depósito sendo completado, atualizar o saldo do usuário
@@ -474,12 +474,12 @@ export class MemStorage implements IStorage {
 
       console.log(`TRANSACT >>> Atualizando saldo do usuário ${user.phoneNumber}`);
       console.log(`TRANSACT >>> Saldo atual: ${user.balance}, Depósito: ${transaction.amount}`);
-      
+
       const newBalance = user.balance + transaction.amount;
       await this.updateUserBalance(user.id, newBalance);
-      
+
       console.log(`TRANSACT >>> Novo saldo: ${newBalance}`);
-      
+
       // Marcar que o usuário já realizou depósito
       if (!user.hasDeposited) {
         await this.updateUser(user.id, { hasDeposited: true });
@@ -489,7 +489,7 @@ export class MemStorage implements IStorage {
 
     return transaction;
   }
-  
+
   // Métodos para solicitações de depósito
   async createDepositRequest(request: InsertDepositRequest): Promise<DepositRequest> {
     // Verificar se o usuário existe
@@ -497,11 +497,11 @@ export class MemStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     // Gerar ID de depósito
     const id = this.currentDepositRequestId++;
     const now = new Date();
-    
+
     // Criar solicitação de depósito
     const depositRequest: DepositRequest = {
       id,
@@ -512,56 +512,56 @@ export class MemStorage implements IStorage {
       receipt: request.receipt || null,
       createdAt: now
     };
-    
+
     // Salvar solicitação
     this.depositRequests.set(id, depositRequest);
     console.log(`DEPOSIT >>> Nova solicitação de depósito criada: ID=${id}, Valor=${request.amount}, TransactionID=${request.transactionId}`);
-    
+
     return depositRequest;
   }
-  
+
   async getDepositRequests(): Promise<DepositRequest[]> {
     const requests = Array.from(this.depositRequests.values());
     console.log('Recuperando solicitações de depósito:', requests);
     return requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
-  
+
   async getDepositRequest(id: number): Promise<DepositRequest | undefined> {
     return this.depositRequests.get(id);
   }
-  
+
   async getDepositRequestByTransactionId(transactionId: string): Promise<DepositRequest | undefined> {
     return Array.from(this.depositRequests.values())
       .find(request => request.transactionId === transactionId);
   }
-  
+
   async approveDepositRequest(id: number): Promise<Transaction> {
     // Obter solicitação de depósito
     const depositRequest = this.depositRequests.get(id);
     if (!depositRequest) {
       throw new Error(`Solicitação de depósito ${id} não encontrada`);
     }
-    
+
     // Verificar usuário
     const user = await this.getUser(depositRequest.userId);
     if (!user) {
       throw new Error(`Usuário ${depositRequest.userId} não encontrado`);
     }
-    
+
     console.log(`\n=== DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
     console.log(`DEPOSIT >>> Usuário: ${user.phoneNumber}, Valor: ${depositRequest.amount} KZ`);
     console.log(`DEPOSIT >>> Saldo antes: ${user.balance}`);
-    
+
     try {
       // SEGURANÇA: Verificar se o ID da transação está presente
       if (!depositRequest.transactionId) {
         console.warn(`DEPOSIT >>> ALERTA: Depósito sem ID de transação`);
       } else {
         console.log(`DEPOSIT >>> ID da transação: ${depositRequest.transactionId}`);
-        
+
         // VERIFICAÇÃO 1: Checar se já existe uma transação com esse ID
         const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
-        
+
         // Se já existe uma transação, evitar processamento duplicado
         if (existingTransaction) {
           console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
@@ -569,62 +569,62 @@ export class MemStorage implements IStorage {
           console.log(`DEPOSIT >>> ID da transação existente: ${existingTransaction.id}`);
           console.log(`DEPOSIT >>> Status: ${existingTransaction.status}`);
           console.log(`DEPOSIT >>> Valor: ${existingTransaction.amount}`);
-          
+
           // Remover a solicitação de depósito pendente para evitar reprocessamento
           this.depositRequests.delete(id);
-          
+
           console.log(`DEPOSIT >>> Solicitação removida para evitar duplicação`);
           console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO) ===\n`);
-          
+
           return existingTransaction;
         }
       }
-    
+
       // DIAGNÓSTICO: Obter saldo do usuário mais recente
       const userBefore = await this.getUser(depositRequest.userId);
       const oldBalance = userBefore ? userBefore.balance : user.balance;
-      
+
       // Atualizar saldo do usuário
       const newBalance = oldBalance + depositRequest.amount;
       await this.updateUserBalance(depositRequest.userId, newBalance);
-      
+
       // Verificar se a atualização do saldo foi bem-sucedida
       const userAfter = await this.getUser(depositRequest.userId);
       if (!userAfter) {
         throw new Error(`Usuário ${depositRequest.userId} não encontrado após atualização`);
       }
-      
+
       console.log(`DEPOSIT >>> Saldo após a operação: ${userAfter.balance}`);
-      
+
       if (Math.abs(userAfter.balance - newBalance) > 0.01) {
         console.error(`DEPOSIT >>> ERRO CRÍTICO: Saldo não foi atualizado corretamente!`);
         console.error(`DEPOSIT >>> Saldo esperado: ${newBalance}, Saldo atual: ${userAfter.balance}`);
-        
+
         // Tentar novamente com força bruta
         console.log(`DEPOSIT >>> Tentando atualizar novamente o saldo...`);
         await this.updateUserBalance(userAfter.id, newBalance);
       }
-      
+
       // Marcar que o usuário já realizou depósito
       if (!userAfter.hasDeposited) {
         console.log(`DEPOSIT >>> Marcando usuário como tendo realizado depósito`);
         await this.updateUser(userAfter.id, { hasDeposited: true });
       }
-      
+
       // VERIFICAÇÃO 2: Verificar novamente se já foi criada uma transação
       // (segurança adicional para casos de concorrência durante o processamento)
       if (depositRequest.transactionId) {
         const recentlyCreatedTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
         if (recentlyCreatedTransaction) {
           console.log(`DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} foi criada durante o processamento`);
-          
+
           // Remover a solicitação de depósito pendente
           this.depositRequests.delete(id);
-          
+
           return recentlyCreatedTransaction;
         }
       }
-      
+
       // Registrar uma transação completada no histórico
       const transaction = await this.createTransaction({
         userId: depositRequest.userId,
@@ -636,25 +636,25 @@ export class MemStorage implements IStorage {
         transactionId: depositRequest.transactionId,
         status: 'completed'  // Marcar como completada imediatamente
       });
-      
+
       // Remover a solicitação de depósito pendente
       this.depositRequests.delete(id);
-      
+
       // Verificação final do saldo
       const finalUser = await this.getUser(depositRequest.userId);
       console.log(`DEPOSIT >>> Verificação final - Saldo: ${finalUser?.balance || 'usuário não encontrado'}`);
-      
+
       console.log(`DEPOSIT >>> Depósito processado com sucesso`);
       console.log(`DEPOSIT >>> Transação registrada: ID=${transaction.id}`);
       console.log(`=== DEPOSIT >>> FIM DO PROCESSAMENTO ===\n`);
-      
+
       return transaction;
     } catch (error) {
       console.error(`DEPOSIT >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
-  
+
   // Métodos para solicitações de saque
   async createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest> {
     // Verificar se o usuário existe
@@ -662,42 +662,42 @@ export class MemStorage implements IStorage {
     if (!user) {
       throw new Error('Usuário não encontrado');
     }
-    
+
     // Verificar se o usuário tem saldo suficiente
     if (user.balance < request.amount) {
       throw new Error(`Saldo insuficiente. Disponível: KZ ${user.balance}, Solicitado: KZ ${request.amount}`);
     }
-    
+
     // Verificar se o usuário tem um produto ativo
     if (!user.hasProduct) {
       throw new Error('É necessário ter um produto ativo para realizar saques');
     }
-    
+
     // Verificar se o usuário já fez depósito
     if (!user.hasDeposited) {
       throw new Error('É necessário ter realizado pelo menos um depósito para sacar');
     }
-    
+
     // Verificar horário de Angola (UTC+1)
     const now = new Date();
     const angolaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Luanda" }));
     const angolaHour = angolaTime.getHours();
     const angolaDay = angolaTime.getDay();
-    
+
     // Verificação de dias úteis removida - saques permitidos todos os dias
-    
+
     // Verificar se está dentro do horário comercial (10h às 16h)
     if (angolaHour < 10 || angolaHour >= 16) {
       throw new Error('Saques só podem ser solicitados das 10h às 16h (horário de Angola)');
     }
-    
+
     // Bloquear o valor no saldo do usuário
     const newBalance = user.balance - request.amount;
     await this.updateUserBalance(user.id, newBalance);
-    
+
     // Gerar ID de saque
     const id = this.currentWithdrawalRequestId++;
-    
+
     // Criar solicitação de saque
     const withdrawalRequest: WithdrawalRequest = {
       id,
@@ -711,40 +711,40 @@ export class MemStorage implements IStorage {
       processedAt: null,
       processedBy: null
     };
-    
+
     // Salvar solicitação
     this.withdrawalRequests.set(id, withdrawalRequest);
     console.log(`WITHDRAWAL >>> Nova solicitação de saque criada: ID=${id}, Valor=${request.amount}, Usuário=${request.userId}`);
-    
+
     return withdrawalRequest;
   }
-  
+
   async getWithdrawalRequests(): Promise<WithdrawalRequest[]> {
     return Array.from(this.withdrawalRequests.values())
       .filter(req => req.status === 'requested')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
-  
+
   async getUserWithdrawalRequests(userId: number): Promise<WithdrawalRequest[]> {
     return Array.from(this.withdrawalRequests.values())
       .filter(req => req.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
-  
+
   async approveWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
     // Obter solicitação de saque
     const withdrawalRequest = this.withdrawalRequests.get(id);
     if (!withdrawalRequest) {
       throw new Error(`Solicitação de saque ${id} não encontrada`);
     }
-    
+
     // Verificar se a solicitação está pendente
     if (withdrawalRequest.status !== 'requested') {
       throw new Error(`Solicitação de saque ${id} já foi processada como '${withdrawalRequest.status}'`);
     }
-    
+
     console.log(`\n=== WITHDRAWAL >>> APROVANDO SAQUE ID=${id} ===`);
-    
+
     try {
       // Atualizar a solicitação
       const updatedRequest: WithdrawalRequest = {
@@ -753,9 +753,9 @@ export class MemStorage implements IStorage {
         processedAt: new Date(),
         processedBy: adminId
       };
-      
+
       this.withdrawalRequests.set(id, updatedRequest);
-      
+
       // Registrar transação no histórico
       const transaction = await this.createTransaction({
         userId: withdrawalRequest.userId,
@@ -767,50 +767,50 @@ export class MemStorage implements IStorage {
         transactionId: null,
         status: 'completed' // Definir como completado imediatamente
       });
-      
+
       console.log(`WITHDRAWAL >>> Saque aprovado com sucesso`);
       console.log(`WITHDRAWAL >>> Transação registrada: ID=${transaction.id}`);
       console.log(`=== WITHDRAWAL >>> FIM DO PROCESSAMENTO ===\n`);
-      
+
       return transaction;
     } catch (error) {
       console.error(`WITHDRAWAL >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
-  
+
   async rejectWithdrawalRequest(id: number, adminId: number): Promise<Transaction> {
     // Obter solicitação de saque
     const withdrawalRequest = this.withdrawalRequests.get(id);
     if (!withdrawalRequest) {
       throw new Error(`Solicitação de saque ${id} não encontrada`);
     }
-    
+
     // Verificar se a solicitação está pendente
     if (withdrawalRequest.status !== 'requested') {
       throw new Error(`Solicitação de saque ${id} já foi processada como '${withdrawalRequest.status}'`);
     }
-    
+
     console.log(`\n=== WITHDRAWAL >>> REJEITANDO SAQUE ID=${id} ===`);
-    
+
     try {
       // Verificar usuário
       const user = await this.getUser(withdrawalRequest.userId);
       if (!user) {
         throw new Error(`Usuário ${withdrawalRequest.userId} não encontrado`);
       }
-      
+
       // Aplicar taxa de 20% e devolver o restante para o saldo do usuário
       const penaltyFee = withdrawalRequest.amount * 0.2;
       const amountToReturn = withdrawalRequest.amount - penaltyFee;
-      
+
       console.log(`WITHDRAWAL >>> Usuário: ${user.phoneNumber}, Valor rejeitado: ${withdrawalRequest.amount} KZ`);
       console.log(`WITHDRAWAL >>> Taxa (20%): ${penaltyFee} KZ, Valor a devolver: ${amountToReturn} KZ`);
-      
+
       // Devolver o valor (menos a taxa) ao saldo do usuário
       const newBalance = user.balance + amountToReturn;
       await this.updateUserBalance(user.id, newBalance);
-      
+
       // Atualizar a solicitação
       const updatedRequest: WithdrawalRequest = {
         ...withdrawalRequest,
@@ -818,9 +818,9 @@ export class MemStorage implements IStorage {
         processedAt: new Date(),
         processedBy: adminId
       };
-      
+
       this.withdrawalRequests.set(id, updatedRequest);
-      
+
       // Registrar transação no histórico
       const transaction = await this.createTransaction({
         userId: withdrawalRequest.userId,
@@ -832,12 +832,12 @@ export class MemStorage implements IStorage {
         transactionId: null,
         status: 'failed' // Definir como falhou mas com cor verde (devolução)
       });
-      
+
       console.log(`WITHDRAWAL >>> Saque rejeitado com sucesso`);
       console.log(`WITHDRAWAL >>> Taxa de ${penaltyFee} KZ aplicada`);
       console.log(`WITHDRAWAL >>> Transação registrada: ID=${transaction.id}`);
       console.log(`=== WITHDRAWAL >>> FIM DO PROCESSAMENTO ===\n`);
-      
+
       return transaction;
     } catch (error) {
       console.error(`WITHDRAWAL >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
@@ -1152,7 +1152,7 @@ export class MemStorage implements IStorage {
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  
+
   // Método para executar consultas SQL diretas
   async execute(query: string, params?: any[]): Promise<any> {
     return pool.query(query, params);
@@ -1165,11 +1165,11 @@ export class DatabaseStorage implements IStorage {
       createTableIfMissing: true 
     });
   }
-  
+
   async getBankAccountDetails(): Promise<BankAccountDetail[]> {
     const accounts = await db.select().from(bankAccountDetails);
     const result: BankAccountDetail[] = [];
-    
+
     for (const account of accounts) {
       const [bankInfo] = await db.select().from(banks).where(eq(banks.id, account.bankId));
       result.push({
@@ -1177,19 +1177,19 @@ export class DatabaseStorage implements IStorage {
         bank: bankInfo || null
       });
     }
-    
+
     return result;
   }
-  
+
   async getBankAccountDetailsByBankId(bankId: number): Promise<BankAccountDetail | undefined> {
     const [account] = await db.select().from(bankAccountDetails).where(eq(bankAccountDetails.bankId, bankId));
-    
+
     if (!account) {
       return undefined;
     }
-    
+
     const [bankInfo] = await db.select().from(banks).where(eq(banks.id, account.bankId));
-    
+
     return {
       ...account,
       bank: bankInfo || null
@@ -1199,7 +1199,7 @@ export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    
+
     if (user) {
       // Carregar informações bancárias se existirem
       const bankInfoData = await this.getBankInfoByUserId(user.id);
@@ -1207,7 +1207,7 @@ export class DatabaseStorage implements IStorage {
         return { ...user, bankInfo: bankInfoData };
       }
     }
-    
+
     return user;
   }
 
@@ -1293,12 +1293,12 @@ export class DatabaseStorage implements IStorage {
   async createBankInfo(userId: number, info: InsertBankInfo): Promise<BankInfo> {
     // Primeiro verifica se já existe uma informação bancária para este usuário
     const existing = await this.getBankInfoByUserId(userId);
-    
+
     if (existing) {
       // Se existir, atualiza ao invés de criar
       return this.updateBankInfo(userId, info);
     }
-    
+
     const [createdInfo] = await db
       .insert(bankInfo)
       .values({
@@ -1373,7 +1373,7 @@ export class DatabaseStorage implements IStorage {
 
   async getTransactionByTransactionId(transactionId: string): Promise<Transaction | undefined> {
     if (!transactionId) return undefined;
-    
+
     const [transaction] = await db
       .select()
       .from(transactions)
@@ -1392,7 +1392,7 @@ export class DatabaseStorage implements IStorage {
         return existingTransaction;
       }
     }
-    
+
     const [newTransaction] = await db
       .insert(transactions)
       .values(transaction)
@@ -1461,7 +1461,7 @@ export class DatabaseStorage implements IStorage {
 
   async approveDepositRequest(id: number): Promise<Transaction> {
     console.log(`\n=== DB_DEPOSIT >>> PROCESSANDO DEPÓSITO ID=${id} ===`);
-    
+
     // Buscar o depósito
     const [depositRequest] = await db
       .select()
@@ -1477,7 +1477,7 @@ export class DatabaseStorage implements IStorage {
     if (depositRequest.transactionId) {
       console.log(`DB_DEPOSIT >>> Verificando duplicação para transactionId=${depositRequest.transactionId}`);
       const existingTransaction = await this.getTransactionByTransactionId(depositRequest.transactionId);
-      
+
       if (existingTransaction) {
         console.log(`DB_DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} já existe no sistema`);
         console.log(`DB_DEPOSIT >>> Evitando duplicação de crédito`);
@@ -1485,7 +1485,7 @@ export class DatabaseStorage implements IStorage {
         console.log(`DB_DEPOSIT >>> Status: ${existingTransaction.status}`);
         console.log(`DB_DEPOSIT >>> Valor: ${existingTransaction.amount}`);
         console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO) ===\n`);
-        
+
         return existingTransaction;
       }
     }
@@ -1511,7 +1511,7 @@ export class DatabaseStorage implements IStorage {
         if (recentlyCreatedTransaction) {
           console.log(`DB_DEPOSIT >>> ALERTA: Transação ${depositRequest.transactionId} foi criada durante o processamento`);
           console.log(`=== DB_DEPOSIT >>> FIM DO PROCESSAMENTO (PREVENÇÃO DE DUPLICAÇÃO CONCORRENTE) ===\n`);
-          
+
           return recentlyCreatedTransaction;
         }
       }
@@ -1552,13 +1552,13 @@ export class DatabaseStorage implements IStorage {
       // Se ocorrer um erro do tipo UniqueConstraintViolation, pode ser devido a tentativa 
       // de inserir uma transação com o mesmo transactionId
       console.error(`DB_DEPOSIT >>> ERRO: ${error instanceof Error ? error.message : String(error)}`);
-      
+
       // Verificar se o erro é de violação de unicidade
       if (error instanceof Error && 
          (error.message.includes('unique') || 
           error.message.includes('UNIQUE') || 
           error.message.includes('duplicate key'))) {
-        
+
         console.log(`DB_DEPOSIT >>> Erro de duplicação detectado, buscando transação existente`);
         // Tentar recuperar a transação existente
         if (depositRequest.transactionId) {
@@ -1570,7 +1570,7 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-      
+
       // Se não conseguir recuperar, propagar o erro
       throw error;
     }
@@ -1712,7 +1712,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(products)
       .orderBy(products.price);
-    
+
     return result;
   }
 
@@ -1722,7 +1722,7 @@ export class DatabaseStorage implements IStorage {
       .from(products)
       .where(eq(products.active, true))
       .orderBy(products.price);
-    
+
     return result;
   }
 
@@ -1882,7 +1882,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(banks)
       .where(eq(banks.id, id));
-    
+
     return true; // Se não houver erros, consideramos como sucesso
   }
 
@@ -1981,7 +1981,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(carouselImages)
       .where(eq(carouselImages.id, id));
-    
+
     return true; // Se não houver erros, consideramos como sucesso
   }
 }
@@ -1994,7 +1994,7 @@ export const storage = new DatabaseStorage();
   try {
     // Check if test user already exists
     let testUser = await storage.getUserByPhoneNumber("999999999");
-    
+
     if (!testUser) {
       // Create test user with phone number 999999999 if doesn't exist
       testUser = await storage.createUser({
@@ -2004,7 +2004,7 @@ export const storage = new DatabaseStorage();
         referredBy: null,
         isAdmin: true
       });
-      
+
       // Definir um saldo inicial para teste
       await storage.updateUserBalance(testUser.id, 50000);
       console.log(`Usuário de teste criado com saldo inicial de KZ 50000`);
@@ -2015,7 +2015,7 @@ export const storage = new DatabaseStorage();
 
     // Verificar se já existem produtos
     const existingProducts = await storage.getProducts();
-    
+
     // Só criar produtos se não existir nenhum
     if (existingProducts.length === 0) {
       // Criar produtos de teste
@@ -2063,7 +2063,7 @@ export const storage = new DatabaseStorage();
 
     // Verificar se já existem links sociais
     const existingLinks = await storage.getSocialLinks();
-    
+
     if (existingLinks.length === 0) {
       // Criar links sociais padrão
       const socialLinksData = [
@@ -2098,7 +2098,7 @@ export const storage = new DatabaseStorage();
 
     // Verificar se já existem bancos
     const existingBanks = await storage.getAllBanks();
-    
+
     if (existingBanks.length === 0) {
       // Criar bancos padrão
       const banksData = [
@@ -2135,7 +2135,7 @@ export const storage = new DatabaseStorage();
 
     // Verificar se já existem configurações
     const existingSettings = await storage.getAllSettings();
-    
+
     if (existingSettings.length === 0) {
       // Criar configurações iniciais
       const settingsData = [
