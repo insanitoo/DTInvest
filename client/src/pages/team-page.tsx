@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Ticket, Link2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-new';
@@ -45,7 +46,7 @@ export default function TeamPage() {
   });
 
   const referralLink = `${window.location.origin}/auth?tab=register&ref=${user?.referralCode}`;
-
+  
   return (
     <>
       <div className="pb-20">
@@ -56,7 +57,7 @@ export default function TeamPage() {
             <span className="text-dark-secondary text-sm font-bold">DTI</span>
           </div>
         </header>
-
+        
         {/* Referral Code */}
         <div className="mx-4">
           <ReferralItem 
@@ -65,7 +66,7 @@ export default function TeamPage() {
             value={user?.referralCode || ''} 
           />
         </div>
-
+        
         {/* Referral Link */}
         <div className="mx-4">
           <ReferralItem 
@@ -74,7 +75,7 @@ export default function TeamPage() {
             value={referralLink} 
           />
         </div>
-
+        
         {/* Referral Banner */}
         <div className="mx-4 mt-6 mb-4">
           <div className="bg-gradient-to-r from-brand-red to-brand-orange rounded-xl p-3 text-center">
@@ -96,18 +97,18 @@ export default function TeamPage() {
                 level={1} 
                 commission={referralStats.level1.commission} 
                 members={referralStats.level1.count} 
-                commissionPercentage={10} 
+                commissionPercentage={25} 
                 referrals={referralStats.level1.referrals}
               />
-
+              
               <LevelCard 
                 level={2} 
                 commission={referralStats.level2.commission} 
                 members={referralStats.level2.count} 
-                commissionPercentage={10} 
+                commissionPercentage={5} 
                 referrals={referralStats.level2.referrals}
               />
-
+              
               <LevelCard 
                 level={3} 
                 commission={referralStats.level3.commission} 
@@ -119,7 +120,7 @@ export default function TeamPage() {
           ) : null}
         </div>
       </div>
-
+      
       <BottomNavigation />
     </>
   );

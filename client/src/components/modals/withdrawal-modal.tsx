@@ -266,7 +266,7 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
               <AlertTriangle className="h-4 w-4 text-amber-400" />
               <AlertTitle className="text-amber-400">Atenção</AlertTitle>
               <AlertDescription className="text-amber-200 text-sm">
-                Será aplicada uma taxa de 12% sobre o valor do saque. Verifique seus dados bancários antes de prosseguir.
+                Verifique seus dados bancários. Saques falhos devido a informações incorretas sofrem taxa de 20%.
               </AlertDescription>
             </Alert>
 
