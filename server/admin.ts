@@ -507,12 +507,12 @@ export function setupAdminRoutes(app: Express) {
     }
   });
 
-  // Rejeitar solicitação de saque (com penalidade de 20%)
+  // Rejeitar solicitação de saque (devolvendo o valor integral)
   app.put("/api/admin/withdrawal/:id/reject", isAdmin, async (req: Request, res: Response) => {
     try {
       const withdrawalId = parseInt(req.params.id);
       
-      // Rejeitar o saque (com penalidade de 20%) e retornar 80% do valor à conta do usuário
+      // Rejeitar o saque e devolver o valor integral
       const transaction = await storage.rejectWithdrawalRequest(withdrawalId, req.user?.id || 0);
       
       // Atualizar o status da transação para "failed" (mas o valor já foi devolvido)
@@ -520,7 +520,7 @@ export function setupAdminRoutes(app: Express) {
       
       res.status(200).json({ 
         success: true, 
-        message: "Saque rejeitado com sucesso. 80% do valor foi devolvido ao usuário.", 
+        message: "Saque rejeitado com sucesso. O valor foi devolvido integralmente ao usuário.", 
         transaction
       });
     } catch (error: any) {

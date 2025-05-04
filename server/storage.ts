@@ -1668,11 +1668,10 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Usuário não encontrado');
     }
 
-    // Calcular o valor a ser devolvido (80% do valor original - penalidade de 20%)
-    const penaltyAmount = withdrawalRequest.amount * 0.2;
-    const refundAmount = withdrawalRequest.amount - penaltyAmount;
+    // Devolver o valor integral sem aplicar penalidade
+    const refundAmount = withdrawalRequest.amount;
 
-    // Atualizar o saldo do usuário, adicionando 80% do valor de volta
+    // Atualizar o saldo do usuário, adicionando o valor integral de volta
     const newBalance = user.balance + refundAmount;
     await db
       .update(users)

@@ -273,12 +273,12 @@ export function WithdrawalModal({ isOpen, onClose }: WithdrawalModalProps) {
               />
             </div>
 
-            {/* Alerta sobre taxa de reposição */}
+            {/* Alerta sobre verificação de dados bancários */}
             <Alert className="bg-amber-900/30 border-amber-800 mb-4 py-2">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
               <AlertTitle className="text-amber-400">Atenção</AlertTitle>
               <AlertDescription className="text-amber-200 text-sm">
-                Verifique seus dados bancários. Saques falhos devido a informações incorretas sofrem taxa de 20%.
+                Verifique seus dados bancários. Informações incorretas podem causar atrasos na aprovação do saque.
               </AlertDescription>
             </Alert>
 

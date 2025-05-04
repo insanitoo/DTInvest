@@ -1359,10 +1359,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Saque solicitado: KZ ${amount} | Taxa: ${withdrawalFee * 100}% (KZ ${feeAmount}) | Valor líquido: KZ ${roundedNetAmount}`);
 
-      // Apply 20% penalty if request is rejected
-      const REJECTION_PENALTY = 0.2;
-      const penaltyAmount = amount * REJECTION_PENALTY;
-      const refundAmount = amount - penaltyAmount;
+      // Removida a penalidade de 20% para saques rejeitados
+      // As solicitações rejeitadas agora reembolsam o valor total
 
       // Create withdrawal request
       const withdrawalRequest = await storage.createWithdrawalRequest({
